@@ -10,7 +10,10 @@ function HeaderController($scope) {
 function DashboardController($scope) {
     $scope.template = 'partials/dashboard.html';
 
-    $scope.cpuUsage = 48;
-    $scope.memoryUsage = 65;
-    $scope.diskUsage = 20;
+    var labels = __generateDates();
+    var cpuData = __generateRandomData(66, 100, 24);
+    var memoryData = __generateRandomData(61, 81, 24);
+
+    newLineChart('#chart-cpu', labels, cpuData);
+    newLineChart('#chart-memory', labels, memoryData);
 }
