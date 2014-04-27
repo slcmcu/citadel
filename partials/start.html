@@ -14,8 +14,27 @@
         </div>
 
         <div class="field">
-            <label>Cpu Shares (0-100)</label>
-            <input type="number" value="{{cpuShares}}">
+            <label>Cpu Profile</label>
+            <div class="grouped inline fields">
+                <div class="field">
+                    <div class="ui radio checkbox">
+                        <input type="radio" name="profile" value="high" ng-model="cpuProfile">
+                        <label>High</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui radio checkbox">
+                        <input type="radio" name="profile" value="medium" ng-model="cpuProfile">
+                        <label>Medium</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui radio checkbox">
+                        <input type="radio" name="profile" value="low" ng-model="cpuProfile">
+                        <label>Low</label>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="field">
@@ -68,18 +87,6 @@
             <div class="ui checkbox">
                 <input type="checkbox" id="is-service-checkbox">
                 <label>Service</label>
-            </div>
-        </div>
-
-        <div class="field">
-            <div class="ui list">
-                <div class="item">
-                    <div class="header">Summary</div>
-                </div>
-                <div class="item">Cpu Shares: {{cpuShares}}</div>
-                <div class="item">Cpu Cores: {{cores}}</div>
-                <div class="item">Memory: {{memory}}</div>
-                <div class="item">Scale to: {{scale}}</div>
             </div>
         </div>
 

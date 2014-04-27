@@ -52,7 +52,7 @@ function StartController($scope) {
     var maxHosts = 202;
 
     $scope.scale = 1;
-    $scope.cpuShares = 100;
+    $scope.cpuProfile = "low";
     $scope.memory = 52;
     $scope.image = '';
     $scope.cores = 1;
@@ -88,6 +88,7 @@ function StartController($scope) {
         // is near impossible or I am doing something wrong
         var isService = $('#is-service-checkbox')[0].checked
         console.log(isService);
+        console.log($scope.cpuProfile);
     };
 }
 
