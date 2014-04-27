@@ -1,0 +1,57 @@
+<div class="ui menu">
+    <a class="item" href="/">
+        <i class="hdd icon"></i>Hosts
+    </a>
+    <a class="active item" href="/#/containers">
+        <i class="tasks icon"></i>Containers
+    </a>
+</div>
+
+<div class="ui horizontal list">
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Namespace</div>
+            {{namespace}}
+        </div>
+    </div>
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Count</div>
+            {{count}}
+        </div>
+    </div>
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Total Size</div>
+            {{size}} mb
+        </div>
+    </div>
+
+</div>
+
+<table class="ui table segment">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="container in containers">
+            <td>{{container.name}}</td>
+            <td>{{container.size}} mb</td>
+            <td class="{{container.status|servicestatus}}">{{container.status}}</td>
+            <td>
+                <div class="ui inline group">
+                    <i class="refresh icon"></i>
+                    <i class="trash icon"></i>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>

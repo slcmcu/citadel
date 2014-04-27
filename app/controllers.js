@@ -1,5 +1,6 @@
 'use strict';
 
+// Page header that displays the totals for the cluster
 function HeaderController($scope) {
     $scope.template = 'partials/header.html';
 
@@ -8,9 +9,9 @@ function HeaderController($scope) {
     $scope.start = toggleStartSidebar;
 }
 
+// Dashboard includes overall information with graphs and services 
+// for the cluster
 function DashboardController($scope) {
-    $scope.template = 'partials/dashboard.html';
-
     var labels = __generateLabels(25),
         cpuData = __generateRandomData(66, 100, 24),
         memoryData = __generateRandomData(61, 81, 24);
@@ -19,26 +20,12 @@ function DashboardController($scope) {
     newLineChart('#chart-memory', labels, memoryData);
 }
 
-function ImagesController($scope) {
-    $scope.template = 'partials/images.html';
-
+// Containers controller aggregates the container running 
+// information for all containers running on the cluster
+function ContainersController($scope) {
     $scope.namespace = 'crosbymichael';
-    $scope.deployName = '';
 
-    $scope.deployImage = function () {
-        var progress = $('#deploy-progress');
-        var i = 0;
-        var update = function () {
-            if (i < 100) {
-                progress.css('width', i + '%');
-                i = i + (100 / 202);
-                setTimeout(update, 50);
-            }
-        };
-        update();
-    };
-
-    $scope.images = [
+    $scope.containers = [
         {
             name: 'rethinkdb',
             size: 540,
@@ -61,14 +48,16 @@ function ImagesController($scope) {
         }
     ];
 
-    $scope.count = $scope.images.length;
-    $scope.size = $scope.images.map(function (i) {
+    $scope.count = $scope.containers.length;
+    $scope.size = $scope.containers.map(function (i) {
         return i.size;
     }).reduce(function (prev, curr, i, array) {
         return prev + curr;
     });
 }
 
+// Services display information about the cluster services that are running 
+// on the hosts
 function ServicesController($scope) {
     $scope.template = 'partials/services.html';
 
@@ -139,6 +128,26 @@ function StartController($scope) {
         var isService = $('#is-service-checkbox')[0].checked
         console.log(isService);
         console.log($scope.cpuProfile);
+    };
+}
+
+// New Image allows as user to input the image name and pulls the image
+// down to all hosts in the cluster
+function NewImageController($scope) {
+    $scope.template = 'partials/new-image.html';
+
+    $scope.deployName = '';
+    $scope.deployImage = function () {
+        var progress = $('#deploy-progress');
+        var i = 0;
+        var update = function () {
+            if (i < 100) {
+                progress.css('width', i + '%');
+                i = i + (100 / 202);
+                setTimeout(update, 50);
+            }
+        };
+        update();
     };
 }
 

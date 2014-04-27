@@ -1,0 +1,21 @@
+<div class="ui fluid form segment">
+
+    <div class="two fields">
+        <div class="field">
+            <label>Image</label>
+            <input placeholder="Image name" type="text" ng-model="deployName">
+        </div>
+    </div>
+    Deploying an image to the cluster will cause all hosts to pull down the image so that they have a local copy.
+    <div class="ui two column grid">
+        <div class="column">
+            <div class="ui  progress">
+                <div id="deploy-progress" class="bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="column">
+            <div id="deploy-button" class="ui blue submit button" ng-click="deployImage()">Deploy</div>
+        </div>
+    </div>
+</div>
