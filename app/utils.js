@@ -1,6 +1,5 @@
 function getChart(id) {
-    var ctx = $(id).get(0).getContext('2d');
-    return new Chart(ctx);
+    return new Chart($(id).get(0).getContext('2d'));
 }
 
 function newLineChart(id, labels, data) {
@@ -19,15 +18,13 @@ function newLineChart(id, labels, data) {
         scaleStepWidth: 1,
         pointDotRadius: 1,
         pointDot: false
-        //scaleOverride: true
-        // scaleSteps: labels.length
     });
 }
 
 // temp function for mocking the hours in a day
-function __generateDates() {
+function __generateLabels(count) {
     var out = [];
-    for (var i = 1; i < 25; i++) {
+    for (var i = 1; i < count; i++) {
         out[i - 1] = i.toString();
     }
     return out;

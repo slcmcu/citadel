@@ -17,12 +17,15 @@
     <script src="javascript/semantic.min.js"></script>
     <script src="javascript/Chart.min.js"></script>
     <script src="javascript/legend.js"></script>
+
 </head>
 
 <body>
 
     <div class="container">
         <div ng-include="template" ng-controller="HeaderController"></div>
+        <div ng-include="template" ng-controller="StartController"></div>
+
         <div id="view" ng-view></div>
     </div>
 
@@ -32,6 +35,7 @@
     <script src="javascript/angular/angular-resource.min.js"></script>
 
     <script src="app/app.js"></script>
+    <script src="app/filters.js"></script>
     <script src="app/services.js"></script>
     <script src="app/controllers.js"></script>
     <script src="app/utils.js"></script>

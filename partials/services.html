@@ -1,0 +1,16 @@
+<table class="ui table segment">
+    <thead>
+        <tr>
+            <th>Service</th>
+            <th>IP</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="service in services">
+            <td>{{service.name}}</td>
+            <td>{{service.ip}}</td>
+            <td class="{{service.status|servicestatus}}">{{service.status}}</td>
+        </tr>
+    </tbody>
+</table>
