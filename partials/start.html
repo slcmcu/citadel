@@ -1,22 +1,90 @@
 <div class="ui styled floating sidebar">
+    Run a container on the cluster:
     <div class="ui form segment">
         <div class="field">
             <label>Image</label>
-
-        </div>
-        <div class="field">
-            <label>Password</label>
-            <div class="ui left labeled icon input">
-                <input type="password">
-                <i class="lock icon"></i>
-                <div class="ui corner label">
-                    <i class="icon asterisk"></i>
+            <div class="ui fluid selection dropdown">
+                <input type="hidden" name="image">
+                <div class="default text">Image</div>
+                <i class="dropdown icon"></i>
+                <div class="menu">
+                    <div ng-repeat="image in images" class="item" data-value="{{image}}">{{image}}</div>
                 </div>
             </div>
         </div>
-        <div class="ui error message">
-            <div class="header">We noticed some issues</div>
+
+        <div class="field">
+            <label>Cpu Shares (0-100)</label>
+            <input type="number" value="{{cpuShares}}">
         </div>
-        <div class="ui blue submit button">Start</div>
+
+        <div class="field">
+            <label>Cpu Cores</label>
+
+            <div class="ui inline fields labeled icon input">
+                <div class="field disabled">
+                    <input type="number" value="{{cores}}" disabled>
+                </div>
+
+                <div class="right field">
+                    <div class="ui mini icon buttons" style="display: inline-block;">
+                        <div class="ui show button" ng-click="coresUp()">
+                            <i class="plus icon"></i>
+                        </div>
+                        <div class="ui hide button" ng-click="coresDown()">
+                            <i class="minus icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Memory (mb)</label>
+            <input type="number" value="{{memory}}">
+        </div>
+
+        <div class="field">
+            <label>Scale</label>
+            <div class="ui inline fields labeled icon input">
+                <div class="field disabled">
+                    <input type="number" value="{{scale}}" disabled>
+                </div>
+
+                <div class="right field">
+                    <div class="ui mini icon buttons" style="display: inline-block;">
+                        <div class="ui show button" ng-click="scaleUp()">
+                            <i class="plus icon"></i>
+                        </div>
+                        <div class="ui hide button" ng-click="scaleDown()">
+                            <i class="minus icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="field">
+            <div class="ui checkbox">
+                <input type="checkbox" id="is-service-checkbox">
+                <label>Service</label>
+            </div>
+        </div>
+
+        <div class="field">
+            <div class="ui list">
+                <div class="item">
+                    <div class="header">Summary</div>
+                </div>
+                <div class="item">Cpu Shares: {{cpuShares}}</div>
+                <div class="item">Cpu Cores: {{cores}}</div>
+                <div class="item">Memory: {{memory}}</div>
+                <div class="item">Scale to: {{scale}}</div>
+            </div>
+        </div>
+
+        <div class="ui right blue submit button" ng-click="launchContainers()">Launch</div>
+
     </div>
+</div>
 </div>
