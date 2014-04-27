@@ -29,30 +29,76 @@ function ContainersController($scope) {
         {
             name: 'rethinkdb',
             instances: 16,
-            status: 'Current'
+            cpu: 17,
+            memory: 16 * 2048,
+            status: 'healthy'
         },
         {
             name: 'redis',
-            instances: 202,
-            status: 'Current'
+            instances: 96,
+            cpu: 7,
+            memory: 96 * 512,
+            status: 'healthy'
+        },
+        {
+            name: 'sentry',
+            instances: 16,
+            cpu: 20,
+            memory: 16 * 68,
+            status: 'healthy'
+        },
+        {
+            name: 'postgres',
+            instances: 8,
+            cpu: 7,
+            memory: 8 * 243,
+            status: 'healthy'
+        },
+        {
+            name: 'mysql',
+            instances: 1,
+            cpu: 7,
+            memory: 643,
+            status: 'healthy'
+        },
+        {
+            name: 'phabricator',
+            instances: 1,
+            cpu: 13,
+            memory: 516,
+            status: 'healthy'
         },
         {
             name: 'nsqd',
             instances: 100,
-            status: 'Current'
+            cpu: 9,
+            memory: 100 * 26,
+            status: 'healthy'
         },
         {
             name: 'nsqadmin',
             instances: 1,
-            status: 'Stale'
+            cpu: 4,
+            memory: 20,
+            status: 'sick'
         }
     ];
 
+    var mapReduce = function (get) {
+        return $scope.containers.map(get).reduce(function (prev, curr, i, array) {
+            return prev + curr;
+        });
+    };
+
     $scope.count = $scope.containers.length;
-    $scope.instances = $scope.containers.map(function (i) {
+    $scope.totalMemory = mapReduce(function (i) {
+        return i.memory;
+    });
+    $scope.totalCpu = mapReduce(function (i) {
+        return i.cpu;
+    });
+    $scope.instances = mapReduce(function (i) {
         return i.instances;
-    }).reduce(function (prev, curr, i, array) {
-        return prev + curr;
     });
 }
 
