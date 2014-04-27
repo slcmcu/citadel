@@ -19,6 +19,42 @@ function DashboardController($scope) {
     newLineChart('#chart-memory', labels, memoryData);
 }
 
+function ImagesController($scope) {
+    $scope.template = 'partials/images.html';
+
+    $scope.namespace = 'crosbymichael';
+
+    $scope.images = [
+        {
+            name: 'rethinkdb',
+            size: 540,
+            status: 'Current'
+        },
+        {
+            name: 'redis',
+            size: 102,
+            status: 'Current'
+        },
+        {
+            name: 'nsqd',
+            size: 32,
+            status: 'Current'
+        },
+        {
+            name: 'nsqadmin',
+            size: 49,
+            status: 'Stale'
+        }
+    ];
+
+    $scope.count = $scope.images.length;
+    $scope.size = $scope.images.map(function (i) {
+        return i.size;
+    }).reduce(function (prev, curr, i, array) {
+        return prev + curr;
+    });
+}
+
 function ServicesController($scope) {
     $scope.template = 'partials/services.html';
 

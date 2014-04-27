@@ -1,0 +1,49 @@
+<div class="ui horizontal list">
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Namespace</div>
+            {{namespace}}
+        </div>
+    </div>
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Count</div>
+            {{count}}
+        </div>
+    </div>
+
+    <div class="item">
+        <div class="content">
+            <div class="header">Total Size</div>
+            {{size}} mb
+        </div>
+    </div>
+
+</div>
+
+<table class="ui table segment">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="image in images">
+            <td>{{image.name}}</td>
+            <td>{{image.size}} mb</td>
+            <td class="{{image.status|servicestatus}}">{{image.status}}</td>
+            <td>
+                <div class="ui inline group">
+                    <i class="refresh icon"></i>
+                    <i class="trash icon"></i>
+                    <i class="trash icon"></i>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>

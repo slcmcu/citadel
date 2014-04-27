@@ -26,3 +26,8 @@ input::-webkit-inner-spin-button {
     margin: 0;
     /* <-- Apparently some margin are still there even though it's hidden */
 }
+.box {
+    border-style: solid;
+    border-width: 0.07em;
+    border-color: gray;
+}

@@ -3,9 +3,13 @@
 angular.module('citadel.filters', [])
     .filter('servicestatus', function () {
         return function (status) {
-            if (status === 'sick') {
+            switch (status.toLowerCase()) {
+            case 'sick':
                 return 'error';
+            case 'stale':
+                return 'warning';
+            default:
+                return 'positive';
             }
-            return 'positive';
         };
     });

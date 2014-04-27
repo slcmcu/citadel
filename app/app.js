@@ -7,7 +7,10 @@ angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters'])
                 templateUrl: 'partials/dashboard.html',
                 controller: 'DashboardController'
             });
-
+            $routeProvider.when('/images', {
+                templateUrl: 'partials/images.html',
+                controller: 'ImagesController'
+            });
             $routeProvider.otherwise({
                 redirectTo: '/'
             });
