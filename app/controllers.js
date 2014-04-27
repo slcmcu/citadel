@@ -28,29 +28,29 @@ function ContainersController($scope) {
     $scope.containers = [
         {
             name: 'rethinkdb',
-            size: 540,
+            instances: 16,
             status: 'Current'
         },
         {
             name: 'redis',
-            size: 102,
+            instances: 202,
             status: 'Current'
         },
         {
             name: 'nsqd',
-            size: 32,
+            instances: 100,
             status: 'Current'
         },
         {
             name: 'nsqadmin',
-            size: 49,
+            instances: 1,
             status: 'Stale'
         }
     ];
 
     $scope.count = $scope.containers.length;
-    $scope.size = $scope.containers.map(function (i) {
-        return i.size;
+    $scope.instances = $scope.containers.map(function (i) {
+        return i.instances;
     }).reduce(function (prev, curr, i, array) {
         return prev + curr;
     });

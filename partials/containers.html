@@ -18,15 +18,15 @@
 
     <div class="item">
         <div class="content">
-            <div class="header">Count</div>
+            <div class="header">Unique Instances</div>
             {{count}}
         </div>
     </div>
 
     <div class="item">
         <div class="content">
-            <div class="header">Total Size</div>
-            {{size}} mb
+            <div class="header">Total Instances</div>
+            {{instances}}
         </div>
     </div>
 
@@ -36,15 +36,17 @@
     <thead>
         <tr>
             <th>Name</th>
-            <th>Size</th>
+            <th>Instances</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         <tr ng-repeat="container in containers">
-            <td>{{container.name}}</td>
-            <td>{{container.size}} mb</td>
+            <td>
+                <a href="/#/container/{{container.name}}">{{container.name}}</a>
+            </td>
+            <td>{{container.instances}}</td>
             <td class="{{container.status|servicestatus}}">{{container.status}}</td>
             <td>
                 <div class="ui inline group">
