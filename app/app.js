@@ -1,6 +1,6 @@
 'use strict';
 
-angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters'])
+angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters', 'citadel.directives'])
     .config(['$routeProvider',
         function ($routeProvider) {
             $routeProvider.when('/', {

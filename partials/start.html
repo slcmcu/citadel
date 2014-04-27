@@ -3,14 +3,7 @@
     <div class="ui form segment">
         <div class="field">
             <label>Image</label>
-            <div class="ui fluid selection dropdown">
-                <input type="hidden" name="image">
-                <div class="default text">Image</div>
-                <i class="dropdown icon"></i>
-                <div class="menu">
-                    <div ng-repeat="image in images" class="item" data-value="{{image}}">{{image}}</div>
-                </div>
-            </div>
+            <input placeholder="Image" type="text" ng-model="image">
         </div>
 
         <div class="field">
@@ -95,3 +88,11 @@
     </div>
 </div>
 </div>
+
+<script>
+    $('.ui.checkbox')
+        .checkbox();
+
+    $('.ui.radio.checkbox')
+        .checkbox();
+</script>

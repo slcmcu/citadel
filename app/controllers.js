@@ -23,6 +23,20 @@ function ImagesController($scope) {
     $scope.template = 'partials/images.html';
 
     $scope.namespace = 'crosbymichael';
+    $scope.deployName = '';
+
+    $scope.deployImage = function () {
+        var progress = $('#deploy-progress');
+        var i = 0;
+        var update = function () {
+            if (i < 100) {
+                progress.css('width', i + '%');
+                i = i + (100 / 202);
+                setTimeout(update, 50);
+            }
+        };
+        update();
+    };
 
     $scope.images = [
         {
@@ -134,13 +148,4 @@ function toggleStartSidebar() {
         overlay: true
     })
         .sidebar('toggle');
-
-    $('.ui.dropdown')
-        .dropdown();
-
-    $('.ui.checkbox')
-        .checkbox();
-
-    $('.ui.radio.checkbox')
-        .checkbox();
 }
