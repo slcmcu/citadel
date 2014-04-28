@@ -10,6 +10,6 @@ type (
 		IPAddress string
 		Cpus      int
 		Memory    int
-		Disks     []Disk
+		Disks     []*Disk
 	}
 )
