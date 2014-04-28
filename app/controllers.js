@@ -102,6 +102,43 @@ function ContainersController($scope) {
     });
 }
 
+function ContainerController($scope, $routeParams) {
+    $scope.data = [
+        {
+            key: 'Instances',
+            value: 16
+        },
+        {
+            key: 'Cpu',
+            value: 17.3 + ' %'
+        },
+        {
+            key: 'Memory',
+            value: 16 * 2048 + ' mb'
+        },
+        {
+            key: 'Network Transfer',
+            value: 23 * 1024 + ' mb'
+        },
+        {
+            key: 'Disk',
+            value: 16 * 23283 + ' mb'
+        },
+        {
+            key: 'On Hosts',
+            value: 16
+        },
+        {
+            key: 'Average Run Time',
+            value: 32 + ' days'
+        },
+    ];
+
+    $scope.instances = [
+
+    ];
+}
+
 // Services display information about the cluster services that are running 
 // on the hosts
 function ServicesController($scope) {

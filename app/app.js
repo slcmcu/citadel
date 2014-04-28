@@ -11,6 +11,10 @@ angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters', 'ci
                 templateUrl: 'partials/containers.html',
                 controller: 'ContainersController'
             });
+            $routeProvider.when('/containers/:id', {
+                templateUrl: 'partials/container.html',
+                controller: 'ContainerController'
+            });
             $routeProvider.otherwise({
                 redirectTo: '/'
             });
