@@ -1,4 +1,4 @@
-package common
+package citadel
 
 type (
 	Disk struct {

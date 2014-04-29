@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"citadelapp.io/citadel/common"
+	"citadelapp.io/citadel"
 	"github.com/Sirupsen/logrus"
 	rethink "github.com/dancannon/gorethink"
 )
@@ -115,13 +115,13 @@ func initHostInfo(name string) {
 	memTotal := getMemoryTotal()
 	diskTotal := getDiskTotal()
 	// host info
-	disks := []*common.Disk{}
-	disk := common.Disk{
+	disks := []*citadel.Disk{}
+	disk := citadel.Disk{
 		Name:       "/",
 		TotalSpace: int(getDiskTotal()),
 	}
 	disks = append(disks, &disk)
-	hostInfo := common.Host{
+	hostInfo := citadel.Host{
 		Name:      name,
 		IPAddress: getIP(),
 		Cpus:      cpus,
