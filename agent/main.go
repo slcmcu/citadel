@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -47,26 +48,6 @@ func generateHostId(name string) string {
 	h := sha1.New()
 	h.Write([]byte(name))
 	return hex.EncodeToString(h.Sum(nil))
-}
-
-// getNumCpus gets the total number of cpus
-func getNumCpus() int {
-	f, err := os.Open("/proc/cpuinfo")
-	if err != nil {
-		log.Fatal("Unable to get cpu info: %s", err)
-	}
-	defer f.Close()
-	numCpus := 0
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fields := strings.Fields(sc.Text())
-		if len(fields) >= 1 {
-			if strings.Index(fields[0], "processor") == 0 {
-				numCpus++
-			}
-		}
-	}
-	return numCpus
 }
 
 // getMemoryTotal gets the total available memory in bytes
@@ -127,7 +108,7 @@ func getIP() string {
 }
 
 func initHostInfo(name string) {
-	cpus := getNumCpus()
+	cpus := runtime.NumCPU()
 	ip := getIP()
 	memTotal := getMemoryTotal()
 	diskTotal := getDiskTotal()
