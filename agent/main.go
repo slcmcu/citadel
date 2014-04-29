@@ -132,12 +132,12 @@ func initHostInfo(name string) {
 	memTotal := getMemoryTotal()
 	diskTotal := getDiskTotal()
 	// host info
-	disks := []common.Disk{}
+	disks := []*common.Disk{}
 	disk := common.Disk{
 		Name:       "/",
 		TotalSpace: int(getDiskTotal()),
 	}
-	disks = append(disks, disk)
+	disks = append(disks, &disk)
 	hostInfo := common.Host{
 		Name:      name,
 		IPAddress: getIP(),
@@ -154,7 +154,7 @@ func initHostInfo(name string) {
 		log.Fatalf("Error pushing host info to rethink: %s", err)
 	}
 	log.Printf("Total CPUs: %d", cpus)
-	log.Printf("Detected IP: %s", ip)
+	log.Printf("IP: %s", ip)
 	log.Printf("Total Memory: %d", memTotal)
 	log.Printf("Total Disk Space: %d", diskTotal)
 }
