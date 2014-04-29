@@ -175,7 +175,14 @@ func main() {
 	}
 	agentName := getAgentName()
 	// add host info
-	log.Infof("Citadel Agent: %s (%s)", agentName, listenAddress)
-	log.Debugf("Connecting to RethinkDB: %s:%d (%s)", rethinkDbHost, rethinkDbPort, rethinkDbName)
+	log.WithFields(logrus.Fields{
+		"nodename": agentName,
+		"address":  listenAddress,
+	}).Info("Citadel Agent")
+	log.WithFields(logrus.Fields{
+		"host": rethinkDbHost,
+		"port": rethinkDbPort,
+		"name": rethinkDbName,
+	}).Debug("Connecting to RethinkDB")
 	initHostInfo(agentName)
 }
