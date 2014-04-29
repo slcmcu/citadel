@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"runtime"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"citadelapp.io/citadel/common"
+	"github.com/Sirupsen/logrus"
 	rethink "github.com/dancannon/gorethink"
 )
 
@@ -25,6 +25,8 @@ var (
 	rethinkDbHost string
 	rethinkDbPort int
 	rethinkDbName string
+	enableDebug   bool
+	log           = logrus.New()
 )
 
 // getAgentName gets the agent name based upon the first available mac address
@@ -134,10 +136,12 @@ func initHostInfo(name string) {
 	if _, err := tbl.Insert(hostInfo).RunWrite(session); err != nil {
 		log.Fatalf("Error pushing host info to rethink: %s", err)
 	}
-	log.Printf("Total CPUs: %d", cpus)
-	log.Printf("IP: %s", ip)
-	log.Printf("Total Memory: %d", memTotal)
-	log.Printf("Total Disk Space: %d", diskTotal)
+	log.WithFields(logrus.Fields{
+		"cpus":      cpus,
+		"ip":        ip,
+		"memory":    memTotal,
+		"diskspace": diskTotal,
+	}).Debug("Initializing host info")
 }
 
 func newRethinkSession() (*rethink.Session, error) {
@@ -152,18 +156,26 @@ func newRethinkSession() (*rethink.Session, error) {
 }
 
 func init() {
-	flag.StringVar(&listenAddress, "l", "0.0.0.0", "Listen address")
+	flag.StringVar(&listenAddress, "l", "", "Listen address")
 	flag.IntVar(&listenPort, "p", 3001, "Listen port")
 	flag.StringVar(&rethinkDbHost, "rethink-host", "127.0.0.1", "RethinkDB Host")
 	flag.IntVar(&rethinkDbPort, "rethink-port", 28015, "RethinkDB Port")
 	flag.StringVar(&rethinkDbName, "rethink-name", "citadel", "RethinkDB Name")
+	flag.BoolVar(&enableDebug, "debug", false, "Enable debug logging")
 }
 
 func main() {
 	flag.Parse()
+	if listenAddress == "" {
+		log.Error("You must specify a listen address")
+		return
+	}
+	if enableDebug {
+		log.Level = logrus.Debug
+	}
 	agentName := getAgentName()
 	// add host info
+	log.Infof("Citadel Agent: %s (%s)", agentName, listenAddress)
+	log.Debugf("Connecting to RethinkDB: %s:%d (%s)", rethinkDbHost, rethinkDbPort, rethinkDbName)
 	initHostInfo(agentName)
-	log.Printf("Citadel Agent: %s (%s)", agentName, listenAddress)
-	log.Printf("Connecting to RethinkDB: %s:%d (%s)", rethinkDbHost, rethinkDbPort, rethinkDbName)
 }
