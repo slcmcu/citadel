@@ -21,12 +21,11 @@ import (
 
 var (
 	listenAddress string
-	listenPort    int
 	rethinkDbHost string
 	rethinkDbPort int
 	rethinkDbName string
-	enableDebug   bool
-	log           = logrus.New()
+
+	log = logrus.New()
 )
 
 // getAgentName gets the agent name based upon the first available mac address
@@ -84,105 +83,85 @@ func getDiskTotal() uint64 {
 	return stat.Bavail * uint64(stat.Bsize)
 }
 
-// getIP detects the first available non-local address
-func getIP() string {
-	// attempt to detect non-local ip if none is specified via the flag
-	if listenAddress != "0.0.0.0" && strings.Index(listenAddress, "127") != 0 {
-		return listenAddress
+func initHostInfo(name string) error {
+	var (
+		cpus      = runtime.NumCPU()
+		memTotal  = getMemoryTotal()
+		diskTotal = getDiskTotal()
+	)
+	disks := []*citadel.Disk{
+		{
+			Name:       "/",
+			TotalSpace: int(getDiskTotal()),
+		},
 	}
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		log.Fatalf("Unable to get network addresses: %s", err)
-	}
-	ip := ""
-	for _, addr := range addrs {
-		a := addr.String()
-		if strings.Index(a, "127") != 0 {
-			i := strings.Split(a, "/")
-			if len(i) == 0 {
-				log.Fatal("Error parsing IP")
-			}
-			ip = i[0]
-			break
-		}
-	}
-	return ip
-}
 
-func initHostInfo(name string) {
-	cpus := runtime.NumCPU()
-	ip := getIP()
-	memTotal := getMemoryTotal()
-	diskTotal := getDiskTotal()
-	// host info
-	disks := []*citadel.Disk{}
-	disk := citadel.Disk{
-		Name:       "/",
-		TotalSpace: int(getDiskTotal()),
-	}
-	disks = append(disks, &disk)
 	hostInfo := citadel.Host{
 		Name:      name,
-		IPAddress: getIP(),
+		IPAddress: listenAddress,
 		Cpus:      cpus,
 		Memory:    memTotal,
 		Disks:     disks,
 	}
+
 	session, err := newRethinkSession()
 	if err != nil {
-		log.Fatalf("Error connecting to RethinkDB: %s", err)
+		return err
 	}
-	tbl := rethink.Table("hosts")
-	if _, err := tbl.Insert(hostInfo).RunWrite(session); err != nil {
-		log.Fatalf("Error pushing host info to rethink: %s", err)
+	defer session.Close()
+
+	if _, err := rethink.Table("hosts").Insert(hostInfo).RunWrite(session); err != nil {
+		return err
 	}
+
 	log.WithFields(logrus.Fields{
 		"cpus":      cpus,
-		"ip":        ip,
 		"memory":    memTotal,
 		"diskspace": diskTotal,
 	}).Debug("Initializing host info")
+
+	return nil
 }
 
 func newRethinkSession() (*rethink.Session, error) {
-	// get rethink pool
-	session, err := rethink.Connect(rethink.ConnectOpts{
+	return rethink.Connect(rethink.ConnectOpts{
 		Address:     fmt.Sprintf("%s:%d", rethinkDbHost, rethinkDbPort),
 		Database:    rethinkDbName,
 		MaxIdle:     10,
 		IdleTimeout: time.Second * 10,
 	})
-	return session, err
 }
 
 func init() {
 	flag.StringVar(&listenAddress, "l", "", "Listen address")
-	flag.IntVar(&listenPort, "p", 3001, "Listen port")
+
 	flag.StringVar(&rethinkDbHost, "rethink-host", "127.0.0.1", "RethinkDB Host")
 	flag.IntVar(&rethinkDbPort, "rethink-port", 28015, "RethinkDB Port")
 	flag.StringVar(&rethinkDbName, "rethink-name", "citadel", "RethinkDB Name")
-	flag.BoolVar(&enableDebug, "debug", false, "Enable debug logging")
 }
 
 func main() {
 	flag.Parse()
+
 	if listenAddress == "" {
-		log.Error("You must specify a listen address")
-		return
+		log.Fatal("You must specify a listen address")
 	}
-	if enableDebug {
-		log.Level = logrus.Debug
-	}
+
 	agentName := getAgentName()
-	// add host info
+
+	if err := initHostInfo(agentName); err != nil {
+		log.Fatal(err)
+	}
+
 	log.WithFields(logrus.Fields{
 		"nodename": agentName,
 		"address":  listenAddress,
 	}).Info("Citadel Agent")
+
 	log.WithFields(logrus.Fields{
 		"host": rethinkDbHost,
 		"port": rethinkDbPort,
 		"name": rethinkDbName,
 	}).Debug("Connecting to RethinkDB")
-	initHostInfo(agentName)
+
 }
