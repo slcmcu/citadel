@@ -83,6 +83,11 @@ func getDiskTotal() uint64 {
 	return stat.Bavail * uint64(stat.Bsize)
 }
 
+// getHostFilter returns an RqlTerm filtered on the specified host
+func getHostFilter(name string) rethink.RqlTerm {
+	return rethink.Table("hosts").Filter(map[string]string{"name": name})
+}
+
 func initHostInfo(name string) error {
 	var (
 		cpus      = runtime.NumCPU()
@@ -110,8 +115,17 @@ func initHostInfo(name string) error {
 	}
 	defer session.Close()
 
-	if _, err := rethink.Table("hosts").Insert(hostInfo).RunWrite(session); err != nil {
-		return err
+	row, err := getHostFilter(name).RunRow(session)
+	// add
+	if row.IsNil() {
+		if _, err := rethink.Table("hosts").Insert(hostInfo).RunWrite(session); err != nil {
+			return err
+		}
+	} else { // update existing
+
+		if _, err := getHostFilter(name).Update(hostInfo).Run(session); err != nil {
+			return err
+		}
 	}
 
 	log.WithFields(logrus.Fields{
