@@ -2,14 +2,14 @@ package citadel
 
 type (
 	Disk struct {
-		Name       string
-		TotalSpace int // in bytes
+		Name       string `json:"name" gorethink:"name"`
+		TotalSpace int    `json:"total_space" gorethink:"total_space"` // in bytes
 	}
 	Host struct {
-		Name      string
-		IPAddress string
-		Cpus      int
-		Memory    int
-		Disks     []*Disk
+		Name      string  `json:"name" gorethink:"name"`
+		IPAddress string  `json:"ip_address" gorethink:"ip_address"`
+		Cpus      int     `json:"cpus" gorethink:"cpus"`
+		Memory    int     `json:"memory" gorethink:"memory"`
+		Disks     []*Disk `json:"disks" gorethink:"disks"`
 	}
 )
