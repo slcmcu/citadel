@@ -1,22 +1,25 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha1"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"citadelapp.io/citadel"
 	"github.com/Sirupsen/logrus"
 	rethink "github.com/dancannon/gorethink"
+)
+
+const (
+	HOST_METRICS_INTERVAL = 5
+	HOST_TABLE            = "hosts"
 )
 
 var (
@@ -51,62 +54,29 @@ func generateHostId(name string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// getMemoryTotal gets the total available memory in bytes
-func getMemoryTotal() int {
-	f, err := os.Open("/proc/meminfo")
-	if err != nil {
-		log.Fatal("Unable to get memory info: %s", err)
-	}
-	defer f.Close()
-	total := 0
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fields := strings.Fields(sc.Text())
-		if len(fields) == 3 {
-			if strings.Index(fields[0], "MemTotal") == 0 {
-				t, err := strconv.Atoi(fields[1])
-				if err != nil {
-					log.Fatal("Unable to parse memory total: %s", err)
-				}
-				total = t * 1024 // convert to bytes
-				break
-			}
-		}
-	}
-	return total
-}
-
-// getDiskTotal returns the total disk space in bytes
-func getDiskTotal() uint64 {
-	var stat syscall.Statfs_t
-	syscall.Statfs("/", &stat)
-	return stat.Bavail * uint64(stat.Bsize)
-}
-
 // getHostFilter returns an RqlTerm filtered on the specified host
 func getHostFilter(name string) rethink.RqlTerm {
-	return rethink.Table("hosts").Filter(map[string]string{"name": name})
+	return rethink.Table(HOST_TABLE).Filter(map[string]string{"name": name})
 }
 
 func initHostInfo(name string) error {
-	var (
-		cpus      = runtime.NumCPU()
-		memTotal  = getMemoryTotal()
-		diskTotal = getDiskTotal()
-	)
-	disks := []*citadel.Disk{
-		{
-			Name:       "/",
-			TotalSpace: int(getDiskTotal()),
-		},
+	cpus := runtime.NumCPU()
+	memUsage, err := getMemoryUsage()
+	if err != nil {
+		return err
+	}
+
+	diskUsage, err := getDiskUsage()
+	if err != nil {
+		return err
 	}
 
 	hostInfo := citadel.Host{
 		Name:      name,
 		IPAddress: listenAddress,
 		Cpus:      cpus,
-		Memory:    memTotal,
-		Disks:     disks,
+		Memory:    memUsage,
+		Disks:     diskUsage,
 	}
 
 	session, err := newRethinkSession()
@@ -118,7 +88,7 @@ func initHostInfo(name string) error {
 	row, err := getHostFilter(name).RunRow(session)
 	// add
 	if row.IsNil() {
-		if _, err := rethink.Table("hosts").Insert(hostInfo).RunWrite(session); err != nil {
+		if _, err := rethink.Table(HOST_TABLE).Insert(hostInfo).RunWrite(session); err != nil {
 			return err
 		}
 	} else { // update existing
@@ -130,8 +100,8 @@ func initHostInfo(name string) error {
 
 	log.WithFields(logrus.Fields{
 		"cpus":      cpus,
-		"memory":    memTotal,
-		"diskspace": diskTotal,
+		"memory":    memUsage,
+		"diskspace": diskUsage,
 	}).Debug("Initializing host info")
 
 	return nil
@@ -178,4 +148,20 @@ func main() {
 		"name": rethinkDbName,
 	}).Debug("Connecting to RethinkDB")
 
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt)
+
+	hostMetricsTick := time.Tick(HOST_METRICS_INTERVAL * time.Second)
+
+main:
+	for {
+		select {
+		case <-hostMetricsTick:
+			go PushHostMetrics()
+		case <-sig:
+			break main
+		}
+	}
+	// shutdown
+	log.Info("Shutting down Citadel")
 }
