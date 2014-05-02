@@ -12,4 +12,9 @@ angular.module('citadel.filters', [])
                 return 'positive';
             }
         };
+    })
+    .filter('tomb', function () {
+        return function (bytes) {
+            return bytes / 1024 / 1024;
+        };
     });

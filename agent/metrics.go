@@ -85,7 +85,7 @@ func pushHostMetrics(host *citadel.Host) error {
 	if err != nil {
 		return err
 	}
-	session, err := newRethinkSession()
+	session, err := citadel.NewRethinkSession(rethinkDbHost)
 	if err != nil {
 		return err
 	}

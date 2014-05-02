@@ -141,31 +141,12 @@ function ContainerController($scope, $routeParams) {
 
 // Services display information about the cluster services that are running 
 // on the hosts
-function ServicesController($scope) {
+function ServicesController($scope, Host) {
     $scope.template = 'partials/services.html';
 
-    $scope.services = [
-        {
-            name: 'api',
-            ip: '192.168.56.101',
-            status: 'healthy'
-        },
-        {
-            name: 'scheduler',
-            ip: '192.168.56.102',
-            status: 'healthy'
-        },
-        {
-            name: 'storage',
-            ip: '192.168.56.102',
-            status: 'healthy'
-        },
-        {
-            name: 'metrics',
-            ip: '192.168.56.103',
-            status: 'sick'
-        }
-    ];
+    Host.query({}, function (data) {
+        $scope.hosts = data;
+    });
 }
 
 function StartController($scope) {

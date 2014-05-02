@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"flag"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -25,8 +24,6 @@ const (
 var (
 	listenAddress string
 	rethinkDbHost string
-	rethinkDbPort int
-	rethinkDbName string
 
 	log = logrus.New()
 )
@@ -79,7 +76,7 @@ func initHostInfo(name string) (*citadel.Host, error) {
 		Disks:     diskUsage,
 	}
 
-	session, err := newRethinkSession()
+	session, err := citadel.NewRethinkSession(rethinkDbHost)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +88,6 @@ func initHostInfo(name string) (*citadel.Host, error) {
 			return nil, err
 		}
 	} else {
-
 		if _, err := getHostFilter(name).Update(hostInfo).Run(session); err != nil {
 			return nil, err
 		}
@@ -106,26 +102,14 @@ func initHostInfo(name string) (*citadel.Host, error) {
 	return hostInfo, nil
 }
 
-func newRethinkSession() (*rethink.Session, error) {
-	return rethink.Connect(rethink.ConnectOpts{
-		Address:     fmt.Sprintf("%s:%d", rethinkDbHost, rethinkDbPort),
-		Database:    rethinkDbName,
-		MaxIdle:     10,
-		IdleTimeout: time.Second * 10,
-	})
-}
-
 func init() {
 	flag.StringVar(&listenAddress, "l", "", "Listen address")
+	flag.StringVar(&rethinkDbHost, "rethink-host", "127.0.0.1:28015", "RethinkDB Address")
 
-	flag.StringVar(&rethinkDbHost, "rethink-host", "127.0.0.1", "RethinkDB Host")
-	flag.IntVar(&rethinkDbPort, "rethink-port", 28015, "RethinkDB Port")
-	flag.StringVar(&rethinkDbName, "rethink-name", "citadel", "RethinkDB Name")
+	flag.Parse()
 }
 
 func main() {
-	flag.Parse()
-
 	if listenAddress == "" {
 		log.Fatal("You must specify a listen address")
 	}
@@ -144,8 +128,6 @@ func main() {
 
 	log.WithFields(logrus.Fields{
 		"host": rethinkDbHost,
-		"port": rethinkDbPort,
-		"name": rethinkDbName,
 	}).Debug("Connecting to RethinkDB")
 
 	sig := make(chan os.Signal)
