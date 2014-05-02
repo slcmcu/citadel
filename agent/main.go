@@ -19,7 +19,7 @@ import (
 
 const (
 	HOST_METRICS_INTERVAL = 5
-	HOST_TABLE            = "hosts"
+	HOST_TABLE            = "host"
 )
 
 var (
@@ -59,19 +59,19 @@ func getHostFilter(name string) rethink.RqlTerm {
 	return rethink.Table(HOST_TABLE).Filter(map[string]string{"name": name})
 }
 
-func initHostInfo(name string) error {
+func initHostInfo(name string) (*citadel.Host, error) {
 	cpus := runtime.NumCPU()
 	memUsage, err := getMemoryUsage()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	diskUsage, err := getDiskUsage()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	hostInfo := citadel.Host{
+	hostInfo := &citadel.Host{
 		Name:      name,
 		IPAddress: listenAddress,
 		Cpus:      cpus,
@@ -81,20 +81,19 @@ func initHostInfo(name string) error {
 
 	session, err := newRethinkSession()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer session.Close()
 
 	row, err := getHostFilter(name).RunRow(session)
-	// add
 	if row.IsNil() {
 		if _, err := rethink.Table(HOST_TABLE).Insert(hostInfo).RunWrite(session); err != nil {
-			return err
+			return nil, err
 		}
-	} else { // update existing
+	} else {
 
 		if _, err := getHostFilter(name).Update(hostInfo).Run(session); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -104,7 +103,7 @@ func initHostInfo(name string) error {
 		"diskspace": diskUsage,
 	}).Debug("Initializing host info")
 
-	return nil
+	return hostInfo, nil
 }
 
 func newRethinkSession() (*rethink.Session, error) {
@@ -133,7 +132,8 @@ func main() {
 
 	agentName := getAgentName()
 
-	if err := initHostInfo(agentName); err != nil {
+	host, err := initHostInfo(agentName)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -157,11 +157,12 @@ main:
 	for {
 		select {
 		case <-hostMetricsTick:
-			go PushHostMetrics()
+			if err := pushHostMetrics(host); err != nil {
+				log.Fatal(err)
+			}
 		case <-sig:
 			break main
 		}
 	}
-	// shutdown
 	log.Info("Shutting down Citadel")
 }

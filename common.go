@@ -1,5 +1,7 @@
 package citadel
 
+import "time"
+
 type (
 	Disk struct {
 		Path      string `json:"path" gorethink:"path"`
@@ -21,9 +23,17 @@ type (
 		Used  uint64 `json:"used" gorethink:"used"`
 		Total uint64 `json:"total" gorethink:"total"`
 	}
+	CpuMetric struct {
+		Nice uint64 `json:"nice" gorethink:"nice"`
+		Sys  uint64 `json:"sys" gorethink:"sys"`
+		User uint64 `json:"user" gorethink:"user"`
+		Wait uint64 `json:"wait" gorethink:"wait"`
+	}
 	HostMetric struct {
-		Load   map[string]float64 `json:"load" gorethink:"load"`
-		Memory *MemoryUsageMetric `json:"memory" gorethink:"memory"` // bytes
-		Disks  []*Disk            `json:"disks" gorethink:"disks"`
+		Name      string             `json:"name" gorethink:"name"`
+		Timestamp time.Time          `json:"timestamp" gorethink:"timestamp"`
+		Load      map[string]float64 `json:"load" gorethink:"load"`
+		Memory    *MemoryUsageMetric `json:"memory" gorethink:"memory"` // bytes
+		Disks     []*Disk            `json:"disks" gorethink:"disks"`
 	}
 )
