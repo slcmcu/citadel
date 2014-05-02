@@ -11,13 +11,23 @@ function HeaderController($scope) {
 
 // Dashboard includes overall information with graphs and services 
 // for the cluster
-function DashboardController($scope) {
+function DashboardController($scope, Host) {
     var labels = __generateLabels(25),
-        cpuData = __generateRandomData(66, 100, 24),
-        memoryData = __generateRandomData(61, 81, 24);
+        cpuData = __generateRandomData(66, 100, 24);
 
     newLineChart('#chart-cpu', labels, cpuData);
-    newLineChart('#chart-memory', labels, memoryData);
+
+    Host.memory({}, function (data) {
+        var labels = data.map(function (d) {
+            return d.key;
+        });
+        var memoryData = data.map(function (d) {
+            return d.value;
+        });
+
+        newLineChart('#chart-memory', labels, memoryData);
+    });
+
 }
 
 // Containers controller aggregates the container running 
