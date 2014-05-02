@@ -35,5 +35,6 @@ type (
 		Load      map[string]float64 `json:"load" gorethink:"load"`
 		Memory    *MemoryUsageMetric `json:"memory" gorethink:"memory"` // bytes
 		Disks     []*Disk            `json:"disks" gorethink:"disks"`
+		Cpu       *CpuMetric         `json:"cpu" gorethink:"cpu"`
 	}
 )

@@ -81,7 +81,10 @@ func pushHostMetrics(host *citadel.Host) error {
 	if err != nil {
 		return err
 	}
-	// send to db
+	cpu, err := getCpuMetrics()
+	if err != nil {
+		return err
+	}
 	session, err := newRethinkSession()
 	if err != nil {
 		return err
@@ -98,6 +101,7 @@ func pushHostMetrics(host *citadel.Host) error {
 		Load:      load,
 		Memory:    memUsage,
 		Disks:     diskUsage,
+		Cpu:       cpu,
 		Timestamp: time.Now(),
 	}
 	if _, err = rethink.Table(HOST_METRICS_TABLE).Insert(metric).Run(session); err != nil {
