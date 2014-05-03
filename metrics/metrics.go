@@ -2,6 +2,7 @@ package metrics
 
 type (
 	Metric struct {
+		Time   float64 `json:"time,omitempty"`
 		Memory *Memory `json:"memory,omitempty"`
 		Cpu    *Cpu    `json:"cpu,omitempty"`
 		Load1  float64 `json:"load_1,omitempty"`
@@ -10,14 +11,14 @@ type (
 	}
 
 	Memory struct {
-		Used  uint64 `json:"used,omitempty"`
-		Total uint64 `json:"total,omitempty"`
+		Used  float64 `json:"used,omitempty"`
+		Total float64 `json:"total,omitempty"`
 	}
 
 	Cpu struct {
-		Nice uint64 `json:"nice,omitempty"`
-		Sys  uint64 `json:"sys,omitempty"`
-		User uint64 `json:"user,omitempty"`
-		Wait uint64 `json:"wait,omitempty"`
+		Nice float64 `json:"nice,omitempty"`
+		Sys  float64 `json:"sys,omitempty"`
+		User float64 `json:"user,omitempty"`
+		Wait float64 `json:"wait,omitempty"`
 	}
 )

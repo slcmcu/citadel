@@ -22,8 +22,8 @@ func getMemoryUsage() (*metrics.Memory, error) {
 		return nil, err
 	}
 	metric := &metrics.Memory{
-		Total: mem.Total,
-		Used:  mem.Free,
+		Total: float64(mem.Total),
+		Used:  float64(mem.Free),
 	}
 	return metric, nil
 }
@@ -38,12 +38,12 @@ func getDiskUsage() ([]*citadel.Disk, error) {
 	}
 	disks := []*citadel.Disk{
 		{
-			Total:     du.Total,
-			Used:      du.Used,
-			Free:      du.Free,
-			Files:     du.Files,
-			Available: du.Avail,
 			Path:      dirPath,
+			Total:     float64(du.Total),
+			Used:      float64(du.Used),
+			Free:      float64(du.Free),
+			Files:     float64(du.Files),
+			Available: float64(du.Avail),
 		},
 	}
 	return disks, nil
@@ -55,10 +55,10 @@ func getCpuMetrics() (*metrics.Cpu, error) {
 		return nil, err
 	}
 	metric := &metrics.Cpu{
-		Nice: c.Nice,
-		User: c.User,
-		Sys:  c.Sys,
-		Wait: c.Wait,
+		Nice: float64(c.Nice),
+		User: float64(c.User),
+		Sys:  float64(c.Sys),
+		Wait: float64(c.Wait),
 	}
 	return metric, nil
 }

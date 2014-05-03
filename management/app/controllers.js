@@ -17,17 +17,17 @@ function DashboardController($scope, Host) {
 
     newLineChart('#chart-cpu', labels, cpuData);
 
-    Host.memory({}, function (data) {
+    Host.memory({
+        name: "b8f6b1166755"
+    }, function (data) {
         var labels = data.map(function (d) {
-            return d.key;
+            return new Date(d.time).getMinutes();
         });
         var memoryData = data.map(function (d) {
-            return d.value;
+            return (d.memory.used / d.memory.total) * 100;
         });
-
         newLineChart('#chart-memory', labels, memoryData);
     });
-
 }
 
 // Containers controller aggregates the container running 
@@ -149,10 +149,10 @@ function ContainerController($scope, $routeParams) {
     ];
 }
 
-// Services display information about the cluster services that are running 
+// Hosts display information about the cluster services that are running 
 // on the hosts
-function ServicesController($scope, Host) {
-    $scope.template = 'partials/services.html';
+function HostsController($scope, Host) {
+    $scope.template = 'partials/hosts.html';
 
     Host.query({}, function (data) {
         $scope.hosts = data;

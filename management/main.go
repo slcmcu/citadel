@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/metrics"
 	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
 	"github.com/go-martini/martini"
@@ -30,6 +32,10 @@ func main() {
 	m.Use(render.Renderer())
 
 	repo := repository.NewEtcdRepository(conf.Machines)
+	store, err := metrics.NewStore(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	m.Group("/api", func(r martini.Router) {
 		r.Get("/hosts", func(rdr render.Render) {
@@ -40,8 +46,13 @@ func main() {
 			rdr.JSON(200, data)
 		})
 
-		r.Get("/hosts/memory", func(rdr render.Render) {
-
+		r.Get("/hosts/:name/memory", func(params martini.Params, rdr render.Render) {
+			table := fmt.Sprintf("metrics.hosts.%s", params["name"])
+			data, err := store.Fetch(fmt.Sprintf("select * from %s group by time(15m) where time > now() -3h limit 20", table))
+			if err != nil {
+				log.Fatal(err)
+			}
+			rdr.JSON(200, data)
 		})
 	})
 
