@@ -15,17 +15,15 @@ function DashboardController($scope, Host) {
     Host.metrics({
         name: "b8f6b1166755"
     }, function (data) {
-        var labels = data.map(function (d) {
-            return new Date(d.time).getMinutes();
-        });
-        var memoryData = data.map(function (d) {
+        var mem = function (d) {
             return (d.memory.used / d.memory.total) * 100;
-        });
-        var cpuData = data.map(function (d) {
-            return d.cpu.user + d.cpu.sys;
-        });
-        newLineChart('#chart-memory', labels, memoryData);
-        newLineChart('#chart-cpu', labels, cpuData);
+        };
+        var cpu = function (d) {
+            return d.load_1;
+        };
+
+        newAreaChart(data, mem, '#chart-memory', 'mem %');
+        newAreaChart(data, cpu, '#chart-cpu', 'load 1');
     });
 }
 

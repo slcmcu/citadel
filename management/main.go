@@ -48,7 +48,7 @@ func main() {
 
 		r.Get("/hosts/:name/metrics", func(params martini.Params, rdr render.Render) {
 			table := fmt.Sprintf("metrics.hosts.%s", params["name"])
-			data, err := store.Fetch(fmt.Sprintf("select * from %s group by time(15m) where time > now() -3h limit 20", table))
+			data, err := store.Fetch(fmt.Sprintf("select * from %s group by time(5m) where time > now() -12h limit 200", table))
 			if err != nil {
 				log.Fatal(err)
 			}
