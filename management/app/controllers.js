@@ -1,10 +1,13 @@
 'use strict';
 
 // Page header that displays the totals for the cluster
-function HeaderController($scope) {
+function HeaderController($scope, Host) {
     $scope.template = 'partials/header.html';
 
-    $scope.hosts = 202;
+    Host.query({}, function (d) {
+        $scope.hosts = d.length;
+    });
+
     $scope.runningContainers = 17338;
     $scope.start = toggleStartSidebar;
 }
@@ -107,6 +110,25 @@ function ContainersController($scope) {
     $scope.instances = mapReduce(function (i) {
         return i.instances;
     });
+
+    $scope.addImage = function () {
+        $('#image-modal')
+            .modal('setting', {
+                onApprove: function () {
+                    var progress = $('#deploy-progress');
+                    var i = 0;
+                    var update = function () {
+                        if (i < 100) {
+                            progress.css('width', i + '%');
+                            i = i + (100 / 202);
+                            setTimeout(update, 50);
+                        }
+                    };
+                    update();
+                },
+            })
+            .modal('show');
+    };
 }
 
 function ContainerController($scope, $routeParams) {
@@ -208,18 +230,6 @@ function NewImageController($scope) {
     $scope.template = 'partials/new-image.html';
 
     $scope.deployName = '';
-    $scope.deployImage = function () {
-        var progress = $('#deploy-progress');
-        var i = 0;
-        var update = function () {
-            if (i < 100) {
-                progress.css('width', i + '%');
-                i = i + (100 / 202);
-                setTimeout(update, 50);
-            }
-        };
-        update();
-    };
 }
 
 // this needs to move to some super start init func
