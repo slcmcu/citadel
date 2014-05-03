@@ -1,15 +1,9 @@
 package main
 
 import (
-	"time"
-
 	"citadelapp.io/citadel"
 	"github.com/cloudfoundry/gosigar"
-	rethink "github.com/dancannon/gorethink"
-)
-
-const (
-	HOST_METRICS_TABLE = "host_metric"
+	"github.com/influxdb/influxdb-go"
 )
 
 func getLoadAverage() (float64, float64, float64, error) {
@@ -26,7 +20,6 @@ func getMemoryUsage() (*citadel.MemoryUsageMetric, error) {
 		return nil, err
 	}
 	metric := &citadel.MemoryUsageMetric{
-		Free:  mem.Free,
 		Total: mem.Total,
 		Used:  mem.Free,
 	}
@@ -68,16 +61,12 @@ func getCpuMetrics() (*citadel.CpuMetric, error) {
 	return metric, nil
 }
 
-func pushHostMetrics(host *citadel.Host) error {
+func pushHostMetrics(host *citadel.Host, client *influxdb.Client) error {
 	load1, load5, load15, err := getLoadAverage()
 	if err != nil {
 		return err
 	}
-	memUsage, err := getMemoryUsage()
-	if err != nil {
-		return err
-	}
-	diskUsage, err := getDiskUsage()
+	mem, err := getMemoryUsage()
 	if err != nil {
 		return err
 	}
@@ -85,27 +74,15 @@ func pushHostMetrics(host *citadel.Host) error {
 	if err != nil {
 		return err
 	}
-	session, err := citadel.NewRethinkSession(rethinkDbHost)
-	if err != nil {
-		return err
-	}
-	defer session.Close()
 
-	load := map[string]float64{
-		"1":  load1,
-		"5":  load5,
-		"15": load15,
+	s := &influxdb.Series{
+		Name: "metrics.hosts." + host.Name,
+		Columns: []string{"load_1", "load_5", "load_15",
+			"cpu_nice", "cpu_sys", "cpu_wait", "cpu_user",
+			"memory_used", "memory_total"},
+		Points: [][]interface{}{
+			[]interface{}{load1, load5, load15, cpu.Nice, cpu.Sys, cpu.Wait, cpu.User, mem.Used, mem.Total},
+		},
 	}
-	metric := citadel.HostMetric{
-		Name:      host.Name,
-		Load:      load,
-		Memory:    memUsage,
-		Disks:     diskUsage,
-		Cpu:       cpu,
-		Timestamp: time.Now(),
-	}
-	if _, err = rethink.Table(HOST_METRICS_TABLE).Insert(metric).Run(session); err != nil {
-		return err
-	}
-	return nil
+	return client.WriteSeries([]*influxdb.Series{s})
 }
