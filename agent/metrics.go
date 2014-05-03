@@ -76,7 +76,7 @@ func pushHostMetrics(host *citadel.Host, client *influxdb.Client) error {
 	}
 
 	s := &influxdb.Series{
-		Name: "citadel.hosts." + host.Name,
+		Name: "metrics.hosts." + host.Name,
 		Columns: []string{"load_1", "load_5", "load_15",
 			"cpu_nice", "cpu_sys", "cpu_wait", "cpu_user",
 			"memory_used", "memory_total"},
