@@ -22,8 +22,12 @@ The only hard dep right now for building the project is to the Go installed.  Af
     * sends messages to docker
     * collects host metrics 
     * collects container metrics 
-* database (rethinkdb and/or etcd/redis)
-    * stores metrics 
-    * stores runtime data
-    * aggregates host information
-    * lock server for the cluster
+* database
+    * stores metrics (influxdb)
+    * stores runtime data (etcd)
+    * aggregates host information (etcd)
+    * lock server for the cluster (etcd)
+
+
+### Metrics
+Host metrics are collected and stored in `select * from metrics.hosts.b8f6b1166755` where `b8f6b1166755` is the host's unique name.

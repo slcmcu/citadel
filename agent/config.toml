@@ -1,9 +1,9 @@
-listen = "192.168.1.101"
+listen = "192.168.1.2"
 pull_interval = 30
 
-machines = ["127.0.0.1:4001"]
+machines = ["http://dev.crosbymichael.com:4001"]
 
-influx_host = "127.0.0.1:8086"
+influx_host = "dev.crosbymichael.com:8086"
 influx_database = "citadel"
 influx_user = "citadel"
-influx_password = "koye3"
+influx_password = "koye"
