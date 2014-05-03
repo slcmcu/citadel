@@ -1,10 +1,10 @@
-package main
+package citadel
 
 import (
 	"github.com/BurntSushi/toml"
 )
 
-type config struct {
+type Config struct {
 	Listen         string   `toml:"listen"`
 	PullInterval   int      `toml:"pull_interval"`
 	Machines       []string `toml:"machines"`
@@ -14,8 +14,8 @@ type config struct {
 	InfluxDatabase string   `toml:"influx_database"`
 }
 
-func loadConfig(p string) (*config, error) {
-	var c *config
+func LoadConfig(p string) (*Config, error) {
+	var c *Config
 	if _, err := toml.DecodeFile(p, &c); err != nil {
 		return nil, err
 	}

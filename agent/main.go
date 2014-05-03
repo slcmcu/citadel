@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"flag"
 	"net"
 	"os"
 	"os/signal"
@@ -16,7 +17,10 @@ import (
 	"github.com/influxdb/influxdb-go"
 )
 
-var log = logrus.New()
+var (
+	configPath string
+	log        = logrus.New()
+)
 
 // getAgentName gets the agent name based upon the first available mac address
 func getAgentName() string {
@@ -41,7 +45,7 @@ func generateHostId(name string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func initHostInfo(name string, conf *config) (*citadel.Host, error) {
+func initHostInfo(name string, conf *citadel.Config) (*citadel.Host, error) {
 	cpus := runtime.NumCPU()
 	memUsage, err := getMemoryUsage()
 	if err != nil {
@@ -75,8 +79,13 @@ func initHostInfo(name string, conf *config) (*citadel.Host, error) {
 	return hostInfo, nil
 }
 
+func init() {
+	flag.StringVar(&configPath, "config", "config.toml", "path to the configuration file")
+	flag.Parse()
+}
+
 func main() {
-	conf, err := loadConfig("config.toml")
+	conf, err := citadel.LoadConfig(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
