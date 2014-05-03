@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/metrics"
 	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
-	"github.com/influxdb/influxdb-go"
 )
 
 var (
@@ -58,11 +58,11 @@ func initHostInfo(name string, conf *citadel.Config) (*citadel.Host, error) {
 	}
 
 	hostInfo := &citadel.Host{
-		Name:      name,
-		IPAddress: conf.Listen,
-		Cpus:      cpus,
-		Memory:    memUsage,
-		Disks:     diskUsage,
+		Name:        name,
+		IPAddress:   conf.Listen,
+		Cpus:        cpus,
+		TotalMemory: memUsage.Total,
+		Disks:       diskUsage,
 	}
 
 	repo := repository.NewEtcdRepository(conf.Machines)
@@ -97,20 +97,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	store, err := metrics.NewStore(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.WithFields(logrus.Fields{
 		"nodename": agentName,
 		"address":  conf.Listen,
 	}).Info("Citadel Agent")
-
-	metrics, err := influxdb.NewClient(&influxdb.ClientConfig{
-		Database: conf.InfluxDatabase,
-		Host:     conf.InfluxHost,
-		Username: conf.InfluxUser,
-		Password: conf.InfluxPassword,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	var (
 		sig             = make(chan os.Signal)
@@ -121,7 +116,7 @@ func main() {
 	for {
 		select {
 		case <-hostMetricsTick:
-			if err := pushHostMetrics(host, metrics); err != nil {
+			if err := pushHostMetrics(host, store); err != nil {
 				log.Fatal(err)
 			}
 		case <-sig:

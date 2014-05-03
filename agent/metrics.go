@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
+
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/metrics"
 	"github.com/cloudfoundry/gosigar"
-	"github.com/influxdb/influxdb-go"
 )
 
 func getLoadAverage() (float64, float64, float64, error) {
@@ -14,12 +16,12 @@ func getLoadAverage() (float64, float64, float64, error) {
 	return load.One, load.Five, load.Fifteen, nil
 }
 
-func getMemoryUsage() (*citadel.MemoryUsageMetric, error) {
+func getMemoryUsage() (*metrics.Memory, error) {
 	mem := sigar.Mem{}
 	if err := mem.Get(); err != nil {
 		return nil, err
 	}
-	metric := &citadel.MemoryUsageMetric{
+	metric := &metrics.Memory{
 		Total: mem.Total,
 		Used:  mem.Free,
 	}
@@ -47,12 +49,12 @@ func getDiskUsage() ([]*citadel.Disk, error) {
 	return disks, nil
 }
 
-func getCpuMetrics() (*citadel.CpuMetric, error) {
+func getCpuMetrics() (*metrics.Cpu, error) {
 	c := sigar.Cpu{}
 	if err := c.Get(); err != nil {
 		return nil, err
 	}
-	metric := &citadel.CpuMetric{
+	metric := &metrics.Cpu{
 		Nice: c.Nice,
 		User: c.User,
 		Sys:  c.Sys,
@@ -61,7 +63,7 @@ func getCpuMetrics() (*citadel.CpuMetric, error) {
 	return metric, nil
 }
 
-func pushHostMetrics(host *citadel.Host, client *influxdb.Client) error {
+func pushHostMetrics(host *citadel.Host, store metrics.Store) error {
 	load1, load5, load15, err := getLoadAverage()
 	if err != nil {
 		return err
@@ -75,14 +77,12 @@ func pushHostMetrics(host *citadel.Host, client *influxdb.Client) error {
 		return err
 	}
 
-	s := &influxdb.Series{
-		Name: "metrics.hosts." + host.Name,
-		Columns: []string{"load_1", "load_5", "load_15",
-			"cpu_nice", "cpu_sys", "cpu_wait", "cpu_user",
-			"memory_used", "memory_total"},
-		Points: [][]interface{}{
-			[]interface{}{load1, load5, load15, cpu.Nice, cpu.Sys, cpu.Wait, cpu.User, mem.Used, mem.Total},
-		},
+	m := &metrics.Metric{
+		Cpu:    cpu,
+		Memory: mem,
+		Load1:  load1,
+		Load5:  load5,
+		Load15: load15,
 	}
-	return client.WriteSeries([]*influxdb.Series{s})
+	return store.Save(fmt.Sprintf("metrics.host.%s", host.Name), m)
 }

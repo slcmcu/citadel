@@ -2,11 +2,11 @@ package citadel
 
 type (
 	Host struct {
-		Name      string             `json:"-"`
-		IPAddress string             `json:"ip_address,omitempty"`
-		Cpus      int                `json:"cpus,omitempty"`
-		Memory    *MemoryUsageMetric `json:"memory,omitempty"`
-		Disks     []*Disk            `json:"disks,omitempty"`
+		Name        string  `json:"-"`
+		IPAddress   string  `json:"ip_address,omitempty"`
+		Cpus        int     `json:"cpus,omitempty"`
+		TotalMemory uint64  `json:"total_memory"`
+		Disks       []*Disk `json:"disks,omitempty"`
 	}
 
 	Disk struct {
