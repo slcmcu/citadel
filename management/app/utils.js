@@ -47,7 +47,7 @@ function newAreaChart(data, getValue, chartDiv, text) {
         left: 50
     },
         width = 768 - margin.left - margin.right,
-        height = 250 - margin.top - margin.bottom;
+        height = 200 - margin.top - margin.bottom;
 
     var parseDate = d3.time.format("%d-%b-%y").parse;
 
