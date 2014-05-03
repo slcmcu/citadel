@@ -7,11 +7,11 @@ angular.module('citadel.services', ['ngResource'])
                 method: 'GET',
                 isArray: true
             },
-            memory: {
+            metrics: {
                 method: 'GET',
                 isArray: true,
                 params: {
-                    action: 'memory',
+                    action: 'metrics',
                     name: "@name"
                 }
             },

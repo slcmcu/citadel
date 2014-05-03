@@ -46,7 +46,7 @@ func main() {
 			rdr.JSON(200, data)
 		})
 
-		r.Get("/hosts/:name/memory", func(params martini.Params, rdr render.Render) {
+		r.Get("/hosts/:name/metrics", func(params martini.Params, rdr render.Render) {
 			table := fmt.Sprintf("metrics.hosts.%s", params["name"])
 			data, err := store.Fetch(fmt.Sprintf("select * from %s group by time(15m) where time > now() -3h limit 20", table))
 			if err != nil {

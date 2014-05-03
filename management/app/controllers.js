@@ -12,12 +12,7 @@ function HeaderController($scope) {
 // Dashboard includes overall information with graphs and services 
 // for the cluster
 function DashboardController($scope, Host) {
-    var labels = __generateLabels(25),
-        cpuData = __generateRandomData(66, 100, 24);
-
-    newLineChart('#chart-cpu', labels, cpuData);
-
-    Host.memory({
+    Host.metrics({
         name: "b8f6b1166755"
     }, function (data) {
         var labels = data.map(function (d) {
@@ -26,7 +21,11 @@ function DashboardController($scope, Host) {
         var memoryData = data.map(function (d) {
             return (d.memory.used / d.memory.total) * 100;
         });
+        var cpuData = data.map(function (d) {
+            return d.cpu.user + d.cpu.sys;
+        });
         newLineChart('#chart-memory', labels, memoryData);
+        newLineChart('#chart-cpu', labels, cpuData);
     });
 }
 
