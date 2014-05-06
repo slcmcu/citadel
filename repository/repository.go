@@ -9,5 +9,8 @@ type Repository interface {
 	DeleteHost(*citadel.Host) error
 	FetchHost(name string) (*citadel.Host, error)
 	FetchHosts() ([]*citadel.Host, error)
+
 	FetchContainerGroup() ([]*citadel.ContainerGroup, error)
+
+	FetchPlugin() (string, error)
 }

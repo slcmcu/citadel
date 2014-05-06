@@ -1,40 +1,46 @@
 package scheduler
 
-type CpuProfile float64
+import (
+	"reflect"
 
-const (
-	DISK   = 1.0
-	CPUS   = 1.0
-	MEMORY = 0.8
+	"citadelapp.io/citadel/repository"
+	"github.com/stevedonovan/luar"
+)
 
-	High   CpuProfile = 1.0
-	Medium            = 0.75
-	Low               = 0.5
+var (
+	lua     = luar.Init()
+	intType = reflect.TypeOf(int(0))
 )
 
 type Resource struct {
-	Cpus       int        `json:"cpus,omitempty"`
-	CpuProfile CpuProfile `json:"cpu_profile,omitempty"`
-	Memory     float64    `json:"memory,omitempty"`
-	Disk       float64    `json:"disk,omitempty"`
+	Cpus       int     `json:"cpus,omitempty"`
+	CpuProfile string  `json:"cpu_profile,omitempty"`
+	Memory     float64 `json:"memory,omitempty"`
+	Disk       float64 `json:"disk,omitempty"`
 }
 
 // Weight returns the current weight for resources avaliable
 // on the host
-//
-// current: currently used resources on the host
-// requested: the requested resources to run a container
-//
-// problem: are these hard resource requirements or are they soft limits?
-// container needs up to 2gb but it's currently only using 1gb so can we
-// allocate that extra 1gb to another app?
-func Weight(current, requested *Resource) int {
-	weight := (current.Disk - requested.Disk) * DISK
-	if requested.Cpus > 0 {
-		weight = float64((current.Cpus - requested.Cpus)) * CPUS
+func Weight(resource *Resource) (int, error) {
+	f := luar.NewLuaObjectFromName(lua, "GetWeight")
+	r, err := f.Callf([]reflect.Type{intType}, resource)
+	if err != nil {
+		return -1, err
 	}
-	weight = (current.Memory - requested.Memory) * MEMORY
-	weight *= float64(requested.CpuProfile)
+	return r[0].(int), nil
+}
 
-	return int(weight)
+func Init(repo repository.Repository) error {
+	plugin, err := repo.FetchPlugin()
+	if err != nil {
+		return err
+	}
+	return loadPlugin(plugin)
+}
+
+func loadPlugin(plugin string) error {
+	if err := lua.DoString(plugin); err != nil {
+		return err
+	}
+	return nil
 }
