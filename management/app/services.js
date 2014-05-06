@@ -16,4 +16,12 @@ angular.module('citadel.services', ['ngResource'])
                 }
             },
         });
+    })
+    .factory('Container', function ($resource) {
+        return $resource('/api/containers/:name/:action', {}, {
+            query: {
+                method: 'GET',
+                isArray: true
+            }
+        });
     });
