@@ -90,6 +90,17 @@ func (e *etcdRepository) FetchContainerGroup() ([]*citadel.ContainerGroup, error
 	return images, nil
 }
 
+func (e *etcdRepository) FetchPlugin() (string, error) {
+	resp, err := e.client.Get("/citadel/plugin", false, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return resp.Node.Value, nil
+}
+
 func (e *etcdRepository) marshal(v interface{}) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
