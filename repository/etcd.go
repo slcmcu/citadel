@@ -69,6 +69,18 @@ func (e *etcdRepository) FetchHosts() ([]*citadel.Host, error) {
 	return hosts, nil
 }
 
+func (e *etcdRepository) FetchConfig() (*citadel.Config, error) {
+	resp, err := e.client.Get("/citadel/config", false, false)
+	if err != nil {
+		return nil, err
+	}
+	var c *citadel.Config
+	if err := e.unmarshal(resp.Node.Value, &c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 func (e *etcdRepository) FetchContainerGroup() ([]*citadel.ContainerGroup, error) {
 	images := []*citadel.ContainerGroup{}
 	resp, err := e.client.Get("/citadel/containers", true, true)

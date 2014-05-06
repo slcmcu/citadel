@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 
-	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/metrics"
 	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
@@ -13,25 +13,25 @@ import (
 )
 
 var (
-	configPath string
-	log        = logrus.New()
+	machines string
+	log      = logrus.New()
 )
 
 func init() {
-	flag.StringVar(&configPath, "config", "config.toml", "path to the configuration file")
+	flag.StringVar(&machines, "machines", "127.0.0.1:4001", "Comma separated list of etcd machines")
 	flag.Parse()
 }
 
 func main() {
-	conf, err := citadel.LoadConfig(configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	m := martini.Classic()
 	m.Use(render.Renderer())
 
-	repo := repository.NewEtcdRepository(conf.Machines)
+	etcdMachines := strings.Split(machines, ",")
+	repo := repository.NewEtcdRepository(etcdMachines)
+	conf, err := repo.FetchConfig()
+	if err != nil {
+		log.Fatalf("Unable to get config from etcd: %s", err)
+	}
 	store, err := metrics.NewStore(conf)
 	if err != nil {
 		log.Fatal(err)

@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	configPath string
-	log        = logrus.New()
+	listen   string
+	machines string
+	log      = logrus.New()
 )
 
 // getAgentName gets the agent name based upon the first available mac address
@@ -45,7 +46,7 @@ func generateHostId(name string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func initHostInfo(name string, conf *citadel.Config) (*citadel.Host, error) {
+func getHostInfo(name string) (*citadel.Host, error) {
 	cpus := runtime.NumCPU()
 	memUsage, err := getMemoryUsage()
 	if err != nil {
@@ -57,45 +58,51 @@ func initHostInfo(name string, conf *citadel.Config) (*citadel.Host, error) {
 		return nil, err
 	}
 
-	hostInfo := &citadel.Host{
+	host := &citadel.Host{
 		Name:        name,
-		IPAddress:   conf.Listen,
+		IPAddress:   listen,
 		Cpus:        cpus,
 		TotalMemory: memUsage.Total,
 		Disks:       diskUsage,
 	}
 
-	repo := repository.NewEtcdRepository(conf.Machines)
-	if err := repo.SaveHost(hostInfo); err != nil {
-		return nil, err
-	}
-
-	log.WithFields(logrus.Fields{
-		"cpus":      cpus,
-		"memory":    memUsage,
-		"diskspace": diskUsage,
-	}).Debug("Initializing host info")
-
-	return hostInfo, nil
+	return host, nil
 }
 
 func init() {
-	flag.StringVar(&configPath, "config", "config.toml", "path to the configuration file")
+	flag.StringVar(&listen, "listen", "", "Listen address")
+	flag.StringVar(&machines, "machines", "127.0.0.1:4001", "Comma separated list of etcd machines")
 	flag.Parse()
 }
 
 func main() {
-	conf, err := citadel.LoadConfig(configPath)
+	if listen == "" {
+		log.Fatal("You must specify a listen address")
+	}
+	etcdMachines := strings.Split(machines, ",")
+	repo := repository.NewEtcdRepository(etcdMachines)
+
+	conf, err := repo.FetchConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	agentName := getAgentName()
 
-	host, err := initHostInfo(agentName, conf)
+	host, err := getHostInfo(agentName)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// save to repo
+	if err := repo.SaveHost(host); err != nil {
+		log.Fatalf("Unable to save host: %s", err)
+	}
+	log.WithFields(logrus.Fields{
+		"cpus":      host.Cpus,
+		"memory":    host.TotalMemory,
+		"diskspace": host.Disks,
+	}).Debug("Host Info")
 
 	store, err := metrics.NewStore(conf)
 	if err != nil {
@@ -104,7 +111,7 @@ func main() {
 
 	log.WithFields(logrus.Fields{
 		"nodename": agentName,
-		"address":  conf.Listen,
+		"address":  listen,
 	}).Info("Citadel Agent")
 
 	var (

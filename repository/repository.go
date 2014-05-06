@@ -10,6 +10,8 @@ type Repository interface {
 	FetchHost(name string) (*citadel.Host, error)
 	FetchHosts() ([]*citadel.Host, error)
 
+	FetchConfig() (*citadel.Config, error)
+
 	FetchContainerGroup() ([]*citadel.ContainerGroup, error)
 
 	FetchPlugin() (string, error)
