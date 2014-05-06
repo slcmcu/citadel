@@ -17,8 +17,6 @@ func NewEtcdRepository(machines []string) Repository {
 	r := &etcdRepository{
 		client: etcd.NewClient(machines),
 	}
-	r.client.SyncCluster()
-
 	return r
 }
 
