@@ -46,6 +46,14 @@ func main() {
 			rdr.JSON(200, data)
 		})
 
+		r.Get("/containers", func(rdr render.Render) {
+			data, err := repo.FetchContainerGroup()
+			if err != nil {
+				log.Fatal(err)
+			}
+			rdr.JSON(200, data)
+		})
+
 		r.Get("/hosts/:name/metrics", func(params martini.Params, rdr render.Render) {
 			table := fmt.Sprintf("metrics.hosts.%s", params["name"])
 			data, err := store.Fetch(fmt.Sprintf("select * from %s group by time(5m) where time > now() -12h limit 200", table))

@@ -1,15 +1,16 @@
 'use strict';
 
 // Page header that displays the totals for the cluster
-function HeaderController($scope, Host) {
+function HeaderController($scope, Host, Container) {
     $scope.template = 'partials/header.html';
 
     Host.query({}, function (d) {
         $scope.hosts = d.length;
     });
 
-    $scope.runningContainers = 17338;
-    $scope.start = toggleStartSidebar;
+    Container.query({}, function (d) {
+        $scope.runningContainers = d.length;
+    });
 }
 
 // Dashboard includes overall information with graphs and services 
@@ -32,83 +33,32 @@ function DashboardController($scope, Host) {
 
 // Containers controller aggregates the container running 
 // information for all containers running on the cluster
-function ContainersController($scope) {
+function ContainersController($scope, Container) {
     $scope.namespace = 'crosbymichael';
 
-    $scope.containers = [
-        {
-            name: 'rethinkdb',
-            instances: 16,
-            cpu: 17,
-            memory: 16 * 2048,
-            status: 'healthy'
-        },
-        {
-            name: 'redis',
-            instances: 96,
-            cpu: 7,
-            memory: 96 * 512,
-            status: 'healthy'
-        },
-        {
-            name: 'sentry',
-            instances: 16,
-            cpu: 20,
-            memory: 16 * 68,
-            status: 'healthy'
-        },
-        {
-            name: 'postgres',
-            instances: 8,
-            cpu: 7,
-            memory: 8 * 243,
-            status: 'healthy'
-        },
-        {
-            name: 'mysql',
-            instances: 1,
-            cpu: 7,
-            memory: 643,
-            status: 'healthy'
-        },
-        {
-            name: 'phabricator',
-            instances: 1,
-            cpu: 13,
-            memory: 516,
-            status: 'healthy'
-        },
-        {
-            name: 'nsqd',
-            instances: 100,
-            cpu: 9,
-            memory: 100 * 26,
-            status: 'healthy'
-        },
-        {
-            name: 'nsqadmin',
-            instances: 1,
-            cpu: 4,
-            memory: 20,
-            status: 'sick'
-        }
-    ];
+    Container.query({}, function (d) {
+        $scope.containers = d;
 
-    var mapReduce = function (get) {
-        return $scope.containers.map(get).reduce(function (prev, curr, i, array) {
-            return prev + curr;
+        var mapReduce = function (get) {
+            if ($scope.containers.length === 0) {
+                return 0;
+            }
+            return $scope.containers.map(get).reduce(function (prev, curr, i, array) {
+                return prev + curr;
+            });
+        };
+
+        $scope.count = $scope.containers.length;
+        $scope.totalMemory = mapReduce(function (i) {
+            return i.memory;
         });
-    };
+        $scope.totalCpu = mapReduce(function (i) {
+            return i.cpu;
+        });
+        $scope.instances = mapReduce(function (i) {
+            return i.instances;
+        });
 
-    $scope.count = $scope.containers.length;
-    $scope.totalMemory = mapReduce(function (i) {
-        return i.memory;
-    });
-    $scope.totalCpu = mapReduce(function (i) {
-        return i.cpu;
-    });
-    $scope.instances = mapReduce(function (i) {
-        return i.instances;
     });
 
     $scope.addImage = function () {

@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"path"
+	"strings"
 
 	"citadelapp.io/citadel"
 	"github.com/coreos/go-etcd/etcd"
@@ -50,11 +51,14 @@ func (e *etcdRepository) FetchHost(name string) (*citadel.Host, error) {
 }
 
 func (e *etcdRepository) FetchHosts() ([]*citadel.Host, error) {
-	resp, err := e.client.Get("/citadel/hosts", false, true)
+	hosts := []*citadel.Host{}
+	resp, err := e.client.Get("/citadel/hosts", true, true)
 	if err != nil {
+		if isNotFoundErr(err) {
+			return hosts, nil
+		}
 		return nil, err
 	}
-	hosts := []*citadel.Host{}
 	for _, n := range resp.Node.Nodes {
 		var h *citadel.Host
 		if err := e.unmarshal(n.Value, &h); err != nil {
@@ -63,6 +67,38 @@ func (e *etcdRepository) FetchHosts() ([]*citadel.Host, error) {
 		hosts = append(hosts, h)
 	}
 	return hosts, nil
+}
+
+func (e *etcdRepository) FetchContainerGroup() ([]*citadel.ContainerGroup, error) {
+	images := []*citadel.ContainerGroup{}
+	resp, err := e.client.Get("/citadel/containers", true, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return images, nil
+		}
+		return nil, err
+	}
+
+	for _, n := range resp.Node.Nodes {
+		i := &citadel.ContainerGroup{
+			Name:      n.Key,
+			Instances: n.Nodes.Len(),
+			Status:    "healthy",
+		}
+		images = append(images, i)
+	}
+	return images, nil
+}
+
+func (e *etcdRepository) FetchPlugin() (string, error) {
+	resp, err := e.client.Get("/citadel/plugin", false, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return resp.Node.Value, nil
 }
 
 func (e *etcdRepository) marshal(v interface{}) (string, error) {
@@ -75,4 +111,8 @@ func (e *etcdRepository) marshal(v interface{}) (string, error) {
 
 func (e *etcdRepository) unmarshal(data string, v interface{}) error {
 	return json.Unmarshal([]byte(data), v)
+}
+
+func isNotFoundErr(err error) bool {
+	return strings.Contains(err.Error(), "Key not found")
 }

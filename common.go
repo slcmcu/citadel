@@ -17,4 +17,12 @@ type (
 		Available float64 `json:"available,omitempty"`
 		Total     float64 `json:"total,omitempty"`
 	}
+
+	ContainerGroup struct {
+		Name      string  `json:"name,omitempty"`
+		Instances int     `json:"instances,omitempty"`
+		Cpu       float64 `json:"cpu,omitempty"`
+		Memory    float64 `json:"memory,omitempty"`
+		Status    string  `json:"status,omitempty"`
+	}
 )
