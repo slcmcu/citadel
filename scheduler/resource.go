@@ -8,26 +8,18 @@ import (
 )
 
 var (
-	lua     = luar.Init()
-	intType = reflect.TypeOf(int(0))
+	acceptFunc *luar.LuaObject
+	lua        = luar.Init()
+	boolType   = reflect.TypeOf(true)
 )
 
 type Resource struct {
-	Cpus       int     `json:"cpus,omitempty"`
-	CpuProfile string  `json:"cpu_profile,omitempty"`
-	Memory     float64 `json:"memory,omitempty"`
-	Disk       float64 `json:"disk,omitempty"`
-}
-
-// Weight returns the current weight for resources avaliable
-// on the host
-func Weight(resource *Resource) (int, error) {
-	f := luar.NewLuaObjectFromName(lua, "GetWeight")
-	r, err := f.Callf([]reflect.Type{intType}, resource)
-	if err != nil {
-		return -1, err
-	}
-	return r[0].(int), nil
+	Image      string            `json:"image,omitempty"`
+	Cpus       int               `json:"cpus,omitempty"`
+	CpuProfile string            `json:"cpu_profile,omitempty"`
+	Memory     float64           `json:"memory,omitempty"`
+	Disk       float64           `json:"disk,omitempty"`
+	Context    map[string]string `json:"context,omitempty"`
 }
 
 func Init(repo repository.Repository) error {
@@ -42,5 +34,14 @@ func loadPlugin(plugin string) error {
 	if err := lua.DoString(plugin); err != nil {
 		return err
 	}
+	acceptFunc = luar.NewLuaObjectFromName(lua, "Accept")
 	return nil
+}
+
+func Accept(resource *Resource) (bool, error) {
+	r, err := acceptFunc.Callf([]reflect.Type{boolType}, resource)
+	if err != nil {
+		return false, err
+	}
+	return r[0].(bool), nil
 }

@@ -11,8 +11,8 @@ func TestWeight(t *testing.T) {
 	defer lua.Close()
 
 	plug := `
-function GetWeight(resource)
-    return 1
+function Accept(resource)
+    return true
 end
 `
 
@@ -20,12 +20,13 @@ end
 		t.Fatal(err)
 	}
 
-	weight, err := Weight(&Resource{})
+	accept, err := Accept(&Resource{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if weight != 1 {
-		t.Fatalf("expected a weight of 1 got %d", weight)
+
+	if !accept {
+		t.Fatalf("expected resource to be accepted")
 	}
 }
 
@@ -34,7 +35,7 @@ func TestResourceValues(t *testing.T) {
 	defer lua.Close()
 
 	plug := `
-function GetWeight(resource)
+function Accept(resource)
     if resource.Cpus ~= 4 then
         error("cpus not equal to 4")
     end
@@ -50,7 +51,7 @@ function GetWeight(resource)
     if resource.Disk ~= 1000 then 
         error("disk not equal to 1000")
     end
-    return 1
+    return true
 end
 `
 
@@ -58,11 +59,11 @@ end
 		t.Fatal(err)
 	}
 
-	weight, err := Weight(&Resource{Cpus: 4, Memory: 1024, CpuProfile: "high", Disk: 1000})
+	accept, err := Accept(&Resource{Cpus: 4, Memory: 1024, CpuProfile: "high", Disk: 1000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if weight != 1 {
-		t.Fatalf("expected a weight of 1 got %d", weight)
+	if !accept {
+		t.Fatalf("expected resource to be accepted")
 	}
 }
