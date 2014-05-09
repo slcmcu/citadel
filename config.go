@@ -6,4 +6,5 @@ type Config struct {
 	InfluxUser     string `json:"influx_user"`
 	InfluxPassword string `json:"influx_password"`
 	InfluxDatabase string `json:"influx_database"`
+	Namespace      string `json:"namespace"`
 }

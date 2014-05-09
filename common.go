@@ -25,4 +25,12 @@ type (
 		Memory    float64 `json:"memory,omitempty"`
 		Status    string  `json:"status,omitempty"`
 	}
+
+	Container struct {
+		Host   string  `json:"host,omitempty"`
+		Name   string  `json:"name,omitempty"`
+		Image  string  `json:"image,omitempty"`
+		Cpu    float64 `json:"cpu,omitempty"`
+		Memory float64 `json:"memory,omitempty"`
+	}
 )

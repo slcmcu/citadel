@@ -10,6 +10,9 @@ import (
 type Store interface {
 	Save(table string, m *Metric) error
 	Fetch(query string) ([]*Metric, error)
+
+	SaveEvent(string, *Event) error
+	FetchEvents(query string) ([]*Event, error)
 }
 
 type influxStore struct {
@@ -87,4 +90,52 @@ func (i *influxStore) Fetch(query string) ([]*Metric, error) {
 		}
 	}
 	return out, nil
+}
+
+func (i *influxStore) SaveEvent(table string, e *Event) error {
+	s := &influxdb.Series{
+		Name:    table,
+		Columns: []string{"host", "action", "subsystem", "content", "data"},
+		Points: [][]interface{}{
+			[]interface{}{e.Host, e.Action, e.Subsystem, e.Content, e.Data},
+		},
+	}
+	return i.client.WriteSeries([]*influxdb.Series{s})
+}
+
+func (i *influxStore) FetchEvents(query string) ([]*Event, error) {
+	resp, err := i.client.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	out := []*Event{}
+	for _, s := range resp {
+		for _, p := range s.Points {
+			e := &Event{}
+			for j, c := range s.Columns {
+				switch c {
+				case "host":
+					e.Host = p[j].(string)
+				case "action":
+					e.Action = p[j].(Action)
+				case "subsystem":
+					e.Subsystem = p[j].(System)
+				case "content":
+					e.Content = p[j].(string)
+				case "data":
+					e.Data = p[j].(string)
+				case "time":
+					e.Time = p[j].(float64)
+				case "sequence_number":
+					// ignore
+				default:
+					return nil, fmt.Errorf("unknown column %s from table %s", c, s.Name)
+				}
+			}
+			out = append(out, e)
+		}
+	}
+	return out, nil
+
 }
