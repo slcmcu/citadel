@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
 	"github.com/samalba/dockerclient"
 )
@@ -23,14 +24,16 @@ type Slave struct {
 	citadel.Slave
 
 	containers citadel.Containers
+	repo       repository.Repository
 	docker     *dockerclient.DockerClient
 	log        *logrus.Logger
 }
 
-func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient) (*Slave, error) {
+func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient, repo repository.Repository) (*Slave, error) {
 	s := &Slave{
 		docker:     docker,
 		log:        logger,
+		repo:       repo,
 		containers: citadel.Containers{},
 	}
 	s.Cpus = runtime.NumCPU()
@@ -73,8 +76,8 @@ func (s *Slave) Execute(c *citadel.Container, conf *citadel.Config) error {
 	return nil
 }
 
-func (s *Slave) PullImage(image string) error {
-	return s.docker.PullImage(image, "latest")
+func (s *Slave) PullImage(image string, conf *citadel.Config) error {
+	return s.docker.PullImage(path.Join(conf.Namespace, image), "latest")
 }
 
 func (s *Slave) canRun(c *citadel.Container) error {
@@ -101,6 +104,14 @@ func (s *Slave) canRun(c *citadel.Container) error {
 func (s *Slave) eventHandler(event *dockerclient.Event, args ...interface{}) {
 	switch event.Status {
 	case "die":
+		if err := s.repo.RemoveContainer(s.ID, event.Id); err != nil {
+			s.log.WithFields(logrus.Fields{
+				"error": err,
+				"event": event.Status,
+				"id":    event.Id,
+			}).Error("cannot remove container")
+		}
+
 		if err := s.docker.RemoveContainer(event.Id); err != nil {
 			s.log.WithFields(logrus.Fields{
 				"error": err,

@@ -112,7 +112,7 @@ func slaveMain(context *cli.Context) {
 	defer nc.Close()
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
-	s, err := slave.New(uuid, logger, docker)
+	s, err := slave.New(uuid, logger, docker, repo)
 	if err != nil {
 		logger.WithField("error", err).Fatal("unable to initialize slave")
 	}
@@ -141,7 +141,7 @@ func slaveMain(context *cli.Context) {
 
 	pullSub, err := nc.Subscribe("slaves.pull", func(image string) {
 		logger.WithField("image", image).Info("pulling")
-		if err := s.PullImage(image); err != nil {
+		if err := s.PullImage(image, conf); err != nil {
 			logger.WithField("error", err).Error("pull image")
 		}
 	})

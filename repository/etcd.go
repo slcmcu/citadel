@@ -92,6 +92,11 @@ func (e *etcdRepository) SaveContainer(uuid string, c *citadel.Container) error 
 	return err
 }
 
+func (e *etcdRepository) RemoveContainer(uuid, id string) error {
+	_, err := e.client.Delete(path.Join("/citadel/slaves", uuid, "containers", id), true)
+	return err
+}
+
 func (e *etcdRepository) FetchContainers(uuid string) (citadel.Containers, error) {
 	containers := citadel.Containers{}
 	resp, err := e.client.Get(path.Join("/citadel/slaves", uuid, "containers"), false, true)
