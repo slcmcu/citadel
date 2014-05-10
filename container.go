@@ -41,3 +41,12 @@ func (cs Containers) Volumes() []string {
 	}
 	return out
 }
+
+func (cs Containers) ContainsImage(i string) bool {
+	for _, c := range cs {
+		if c.Image == i {
+			return true
+		}
+	}
+	return false
+}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/utils"
+	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -22,6 +22,11 @@ type Master struct {
 	timeout time.Duration
 }
 
+type result struct {
+	slaves []*citadel.Slave
+	err    error
+}
+
 func New(logger *logrus.Logger, timeout time.Duration) (*Master, error) {
 	m := &Master{
 		timeout: timeout,
@@ -30,15 +35,57 @@ func New(logger *logrus.Logger, timeout time.Duration) (*Master, error) {
 	return m, nil
 }
 
-func (m *Master) Schedule(task *citadel.Task) error {
+func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*citadel.Slave, error) {
 	m.Lock()
-	transactionId := utils.GenerateUUID(32)
+	defer m.Unlock()
 
-	defer func() {
-		m.log.WithField("transaction_id", transactionId).Debug("ending scheduled transaction")
-		m.Unlock()
+	complete := make(chan *result)
+
+	go func() {
+		r := &result{slaves: []*citadel.Slave{}}
+
+		slaves, err := repo.FetchSlaves()
+		if err != nil {
+			r.err = err
+			complete <- r
+			return
+		}
+
+		for _, s := range slaves {
+			containers, err := repo.FetchContainers(s.ID)
+			if err != nil {
+				r.err = err
+				complete <- r
+				return
+			}
+
+			// TODO: make this a plugin
+			if !containers.ContainsImage(task.Container.Image) {
+				var (
+					reservedCpu    = containers.Cpus()
+					reservedMemory = containers.Memory()
+					allocate       = (s.Cpus-reservedCpu-task.Container.Cpus) > 0 && (s.Memory-reservedMemory-task.Container.Memory) > 0
+				)
+
+				if !allocate {
+					r.slaves = append(r.slaves, s)
+				}
+			}
+		}
+		complete <- r
 	}()
-	m.log.WithField("transaction_id", transactionId).Debug("starting scheduled transaction")
 
-	return nil
+	select {
+	case <-time.After(m.timeout):
+		return nil, ErrNoValidOffers
+	case r := <-complete:
+		if r.err != nil {
+			return nil, r.err
+		}
+
+		if len(r.slaves) < task.Instances {
+			return nil, ErrNoValidOffers
+		}
+		return r.slaves, nil
+	}
 }

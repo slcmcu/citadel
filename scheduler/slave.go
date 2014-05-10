@@ -95,7 +95,7 @@ func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository) {
 			"error":     err,
 			"uuid":      s.ID,
 			"container": c.ID,
-		}).Error("saving contaienr")
+		}).Error("saving container")
 	}
 }
 
