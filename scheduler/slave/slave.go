@@ -100,13 +100,13 @@ func (s *Slave) canRun(c *citadel.Container) error {
 
 func (s *Slave) eventHandler(event *dockerclient.Event, args ...interface{}) {
 	switch event.Status {
-	case "die", "stop", "kill":
+	case "die":
 		if err := s.docker.RemoveContainer(event.Id); err != nil {
 			s.log.WithFields(logrus.Fields{
 				"error": err,
 				"event": event.Status,
 				"id":    event.Id,
-			}).Error("cannot remote container")
+			}).Error("cannot remove container")
 		}
 		s.Lock()
 		delete(s.containers, event.Id)
