@@ -19,12 +19,9 @@ var (
 // Slave that manages one docker host
 type Slave struct {
 	sync.RWMutex
+	citadel.Resource
 
-	ID      string            `json:"id,omitempty"`
-	Cpus    int               `json:"cpus,omitempty"`
-	Memory  float64           `json:"memory,omitempty"`
-	Volumes map[string]string `json:"volumes,omitempty"`
-
+	ID         string
 	containers citadel.States
 	docker     *dockerclient.DockerClient
 	log        *logrus.Logger
@@ -33,10 +30,10 @@ type Slave struct {
 func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient) (*Slave, error) {
 	s := &Slave{
 		ID:     uuid,
-		Cpus:   runtime.NumCPU(),
 		docker: docker,
 		log:    logger,
 	}
+	s.Cpus = runtime.NumCPU()
 
 	s.docker.StartMonitorEvents(s.eventHandler)
 
@@ -74,7 +71,6 @@ func (s *Slave) Execute(c *citadel.Container) (*citadel.State, error) {
 	}
 
 	state := &citadel.State{
-		Slave:     s.ID,
 		Container: c,
 	}
 	config := &dockerclient.ContainerConfig{
@@ -90,6 +86,7 @@ func (s *Slave) Execute(c *citadel.Container) (*citadel.State, error) {
 	if err := s.docker.StartContainer(id); err != nil {
 		return nil, err
 	}
+	state.ID = id
 
 	s.Lock()
 	s.containers[id] = state

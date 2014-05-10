@@ -111,7 +111,35 @@ func (e *etcdRepository) FetchPlugin() (string, error) {
 	return resp.Node.Value, nil
 }
 
-func (e *etcdRepository) SaveState(slaveUUID string) error {
+func (e *etcdRepository) RegisterSlave(uuid string, resource *citadel.Resource, ttl int) error {
+	data, err := e.marshal(resource)
+	if err != nil {
+		return err
+	}
+	if _, err := e.client.CreateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
+		return err
+	}
+	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "resource"), data, 0); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *etcdRepository) UpdateSlave(uuid string, ttl int) error {
+	if _, err := e.client.UpdateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *etcdRepository) SaveState(uuid string, state *citadel.State) error {
+	data, err := e.marshal(state)
+	if err != nil {
+		return err
+	}
+	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "containers", state.ID), data, 0); err != nil {
+		return err
+	}
 	return nil
 }
 

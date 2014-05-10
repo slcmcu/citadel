@@ -25,4 +25,9 @@ type (
 		Memory    float64 `json:"memory,omitempty"`
 		Status    string  `json:"status,omitempty"`
 	}
+
+	Resource struct {
+		Cpus   int     `json:"cpus,omitempty"`
+		Memory float64 `json:"memory,omitempty"`
+	}
 )

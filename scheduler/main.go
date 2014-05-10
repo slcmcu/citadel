@@ -12,21 +12,24 @@ var (
 	logger = logrus.New()
 )
 
-func masterMain(context *cli.Context) {
-
-}
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "citadel scheduler"
 	app.Version = "0.1"
 	app.Author = "@crosbymichael"
 	app.Email = "michael@crosbymichael.com"
+
+	app.Flags = []cli.Flag{
+		cli.StringSliceFlag{"etcd", &cli.StringSlice{}, "etcd machines to connect to"},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:        "slave",
 			Description: "run as a slave in the cluster",
 			Action:      slaveMain,
+			Flags: []cli.Flag{
+				cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker endpoint"},
+			},
 		},
 		{
 			Name:        "master",
