@@ -35,6 +35,5 @@ Host metrics are collected and stored in `select * from metrics.hosts.b8f6b11667
 
 **setup config**
 ```bash
-curl -s http://dev.crosbymichael.com:4001/v2/keys/citadel/config -XPUT -d value='{"poll_interval":30, "influx_host":"d
-ev.crosbymichael.com:8086", "influx_user": "citadel", "influx_password":"koye", "influx_database":"citadel", "natsd":"nats://dev.crosbymichael.com:4222"}'
+curl -s http://dev.crosbymichael.com:4001/v2/keys/citadel/config -XPUT -d value='{"poll_interval":30, "influx_host":"dev.crosbymichael.com:8086", "influx_user": "citadel", "influx_password":"koye", "influx_database":"citadel", "natsd":"nats://dev.crosbymichael.com:4222", "ttl": 30, "master_timeout", "10s"}'
 ```

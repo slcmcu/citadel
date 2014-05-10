@@ -2,6 +2,7 @@ package master
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -46,7 +47,7 @@ func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*ci
 
 		slaves, err := repo.FetchSlaves()
 		if err != nil {
-			r.err = err
+			r.err = fmt.Errorf("unable to fetch slaves %s", err)
 			complete <- r
 			return
 		}
@@ -54,7 +55,7 @@ func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*ci
 		for _, s := range slaves {
 			containers, err := repo.FetchContainers(s.ID)
 			if err != nil {
-				r.err = err
+				r.err = fmt.Errorf("unable to fetch containers %s", err)
 				complete <- r
 				return
 			}
@@ -67,7 +68,7 @@ func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*ci
 					allocate       = (s.Cpus-reservedCpu-task.Container.Cpus) > 0 && (s.Memory-reservedMemory-task.Container.Memory) > 0
 				)
 
-				if !allocate {
+				if allocate {
 					r.slaves = append(r.slaves, s)
 				}
 			}
@@ -77,7 +78,7 @@ func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*ci
 
 	select {
 	case <-time.After(m.timeout):
-		return nil, ErrNoValidOffers
+		return nil, fmt.Errorf("no execution before timeout %s", m.timeout)
 	case r := <-complete:
 		if r.err != nil {
 			return nil, r.err

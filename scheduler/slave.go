@@ -48,10 +48,10 @@ func getUUID() string {
 }
 
 func getRepositoryAndConfig(context *cli.Context) (repository.Repository, *citadel.Config) {
-	repo := repository.NewEtcdRepository(context.StringSlice("etcd"), false)
+	repo := repository.NewEtcdRepository(machines.Value(), false)
 	conf, err := repo.FetchConfig()
 	if err != nil {
-		logger.WithField("error", err).Fatal("fetch config")
+		logger.WithField("error", err).Fatalln("fetch config", machines.Value())
 	}
 	return repo, conf
 }
@@ -82,8 +82,8 @@ func getNats(conf *citadel.Config) *nats.EncodedConn {
 	return c
 }
 
-func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, nc *nats.EncodedConn) {
-	if err := s.Execute(c); err != nil {
+func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, conf *citadel.Config, nc *nats.EncodedConn) {
+	if err := s.Execute(c, conf); err != nil {
 		logger.WithFields(logrus.Fields{
 			"error": err,
 			"uuid":  s.ID,
@@ -128,7 +128,8 @@ func slaveMain(context *cli.Context) {
 			logger.WithField("error", err).Error("unmarshal container from message")
 			return
 		}
-		execute(s, c, repo, nc)
+		logger.WithField("image", c.Image).Info("executing")
+		execute(s, c, repo, conf, nc)
 		if err := nc.Publish(msg.Reply, c); err != nil {
 			logger.WithField("error", err).Error("sending response")
 		}
@@ -139,6 +140,7 @@ func slaveMain(context *cli.Context) {
 	defer execSub.Unsubscribe()
 
 	pullSub, err := nc.Subscribe("slaves.pull", func(image string) {
+		logger.WithField("image", image).Info("pulling")
 		if err := s.PullImage(image); err != nil {
 			logger.WithField("error", err).Error("pull image")
 		}
@@ -150,6 +152,7 @@ func slaveMain(context *cli.Context) {
 
 	for s := range sig {
 		nc.Publish("slaves.leaving", uuid)
+		repo.RemoveSlave(uuid)
 
 		logger.WithField("signal", s.String()).Info("exiting")
 		return

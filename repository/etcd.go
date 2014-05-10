@@ -68,16 +68,15 @@ func (e *etcdRepository) FetchSlaves() ([]*citadel.Slave, error) {
 		}
 		return nil, err
 	}
+
 	for _, n := range resp.Node.Nodes {
-		if n.Dir {
-			for _, sdir := range n.Nodes {
-				if !sdir.Dir {
-					var s *citadel.Slave
-					if err := e.unmarshal(n.Value, &s); err != nil {
-						return nil, err
-					}
-					slaves = append(slaves, s)
+		for _, sdir := range n.Nodes {
+			if sdir.Key == path.Join(n.Key, "config") {
+				var s *citadel.Slave
+				if err := e.unmarshal(sdir.Value, &s); err != nil {
+					return nil, err
 				}
+				slaves = append(slaves, s)
 			}
 		}
 	}

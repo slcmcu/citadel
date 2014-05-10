@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	logger = logrus.New()
+	logger   = logrus.New()
+	machines = &cli.StringSlice{}
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 	app.Email = "michael@crosbymichael.com"
 
 	app.Flags = []cli.Flag{
-		cli.StringSliceFlag{"etcd", &cli.StringSlice{}, "etcd machines to connect to"},
+		cli.StringSliceFlag{"etcd", machines, "etcd machines to connect to"},
 	}
 	app.Commands = []cli.Command{
 		{

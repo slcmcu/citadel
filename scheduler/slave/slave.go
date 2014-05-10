@@ -2,6 +2,7 @@ package slave
 
 import (
 	"errors"
+	"path"
 	"runtime"
 	"sync"
 
@@ -21,7 +22,6 @@ type Slave struct {
 	sync.RWMutex
 	citadel.Slave
 
-	ID         string
 	containers citadel.Containers
 	docker     *dockerclient.DockerClient
 	log        *logrus.Logger
@@ -29,18 +29,20 @@ type Slave struct {
 
 func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient) (*Slave, error) {
 	s := &Slave{
-		ID:     uuid,
-		docker: docker,
-		log:    logger,
+		docker:     docker,
+		log:        logger,
+		containers: citadel.Containers{},
 	}
 	s.Cpus = runtime.NumCPU()
+	s.Memory = 1024 * 8000
+	s.ID = uuid
 
 	s.docker.StartMonitorEvents(s.eventHandler)
 
 	return s, nil
 }
 
-func (s *Slave) Execute(c *citadel.Container) error {
+func (s *Slave) Execute(c *citadel.Container, conf *citadel.Config) error {
 	if err := s.canRun(c); err != nil {
 		return err
 	}
@@ -50,7 +52,7 @@ func (s *Slave) Execute(c *citadel.Container) error {
 	}
 
 	config := &dockerclient.ContainerConfig{
-		Image:     c.Image,
+		Image:     path.Join(conf.Namespace, c.Image) + ":latest",
 		Memory:    int(c.Memory),
 		CpuShares: c.Cpus,
 	}

@@ -11,7 +11,6 @@ import (
 	"citadelapp.io/citadel/scheduler/master"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/gorilla/mux"
 )
 
 func registerMaster(m *master.Master, ttl int, repo repository.Repository) {
@@ -60,6 +59,8 @@ func masterMain(context *cli.Context) {
 		var task *citadel.Task
 		if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 			logger.WithField("error", err).Error("decoding task")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
 		logger.WithFields(logrus.Fields{
@@ -67,15 +68,16 @@ func masterMain(context *cli.Context) {
 			"image":     task.Container.Image,
 			"cpus":      task.Container.Cpus,
 			"memory":    task.Container.Memory,
-		}).Debug("scheduling task")
+		}).Info("scheduling task")
 
 		slaves, err := m.Schedule(task, repo)
 		if err != nil {
 			logger.WithField("error", err).Error("cannot schedule task")
 			if err == master.ErrNoValidOffers {
 				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -100,10 +102,10 @@ func masterMain(context *cli.Context) {
 	})
 
 	http.HandleFunc("/pull", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		logger.WithField("image", vars["image"]).Debug("pulling image")
+		image := r.URL.Query().Get("image")
+		logger.WithField("image", image).Info("pulling image")
 
-		if err := nc.Publish("slaves.pull", vars["image"]); err != nil {
+		if err := nc.Publish("slaves.pull", image); err != nil {
 			logger.WithField("error", err).Error("pull image")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
