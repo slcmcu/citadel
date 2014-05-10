@@ -1,12 +1,11 @@
 package citadel
 
 type (
-	Host struct {
-		Name        string  `json:"name,omitempty"`
-		IPAddress   string  `json:"ip_address,omitempty"`
-		Cpus        int     `json:"cpus,omitempty"`
-		TotalMemory float64 `json:"total_memory,omitempty"`
-		Disks       []*Disk `json:"disks,omitempty"`
+	Slave struct {
+		ID     string  `json:"id,omitempty"`
+		IP     string  `json:"ip,omitempty"`
+		Cpus   int     `json:"cpus,omitempty"`
+		Memory float64 `json:"memory,omitempty"`
 	}
 
 	Disk struct {
@@ -16,18 +15,5 @@ type (
 		Files     float64 `json:"files,omitempty"`
 		Available float64 `json:"available,omitempty"`
 		Total     float64 `json:"total,omitempty"`
-	}
-
-	ContainerGroup struct {
-		Name      string  `json:"name,omitempty"`
-		Instances int     `json:"instances,omitempty"`
-		Cpu       float64 `json:"cpu,omitempty"`
-		Memory    float64 `json:"memory,omitempty"`
-		Status    string  `json:"status,omitempty"`
-	}
-
-	Resource struct {
-		Cpus   int     `json:"cpus,omitempty"`
-		Memory float64 `json:"memory,omitempty"`
 	}
 )

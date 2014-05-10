@@ -13,58 +13,108 @@ type etcdRepository struct {
 	client *etcd.Client
 }
 
-func NewEtcdRepository(machines []string) Repository {
+func NewEtcdRepository(machines []string, sync bool) Repository {
 	r := &etcdRepository{
 		client: etcd.NewClient(machines),
+	}
+	if sync {
+		r.client.SyncCluster()
 	}
 	return r
 }
 
-func (e *etcdRepository) SaveHost(h *citadel.Host) error {
-	body, err := e.marshal(h)
+// RegisterSlave registers the uuid and slave information into the key
+// /citadel/slaves/<uuid> and /citadel/slaves/<uuid>/config with the ttl
+func (e *etcdRepository) RegisterSlave(uuid string, slave *citadel.Slave, ttl int) error {
+	data, err := e.marshal(slave)
 	if err != nil {
 		return err
 	}
-	if _, err := e.client.Set(path.Join("/citadel/hosts", h.Name), body, 0); err != nil {
+	if _, err := e.client.CreateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
+		return err
+	}
+	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "config"), data, 0); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *etcdRepository) DeleteHost(h *citadel.Host) error {
-	_, err := e.client.Delete(path.Join("/citadel/hosts", h.Name), true)
+func (e *etcdRepository) UpdateSlave(uuid string, ttl int) error {
+	if _, err := e.client.UpdateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *etcdRepository) RemoveSlave(uuid string) error {
+	_, err := e.client.Delete(path.Join("/citadel/slaves", uuid), true)
 	return err
 }
 
-func (e *etcdRepository) FetchHost(name string) (*citadel.Host, error) {
-	resp, err := e.client.Get(path.Join("/citadel/hosts", name), false, false)
+func (e *etcdRepository) FetchSlave(uuid string) (*citadel.Slave, error) {
+	resp, err := e.client.Get(path.Join("/citadel/slaves", uuid, "config"), false, false)
 	if err != nil {
 		return nil, err
 	}
-	var h *citadel.Host
-	if err := e.unmarshal(resp.Node.Value, &h); err != nil {
+	var s *citadel.Slave
+	if err := e.unmarshal(resp.Node.Value, &s); err != nil {
 		return nil, err
 	}
-	return h, nil
+	return s, nil
 }
 
-func (e *etcdRepository) FetchHosts() ([]*citadel.Host, error) {
-	hosts := []*citadel.Host{}
-	resp, err := e.client.Get("/citadel/hosts", true, true)
+func (e *etcdRepository) FetchSlaves() ([]*citadel.Slave, error) {
+	slaves := []*citadel.Slave{}
+	resp, err := e.client.Get("/citadel/slaves", true, true)
 	if err != nil {
 		if isNotFoundErr(err) {
-			return hosts, nil
+			return slaves, nil
 		}
 		return nil, err
 	}
 	for _, n := range resp.Node.Nodes {
-		var h *citadel.Host
-		if err := e.unmarshal(n.Value, &h); err != nil {
+		if n.Dir {
+			for _, sdir := range n.Nodes {
+				if !sdir.Dir {
+					var s *citadel.Slave
+					if err := e.unmarshal(n.Value, &s); err != nil {
+						return nil, err
+					}
+					slaves = append(slaves, s)
+				}
+			}
+		}
+	}
+	return slaves, nil
+}
+
+func (e *etcdRepository) SaveContainer(uuid string, c *citadel.Container) error {
+	data, err := e.marshal(c)
+	if err != nil {
+		return err
+	}
+	_, err = e.client.Set(path.Join("/citadel/slaves", uuid, "containers", c.ID), data, 0)
+	return err
+}
+
+func (e *etcdRepository) FetchContainers(uuid string) (citadel.Containers, error) {
+	containers := citadel.Containers{}
+	resp, err := e.client.Get(path.Join("/citadel/slaves", uuid, "containers"), false, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return containers, nil
+		}
+		return nil, err
+	}
+
+	for _, n := range resp.Node.Nodes {
+		var c *citadel.Container
+		if err := e.unmarshal(n.Value, &c); err != nil {
 			return nil, err
 		}
-		hosts = append(hosts, h)
+		containers[c.ID] = c
 	}
-	return hosts, nil
+	return containers, nil
 }
 
 func (e *etcdRepository) FetchConfig() (*citadel.Config, error) {
@@ -79,70 +129,7 @@ func (e *etcdRepository) FetchConfig() (*citadel.Config, error) {
 	return c, nil
 }
 
-func (e *etcdRepository) FetchContainerGroup() ([]*citadel.ContainerGroup, error) {
-	images := []*citadel.ContainerGroup{}
-	resp, err := e.client.Get("/citadel/containers", true, true)
-	if err != nil {
-		if isNotFoundErr(err) {
-			return images, nil
-		}
-		return nil, err
-	}
-
-	for _, n := range resp.Node.Nodes {
-		i := &citadel.ContainerGroup{
-			Name:      n.Key,
-			Instances: n.Nodes.Len(),
-			Status:    "healthy",
-		}
-		images = append(images, i)
-	}
-	return images, nil
-}
-
-func (e *etcdRepository) FetchPlugin() (string, error) {
-	resp, err := e.client.Get("/citadel/plugin", false, true)
-	if err != nil {
-		if isNotFoundErr(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	return resp.Node.Value, nil
-}
-
-func (e *etcdRepository) RegisterSlave(uuid string, resource *citadel.Resource, ttl int) error {
-	data, err := e.marshal(resource)
-	if err != nil {
-		return err
-	}
-	if _, err := e.client.CreateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
-		return err
-	}
-	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "resource"), data, 0); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *etcdRepository) UpdateSlave(uuid string, ttl int) error {
-	if _, err := e.client.UpdateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *etcdRepository) SaveState(uuid string, state *citadel.State) error {
-	data, err := e.marshal(state)
-	if err != nil {
-		return err
-	}
-	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "containers", state.ID), data, 0); err != nil {
-		return err
-	}
-	return nil
-}
-
+// marshal encodes the value into a string via the json encoder
 func (e *etcdRepository) marshal(v interface{}) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -151,10 +138,12 @@ func (e *etcdRepository) marshal(v interface{}) (string, error) {
 	return string(data), nil
 }
 
+// unmarshal decodes the data using the json decoder into the value v
 func (e *etcdRepository) unmarshal(data string, v interface{}) error {
 	return json.Unmarshal([]byte(data), v)
 }
 
+// isNotFoundErr returns true if the error is of type Key Not Found
 func isNotFoundErr(err error) bool {
 	return strings.Contains(err.Error(), "Key not found")
 }

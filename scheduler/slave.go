@@ -18,7 +18,7 @@ import (
 )
 
 func register(s *slave.Slave, ttl int, repo repository.Repository) error {
-	if err := repo.RegisterSlave(s.ID, &s.Resource, ttl); err != nil {
+	if err := repo.RegisterSlave(s.ID, &s.Slave, ttl); err != nil {
 		return err
 	}
 	go heartbeat(s.ID, ttl, repo)
@@ -47,7 +47,7 @@ func getUUID() string {
 }
 
 func getRepositoryAndConfig(context *cli.Context) (repository.Repository, *citadel.Config) {
-	repo := repository.NewEtcdRepository(context.StringSlice("etcd"))
+	repo := repository.NewEtcdRepository(context.StringSlice("etcd"), false)
 	conf, err := repo.FetchConfig()
 	if err != nil {
 		logger.WithField("error", err).Fatal("fetch config")
@@ -82,8 +82,7 @@ func getNats(conf *citadel.Config) *nats.EncodedConn {
 }
 
 func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository) {
-	state, err := s.Execute(c)
-	if err != nil {
+	if err := s.Execute(c); err != nil {
 		logger.WithFields(logrus.Fields{
 			"error": err,
 			"uuid":  s.ID,
@@ -91,12 +90,12 @@ func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository) {
 		return
 	}
 
-	if err := repo.SaveState(s.ID, state); err != nil {
+	if err := repo.SaveContainer(s.ID, c); err != nil {
 		logger.WithFields(logrus.Fields{
 			"error":     err,
 			"uuid":      s.ID,
-			"container": state.ID,
-		}).Error("saving contaienr state")
+			"container": c.ID,
+		}).Error("saving contaienr")
 	}
 }
 

@@ -2,6 +2,7 @@ package citadel
 
 // Container defines the resources required to launch a container
 type Container struct {
+	ID      string            `json:"id,omitempty"`      // Container ID set by slave
 	Image   string            `json:"image,omitempty"`   // Image to use for the run
 	Cpus    int               `json:"cpus,omitempty"`    // Number of cpus to reserve
 	Memory  float64           `json:"memory,omitempty"`  // Amount of memory in bytes to reserve
@@ -9,7 +10,7 @@ type Container struct {
 	Profile bool              `json:"profile,omitempty"` // Start profiling the container's execution
 }
 
-type Containers []*Container
+type Containers map[string]*Container
 
 func (cs Containers) Len() int {
 	return len(cs)

@@ -19,10 +19,10 @@ var (
 // Slave that manages one docker host
 type Slave struct {
 	sync.RWMutex
-	citadel.Resource
+	citadel.Slave
 
 	ID         string
-	containers citadel.States
+	containers citadel.Containers
 	docker     *dockerclient.DockerClient
 	log        *logrus.Logger
 }
@@ -40,39 +40,15 @@ func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient) 
 	return s, nil
 }
 
-func (s *Slave) Info() (*citadel.Info, error) {
-	s.RLock()
-	defer s.RUnlock()
-
-	i := &citadel.Info{
-		Containers:     s.containers.Len(),
-		TotalCpus:      s.Cpus,
-		TotalMemory:    s.Memory,
-		ReservedCpus:   s.containers.Cpus(),
-		ReservedMemory: s.containers.Memory(),
-		Volumes:        s.containers.Volumes(),
-	}
-	return i, nil
-}
-
-func (s *Slave) Running() citadel.States {
-	s.RLock()
-	defer s.RUnlock()
-	return s.containers
-}
-
-func (s *Slave) Execute(c *citadel.Container) (*citadel.State, error) {
+func (s *Slave) Execute(c *citadel.Container) error {
 	if err := s.canRun(c); err != nil {
-		return nil, err
+		return err
 	}
 	if c.Profile {
 		// TODO: start profiler for the container
-		return nil, ErrProfilerNotSupported
+		return ErrProfilerNotSupported
 	}
 
-	state := &citadel.State{
-		Container: c,
-	}
 	config := &dockerclient.ContainerConfig{
 		Image:     c.Image,
 		Memory:    int(c.Memory),
@@ -81,29 +57,36 @@ func (s *Slave) Execute(c *citadel.Container) (*citadel.State, error) {
 
 	id, err := s.docker.CreateContainer(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := s.docker.StartContainer(id); err != nil {
-		return nil, err
+		return err
 	}
-	state.ID = id
+	c.ID = id
 
 	s.Lock()
-	s.containers[id] = state
+	s.containers[id] = c
 	s.Unlock()
 
-	return state, nil
+	return nil
 }
 
 func (s *Slave) canRun(c *citadel.Container) error {
 	if len(c.Volumes) > 0 {
 		return ErrVolumesNotSupported
 	}
-	info, err := s.Info()
-	if err != nil {
-		return err
-	}
-	if !info.CanAllocate(c) {
+
+	s.RLock()
+	defer s.RUnlock()
+
+	var (
+		reservedCpu    = s.containers.Cpus()
+		reservedMemory = s.containers.Memory()
+		// TODO: make this a plugin
+		allocate = (s.Cpus-reservedCpu-c.Cpus) > 0 && (s.Memory-reservedMemory-c.Memory) > 0
+	)
+
+	if !allocate {
 		return ErrNotEnoughResources
 	}
 	return nil
