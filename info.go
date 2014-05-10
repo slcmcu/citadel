@@ -1,4 +1,4 @@
-package scheduler
+package citadel
 
 type Info struct {
 	Containers     int      `json:"containers,omitempty"`      // Number of containers

@@ -111,6 +111,10 @@ func (e *etcdRepository) FetchPlugin() (string, error) {
 	return resp.Node.Value, nil
 }
 
+func (e *etcdRepository) SaveState(slaveUUID string) error {
+	return nil
+}
+
 func (e *etcdRepository) marshal(v interface{}) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {

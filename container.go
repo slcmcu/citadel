@@ -1,4 +1,4 @@
-package scheduler
+package citadel
 
 // Container defines the resources required to launch a container
 type Container struct {

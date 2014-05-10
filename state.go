@@ -1,9 +1,10 @@
-package scheduler
+package citadel
 
 import "net"
 
 // State contains information about the running state of a container
 type State struct {
+	Slave     string     `json:"slave,omitempty"`     // Save UUID
 	Container *Container `json:"container,omitempty"` // Container
 	IP        net.IP     `json:"ip,omitempty"`        // IP of the running container
 }

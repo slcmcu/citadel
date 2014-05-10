@@ -5,36 +5,37 @@ import (
 	"runtime"
 	"sync"
 
-	"citadelapp.io/citadel/scheduler"
+	"citadelapp.io/citadel"
 	"github.com/Sirupsen/logrus"
 	"github.com/samalba/dockerclient"
 )
 
 var (
-	log = logrus.New()
-)
-
-var (
 	ErrNotEnoughResources   = errors.New("resources not available to run")
 	ErrProfilerNotSupported = errors.New("profiler not supported")
+	ErrVolumesNotSupported  = errors.New("persistent storage not supported")
 )
 
 // Slave that manages one docker host
 type Slave struct {
 	sync.RWMutex
 
+	ID      string            `json:"id,omitempty"`
 	Cpus    int               `json:"cpus,omitempty"`
 	Memory  float64           `json:"memory,omitempty"`
 	Volumes map[string]string `json:"volumes,omitempty"`
 
-	containers scheduler.States
+	containers citadel.States
 	docker     *dockerclient.DockerClient
+	log        *logrus.Logger
 }
 
-func NewSlave(docker *dockerclient.DockerClient) (*Slave, error) {
+func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient) (*Slave, error) {
 	s := &Slave{
+		ID:     uuid,
 		Cpus:   runtime.NumCPU(),
 		docker: docker,
+		log:    logger,
 	}
 
 	s.docker.StartMonitorEvents(s.eventHandler)
@@ -42,11 +43,11 @@ func NewSlave(docker *dockerclient.DockerClient) (*Slave, error) {
 	return s, nil
 }
 
-func (s *Slave) Info() (*scheduler.Info, error) {
+func (s *Slave) Info() (*citadel.Info, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	i := &scheduler.Info{
+	i := &citadel.Info{
 		Containers:     s.containers.Len(),
 		TotalCpus:      s.Cpus,
 		TotalMemory:    s.Memory,
@@ -57,13 +58,13 @@ func (s *Slave) Info() (*scheduler.Info, error) {
 	return i, nil
 }
 
-func (s *Slave) Running() scheduler.States {
+func (s *Slave) Running() citadel.States {
 	s.RLock()
 	defer s.RUnlock()
 	return s.containers
 }
 
-func (s *Slave) Execute(c *scheduler.Container) (*scheduler.State, error) {
+func (s *Slave) Execute(c *citadel.Container) (*citadel.State, error) {
 	if err := s.canRun(c); err != nil {
 		return nil, err
 	}
@@ -72,7 +73,8 @@ func (s *Slave) Execute(c *scheduler.Container) (*scheduler.State, error) {
 		return nil, ErrProfilerNotSupported
 	}
 
-	state := &scheduler.State{
+	state := &citadel.State{
+		Slave:     s.ID,
 		Container: c,
 	}
 	config := &dockerclient.ContainerConfig{
@@ -96,7 +98,10 @@ func (s *Slave) Execute(c *scheduler.Container) (*scheduler.State, error) {
 	return state, nil
 }
 
-func (s *Slave) canRun(c *scheduler.Container) error {
+func (s *Slave) canRun(c *citadel.Container) error {
+	if len(c.Volumes) > 0 {
+		return ErrVolumesNotSupported
+	}
 	info, err := s.Info()
 	if err != nil {
 		return err
@@ -111,11 +116,14 @@ func (s *Slave) eventHandler(event *dockerclient.Event, args ...interface{}) {
 	switch event.Status {
 	case "die", "stop", "kill":
 		if err := s.docker.RemoveContainer(event.Id); err != nil {
-			log.WithFields(logrus.Fields{
+			s.log.WithFields(logrus.Fields{
 				"error": err,
 				"event": event.Status,
 				"id":    event.Id,
 			}).Error("cannot remote container")
 		}
+		s.Lock()
+		delete(s.containers, event.Id)
+		s.Unlock()
 	}
 }
