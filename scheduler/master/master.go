@@ -7,7 +7,6 @@ import (
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
-	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -17,8 +16,8 @@ var (
 // Master is the master node in a cluster
 type Master struct {
 	sync.Mutex
+	citadel.Master
 
-	log     *logrus.Logger
 	timeout time.Duration
 }
 
@@ -27,11 +26,12 @@ type result struct {
 	err    error
 }
 
-func New(logger *logrus.Logger, timeout time.Duration) (*Master, error) {
+func New(uuid, addr string, timeout time.Duration) (*Master, error) {
 	m := &Master{
 		timeout: timeout,
-		log:     logger,
 	}
+	m.Addr = addr
+	m.ID = uuid
 	return m, nil
 }
 

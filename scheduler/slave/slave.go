@@ -71,6 +71,10 @@ func (s *Slave) Execute(c *citadel.Container) error {
 	return nil
 }
 
+func (s *Slave) PullImage(image string) error {
+	return s.docker.PullImage(image, "latest")
+}
+
 func (s *Slave) canRun(c *citadel.Container) error {
 	if len(c.Volumes) > 0 {
 		return ErrVolumesNotSupported

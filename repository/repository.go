@@ -5,7 +5,7 @@ import (
 )
 
 type Repository interface {
-	RegisterSlave(uuid string, r *citadel.Slave, ttl int) error
+	RegisterSlave(uuid string, s *citadel.Slave, ttl int) error
 	UpdateSlave(uuid string, ttl int) error
 
 	FetchSlaves() ([]*citadel.Slave, error)
@@ -14,6 +14,9 @@ type Repository interface {
 
 	SaveContainer(string, *citadel.Container) error
 	FetchContainers(string) (citadel.Containers, error)
+
+	RegisterMaster(m *citadel.Master, ttl int) error
+	UpdateMaster(ttl int) error
 
 	FetchConfig() (*citadel.Config, error)
 }

@@ -35,6 +35,9 @@ func main() {
 			Name:        "master",
 			Description: "run as the master in the cluster",
 			Action:      masterMain,
+			Flags: []cli.Flag{
+				cli.StringFlag{"addr", "", "http address to reach the master"},
+			},
 		},
 	}
 

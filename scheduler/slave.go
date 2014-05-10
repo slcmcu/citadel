@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -26,7 +27,7 @@ func register(s *slave.Slave, ttl int, repo repository.Repository) error {
 }
 
 func heartbeat(uuid string, ttl int, repo repository.Repository) {
-	for _ = range time.Tick(time.Duration(ttl) * time.Second) {
+	for _ = range time.Tick(time.Duration(ttl-2) * time.Second) {
 		for i := 0; i < 5; i++ {
 			err := repo.UpdateSlave(uuid, ttl)
 			if err == nil {
@@ -81,7 +82,7 @@ func getNats(conf *citadel.Config) *nats.EncodedConn {
 	return c
 }
 
-func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository) {
+func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, nc *nats.EncodedConn) {
 	if err := s.Execute(c); err != nil {
 		logger.WithFields(logrus.Fields{
 			"error": err,
@@ -97,6 +98,7 @@ func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository) {
 			"container": c.ID,
 		}).Error("saving container")
 	}
+	nc.Publish("containers.start", c)
 }
 
 func slaveMain(context *cli.Context) {
@@ -115,18 +117,40 @@ func slaveMain(context *cli.Context) {
 		logger.WithField("error", err).Fatal("unable to initialize slave")
 	}
 
-	if err := register(s, conf.SlaveTTL, repo); err != nil {
+	if err := register(s, conf.TTL, repo); err != nil {
 		logger.WithField("error", err).Fatal("register slave")
 	}
-	sub, err := nc.Subscribe(fmt.Sprintf("execute.%s", uuid), func(c *citadel.Container) {
-		execute(s, c, repo)
+	nc.Publish("slaves.joining", uuid)
+
+	execSub, err := nc.Subscribe(fmt.Sprintf("execute.%s", uuid), func(msg *nats.Msg) {
+		var c *citadel.Container
+		if err := json.Unmarshal(msg.Data, &c); err != nil {
+			logger.WithField("error", err).Error("unmarshal container from message")
+			return
+		}
+		execute(s, c, repo, nc)
+		if err := nc.Publish(msg.Reply, c); err != nil {
+			logger.WithField("error", err).Error("sending response")
+		}
 	})
 	if err != nil {
 		logger.WithField("error", err).Fatal("subscribe")
 	}
-	defer sub.Unsubscribe()
+	defer execSub.Unsubscribe()
+
+	pullSub, err := nc.Subscribe("slaves.pull", func(image string) {
+		if err := s.PullImage(image); err != nil {
+			logger.WithField("error", err).Error("pull image")
+		}
+	})
+	if err != nil {
+		logger.WithField("error", err).Fatal("subscribe")
+	}
+	defer pullSub.Unsubscribe()
 
 	for s := range sig {
+		nc.Publish("slaves.leaving", uuid)
+
 		logger.WithField("signal", s.String()).Info("exiting")
 		return
 	}

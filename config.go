@@ -8,6 +8,6 @@ type Config struct {
 	InfluxDatabase string   `json:"influx_database"`
 	Namespace      string   `json:"namespace"`
 	MasterTimeout  string   `json:"master_timeout,omitempty"`
-	SlaveTTL       int      `json:"slave_ttl,omitempty"`
+	TTL            int      `json:"ttl,omitempty"`
 	Natsd          []string `json:"natsd,omitempty"`
 }

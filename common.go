@@ -1,6 +1,11 @@
 package citadel
 
 type (
+	Master struct {
+		ID   string `json:"id,omitempty"`
+		Addr string `json:"addr,omitempty"`
+	}
+
 	Slave struct {
 		ID     string  `json:"id,omitempty"`
 		IP     string  `json:"ip,omitempty"`

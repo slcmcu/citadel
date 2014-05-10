@@ -33,17 +33,13 @@ func (e *etcdRepository) RegisterSlave(uuid string, slave *citadel.Slave, ttl in
 	if _, err := e.client.CreateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
 		return err
 	}
-	if _, err := e.client.Set(path.Join("/citadel/slaves", uuid, "config"), data, 0); err != nil {
-		return err
-	}
-	return nil
+	_, err = e.client.Set(path.Join("/citadel/slaves", uuid, "config"), data, 0)
+	return err
 }
 
 func (e *etcdRepository) UpdateSlave(uuid string, ttl int) error {
-	if _, err := e.client.UpdateDir(path.Join("/citadel/slaves", uuid), uint64(ttl)); err != nil {
-		return err
-	}
-	return nil
+	_, err := e.client.UpdateDir(path.Join("/citadel/slaves", uuid), uint64(ttl))
+	return err
 }
 
 func (e *etcdRepository) RemoveSlave(uuid string) error {
@@ -115,6 +111,20 @@ func (e *etcdRepository) FetchContainers(uuid string) (citadel.Containers, error
 		containers[c.ID] = c
 	}
 	return containers, nil
+}
+
+func (e *etcdRepository) RegisterMaster(m *citadel.Master, ttl int) error {
+	data, err := e.marshal(m)
+	if err != nil {
+		return err
+	}
+	_, err = e.client.Create(path.Join("/citadel/master"), data, uint64(ttl))
+	return err
+}
+
+func (e *etcdRepository) UpdateMaster(ttl int) error {
+	_, err := e.client.UpdateDir(path.Join("/citadel/master"), uint64(ttl))
+	return err
 }
 
 func (e *etcdRepository) FetchConfig() (*citadel.Config, error) {
