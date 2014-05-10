@@ -31,3 +31,9 @@ The only hard dep right now for building the project is to the Go installed.  Af
 
 ### Metrics
 Host metrics are collected and stored in `select * from metrics.hosts.b8f6b1166755` where `b8f6b1166755` is the host's unique name.
+
+
+**setup config**
+```bash
+curl -s http://dev.crosbymichael.com:4001/v2/keys/citadel/config -XPUT -d value='{"poll_interval":30, "influx_host":"dev.crosbymichael.com:8086", "influx_user": "citadel", "influx_password":"koye", "influx_database":"citadel", "natsd":"nats://dev.crosbymichael.com:4222", "ttl": 30, "master_timeout", "10s"}'
+```

@@ -5,14 +5,19 @@ import (
 )
 
 type Repository interface {
-	SaveHost(*citadel.Host) error
-	DeleteHost(*citadel.Host) error
-	FetchHost(name string) (*citadel.Host, error)
-	FetchHosts() ([]*citadel.Host, error)
+	RegisterSlave(uuid string, s *citadel.Slave, ttl int) error
+	UpdateSlave(uuid string, ttl int) error
+
+	FetchSlaves() ([]*citadel.Slave, error)
+	FetchSlave(uuid string) (*citadel.Slave, error)
+	RemoveSlave(uuid string) error
+
+	SaveContainer(string, *citadel.Container) error
+	FetchContainers(string) (citadel.Containers, error)
+	RemoveContainer(string, string) error
+
+	RegisterMaster(m *citadel.Master, ttl int) error
+	UpdateMaster(ttl int) error
 
 	FetchConfig() (*citadel.Config, error)
-
-	FetchContainerGroup() ([]*citadel.ContainerGroup, error)
-
-	FetchPlugin() (string, error)
 }
