@@ -23,10 +23,9 @@ type Repository interface {
 type Master struct {
 	sync.Mutex
 
-	ID   string `json:"id,omitempty"`
-	Addr string `json:"addr,omitempty"`
-
-	timeout time.Duration
+	ID      string        `json:"id,omitempty"`
+	Addr    string        `json:"addr,omitempty"`
+	Timeout time.Duration `json:"-"`
 }
 
 type result struct {
@@ -36,7 +35,7 @@ type result struct {
 
 func New(uuid, addr string, timeout time.Duration) (*Master, error) {
 	m := &Master{
-		timeout: timeout,
+		Timeout: timeout,
 	}
 
 	m.Addr = addr
@@ -85,8 +84,8 @@ func (m *Master) Schedule(task *citadel.Task, repo Repository) ([]*slave.Slave, 
 	}()
 
 	select {
-	case <-time.After(m.timeout):
-		return nil, fmt.Errorf("no execution before timeout %s", m.timeout)
+	case <-time.After(m.Timeout):
+		return nil, fmt.Errorf("no execution before timeout %s", m.Timeout)
 	case r := <-complete:
 		if r.err != nil {
 			return nil, r.err
