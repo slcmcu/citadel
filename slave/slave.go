@@ -7,8 +7,6 @@ import (
 	"sync"
 
 	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/repository"
-	"github.com/Sirupsen/logrus"
 	"github.com/samalba/dockerclient"
 )
 
@@ -21,26 +19,24 @@ var (
 // Slave that manages one docker host
 type Slave struct {
 	sync.RWMutex
-	citadel.Slave
+
+	ID     string  `json:"id,omitempty"`
+	IP     string  `json:"ip,omitempty"`
+	Cpus   int     `json:"cpus,omitempty"`
+	Memory float64 `json:"memory,omitempty"`
 
 	containers citadel.Containers
-	repo       repository.Repository
 	docker     *dockerclient.DockerClient
-	log        *logrus.Logger
 }
 
-func New(uuid string, logger *logrus.Logger, docker *dockerclient.DockerClient, repo repository.Repository) (*Slave, error) {
+func New(uuid string, docker *dockerclient.DockerClient) (*Slave, error) {
 	s := &Slave{
 		docker:     docker,
-		log:        logger,
-		repo:       repo,
 		containers: citadel.Containers{},
 	}
 	s.Cpus = runtime.NumCPU()
 	s.Memory = 1024 * 8000
 	s.ID = uuid
-
-	s.docker.StartMonitorEvents(s.eventHandler)
 
 	return s, nil
 }
@@ -101,26 +97,10 @@ func (s *Slave) canRun(c *citadel.Container) error {
 	return nil
 }
 
-func (s *Slave) eventHandler(event *dockerclient.Event, args ...interface{}) {
-	switch event.Status {
-	case "die":
-		if err := s.repo.RemoveContainer(s.ID, event.Id); err != nil {
-			s.log.WithFields(logrus.Fields{
-				"error": err,
-				"event": event.Status,
-				"id":    event.Id,
-			}).Error("cannot remove container")
-		}
+func (s *Slave) RemoveContainer(id string) error {
+	s.Lock()
+	delete(s.containers, id)
+	s.Unlock()
 
-		if err := s.docker.RemoveContainer(event.Id); err != nil {
-			s.log.WithFields(logrus.Fields{
-				"error": err,
-				"event": event.Status,
-				"id":    event.Id,
-			}).Error("cannot remove container")
-		}
-		s.Lock()
-		delete(s.containers, event.Id)
-		s.Unlock()
-	}
+	return s.docker.RemoveContainer(id)
 }

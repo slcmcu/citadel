@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/master"
 	"citadelapp.io/citadel/repository"
-	"citadelapp.io/citadel/scheduler/master"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 )
 
 func registerMaster(m *master.Master, ttl int, repo repository.Repository) {
-	if err := repo.RegisterMaster(&m.Master, ttl); err != nil {
+	if err := repo.RegisterMaster(m, ttl); err != nil {
 		logger.WithField("error", err).Fatal("register master")
 	}
 	go masterHeartbeat(repo, ttl)

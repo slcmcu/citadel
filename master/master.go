@@ -7,23 +7,30 @@ import (
 	"time"
 
 	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/repository"
+	"citadelapp.io/citadel/slave"
 )
 
 var (
 	ErrNoValidOffers = errors.New("no valid offers for tasks")
 )
 
+type Repository interface {
+	FetchSlaves() ([]*slave.Slave, error)
+	FetchContainers(string) (citadel.Containers, error)
+}
+
 // Master is the master node in a cluster
 type Master struct {
 	sync.Mutex
-	citadel.Master
+
+	ID   string `json:"id,omitempty"`
+	Addr string `json:"addr,omitempty"`
 
 	timeout time.Duration
 }
 
 type result struct {
-	slaves []*citadel.Slave
+	slaves []*slave.Slave
 	err    error
 }
 
@@ -31,19 +38,20 @@ func New(uuid, addr string, timeout time.Duration) (*Master, error) {
 	m := &Master{
 		timeout: timeout,
 	}
+
 	m.Addr = addr
 	m.ID = uuid
 	return m, nil
 }
 
-func (m *Master) Schedule(task *citadel.Task, repo repository.Repository) ([]*citadel.Slave, error) {
+func (m *Master) Schedule(task *citadel.Task, repo Repository) ([]*slave.Slave, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	complete := make(chan *result)
 
 	go func() {
-		r := &result{slaves: []*citadel.Slave{}}
+		r := &result{slaves: []*slave.Slave{}}
 
 		slaves, err := repo.FetchSlaves()
 		if err != nil {

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/master"
+	"citadelapp.io/citadel/slave"
 	"github.com/coreos/go-etcd/etcd"
 )
 
@@ -25,8 +27,8 @@ func NewEtcdRepository(machines []string, sync bool) Repository {
 
 // RegisterSlave registers the uuid and slave information into the key
 // /citadel/slaves/<uuid> and /citadel/slaves/<uuid>/config with the ttl
-func (e *etcdRepository) RegisterSlave(uuid string, slave *citadel.Slave, ttl int) error {
-	data, err := e.marshal(slave)
+func (e *etcdRepository) RegisterSlave(uuid string, s *slave.Slave, ttl int) error {
+	data, err := e.marshal(s)
 	if err != nil {
 		return err
 	}
@@ -47,20 +49,20 @@ func (e *etcdRepository) RemoveSlave(uuid string) error {
 	return err
 }
 
-func (e *etcdRepository) FetchSlave(uuid string) (*citadel.Slave, error) {
+func (e *etcdRepository) FetchSlave(uuid string) (*slave.Slave, error) {
 	resp, err := e.client.Get(path.Join("/citadel/slaves", uuid, "config"), false, false)
 	if err != nil {
 		return nil, err
 	}
-	var s *citadel.Slave
+	var s *slave.Slave
 	if err := e.unmarshal(resp.Node.Value, &s); err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (e *etcdRepository) FetchSlaves() ([]*citadel.Slave, error) {
-	slaves := []*citadel.Slave{}
+func (e *etcdRepository) FetchSlaves() ([]*slave.Slave, error) {
+	slaves := []*slave.Slave{}
 	resp, err := e.client.Get("/citadel/slaves", true, true)
 	if err != nil {
 		if isNotFoundErr(err) {
@@ -72,7 +74,7 @@ func (e *etcdRepository) FetchSlaves() ([]*citadel.Slave, error) {
 	for _, n := range resp.Node.Nodes {
 		for _, sdir := range n.Nodes {
 			if sdir.Key == path.Join(n.Key, "config") {
-				var s *citadel.Slave
+				var s *slave.Slave
 				if err := e.unmarshal(sdir.Value, &s); err != nil {
 					return nil, err
 				}
@@ -117,7 +119,7 @@ func (e *etcdRepository) FetchContainers(uuid string) (citadel.Containers, error
 	return containers, nil
 }
 
-func (e *etcdRepository) RegisterMaster(m *citadel.Master, ttl int) error {
+func (e *etcdRepository) RegisterMaster(m *master.Master, ttl int) error {
 	data, err := e.marshal(m)
 	if err != nil {
 		return err

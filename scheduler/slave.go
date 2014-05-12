@@ -10,7 +10,7 @@ import (
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
-	"citadelapp.io/citadel/scheduler/slave"
+	"citadelapp.io/citadel/slave"
 	"citadelapp.io/citadel/utils"
 	"github.com/Sirupsen/logrus"
 	"github.com/apcera/nats"
@@ -19,7 +19,7 @@ import (
 )
 
 func register(s *slave.Slave, ttl int, repo repository.Repository) error {
-	if err := repo.RegisterSlave(s.ID, &s.Slave, ttl); err != nil {
+	if err := repo.RegisterSlave(s.ID, s, ttl); err != nil {
 		return err
 	}
 	go heartbeat(s.ID, ttl, repo)
@@ -101,6 +101,31 @@ func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, c
 	nc.Publish("containers.start", c)
 }
 
+func eventHandler(event *dockerclient.Event, args ...interface{}) {
+	var (
+		s    = args[0].(*slave.Slave)
+		repo = args[1].(repository.Repository)
+	)
+
+	switch event.Status {
+	case "die":
+		if err := s.RemoveContainer(event.Id); err != nil {
+			logger.WithFields(logrus.Fields{
+				"error": err,
+				"event": event.Status,
+				"id":    event.Id,
+			}).Error("cannot remove container from slave")
+		}
+		if err := repo.RemoveContainer(s.ID, event.Id); err != nil {
+			logger.WithFields(logrus.Fields{
+				"error": err,
+				"event": event.Status,
+				"id":    event.Id,
+			}).Error("cannot remove container")
+		}
+	}
+}
+
 func slaveMain(context *cli.Context) {
 	var (
 		uuid       = getUUID()
@@ -112,7 +137,7 @@ func slaveMain(context *cli.Context) {
 	defer nc.Close()
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
-	s, err := slave.New(uuid, logger, docker, repo)
+	s, err := slave.New(uuid, docker)
 	if err != nil {
 		logger.WithField("error", err).Fatal("unable to initialize slave")
 	}
@@ -121,6 +146,8 @@ func slaveMain(context *cli.Context) {
 		logger.WithField("error", err).Fatal("register slave")
 	}
 	nc.Publish("slaves.joining", uuid)
+
+	docker.StartMonitorEvents(eventHandler, s, repo)
 
 	execSub, err := nc.Subscribe(fmt.Sprintf("execute.%s", uuid), func(msg *nats.Msg) {
 		var c *citadel.Container

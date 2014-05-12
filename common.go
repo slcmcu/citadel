@@ -1,18 +1,6 @@
 package citadel
 
 type (
-	Master struct {
-		ID   string `json:"id,omitempty"`
-		Addr string `json:"addr,omitempty"`
-	}
-
-	Slave struct {
-		ID     string  `json:"id,omitempty"`
-		IP     string  `json:"ip,omitempty"`
-		Cpus   int     `json:"cpus,omitempty"`
-		Memory float64 `json:"memory,omitempty"`
-	}
-
 	Disk struct {
 		Path      string  `json:"path,omitempty"`
 		Used      float64 `json:"used,omitempty"`
