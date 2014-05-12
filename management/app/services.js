@@ -2,7 +2,7 @@
 
 angular.module('citadel.services', ['ngResource'])
     .factory('Host', function ($resource) {
-        return $resource('/api/hosts/:name/:action', {}, {
+        return $resource('/api/nodes/:name/:action', {}, {
             query: {
                 method: 'GET',
                 isArray: true
