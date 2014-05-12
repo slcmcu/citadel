@@ -2,7 +2,6 @@ package slave
 
 import (
 	"errors"
-	"path"
 	"runtime"
 	"sync"
 
@@ -41,7 +40,7 @@ func New(uuid string, docker *dockerclient.DockerClient) (*Slave, error) {
 	return s, nil
 }
 
-func (s *Slave) Execute(c *citadel.Container, conf *citadel.Config) error {
+func (s *Slave) Execute(c *citadel.Container) error {
 	if err := s.canRun(c); err != nil {
 		return err
 	}
@@ -51,7 +50,7 @@ func (s *Slave) Execute(c *citadel.Container, conf *citadel.Config) error {
 	}
 
 	config := &dockerclient.ContainerConfig{
-		Image:     path.Join(conf.Namespace, c.Image) + ":latest",
+		Image:     c.Image,
 		Memory:    int(c.Memory),
 		CpuShares: c.Cpus,
 	}
@@ -72,8 +71,8 @@ func (s *Slave) Execute(c *citadel.Container, conf *citadel.Config) error {
 	return nil
 }
 
-func (s *Slave) PullImage(image string, conf *citadel.Config) error {
-	return s.docker.PullImage(path.Join(conf.Namespace, image), "latest")
+func (s *Slave) PullImage(image string) error {
+	return s.docker.PullImage(image, "latest")
 }
 
 func (s *Slave) canRun(c *citadel.Container) error {

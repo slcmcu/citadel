@@ -82,8 +82,8 @@ func getNats(conf *citadel.Config) *nats.EncodedConn {
 	return c
 }
 
-func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, conf *citadel.Config, nc *nats.EncodedConn) {
-	if err := s.Execute(c, conf); err != nil {
+func execute(s *slave.Slave, c *citadel.Container, repo repository.Repository, nc *nats.EncodedConn) {
+	if err := s.Execute(c); err != nil {
 		logger.WithFields(logrus.Fields{
 			"error": err,
 			"uuid":  s.ID,
@@ -156,7 +156,7 @@ func slaveMain(context *cli.Context) {
 			return
 		}
 		logger.WithField("image", c.Image).Info("executing")
-		execute(s, c, repo, conf, nc)
+		execute(s, c, repo, nc)
 		if err := nc.Publish(msg.Reply, c); err != nil {
 			logger.WithField("error", err).Error("sending response")
 		}
@@ -168,7 +168,7 @@ func slaveMain(context *cli.Context) {
 
 	pullSub, err := nc.Subscribe("slaves.pull", func(image string) {
 		logger.WithField("image", image).Info("pulling")
-		if err := s.PullImage(image, conf); err != nil {
+		if err := s.PullImage(image); err != nil {
 			logger.WithField("error", err).Error("pull image")
 		}
 	})
