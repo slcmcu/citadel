@@ -18,6 +18,7 @@ type Repository interface {
 	FetchContainers(string) (citadel.Containers, error)
 	RemoveContainer(string, string) error
 
+	FetchMaster() (*master.Master, error)
 	RegisterMaster(m *master.Master, ttl int) error
 	UpdateMaster(ttl int) error
 

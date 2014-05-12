@@ -133,6 +133,19 @@ func (e *etcdRepository) UpdateMaster(ttl int) error {
 	return err
 }
 
+func (e *etcdRepository) FetchMaster() (*master.Master, error) {
+	resp, err := e.client.Get("/citadel/master", false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var m *master.Master
+	if err := e.unmarshal(resp.Node.Value, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (e *etcdRepository) FetchConfig() (*citadel.Config, error) {
 	resp, err := e.client.Get("/citadel/config", false, false)
 	if err != nil {
