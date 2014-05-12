@@ -41,10 +41,7 @@ func New(uuid string, docker *dockerclient.DockerClient) (*Slave, error) {
 }
 
 func (s *Slave) Execute(c *citadel.Container) error {
-	if err := s.canRun(c); err != nil {
-		return err
-	}
-	if c.Profile {
+	if c.Profiler {
 		// TODO: start profiler for the container
 		return ErrProfilerNotSupported
 	}
@@ -52,7 +49,7 @@ func (s *Slave) Execute(c *citadel.Container) error {
 	config := &dockerclient.ContainerConfig{
 		Image:     c.Image,
 		Memory:    int(c.Memory),
-		CpuShares: c.Cpus,
+		CpuShares: c.CpuShares,
 	}
 
 	id, err := s.docker.CreateContainer(config)
@@ -73,27 +70,6 @@ func (s *Slave) Execute(c *citadel.Container) error {
 
 func (s *Slave) PullImage(image string) error {
 	return s.docker.PullImage(image, "latest")
-}
-
-func (s *Slave) canRun(c *citadel.Container) error {
-	if len(c.Volumes) > 0 {
-		return ErrVolumesNotSupported
-	}
-
-	s.RLock()
-	defer s.RUnlock()
-
-	var (
-		reservedCpu    = s.containers.Cpus()
-		reservedMemory = s.containers.Memory()
-		// TODO: make this a plugin
-		allocate = (s.Cpus-reservedCpu-c.Cpus) > 0 && (s.Memory-reservedMemory-c.Memory) > 0
-	)
-
-	if !allocate {
-		return ErrNotEnoughResources
-	}
-	return nil
 }
 
 func (s *Slave) RemoveContainer(id string) error {

@@ -63,7 +63,7 @@ func (h *masterHandler) runHander(w http.ResponseWriter, r *http.Request) {
 		"memory":    task.Container.Memory,
 	}).Info("scheduling task")
 
-	slaves, err := m.Schedule(task, repo)
+	schedule, err := m.Schedule(task, repo)
 	if err != nil {
 		logger.WithField("error", err).Error("cannot schedule task")
 		if err == master.ErrNoValidOffers {
@@ -74,10 +74,21 @@ func (h *masterHandler) runHander(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var scheduleError error
-	for _, s := range slaves {
-		var reply *citadel.Container
-		if err := nc.Request(fmt.Sprintf("execute.%s", s.ID), task.Container, &reply, m.Timeout); err != nil {
+	var (
+		successes     int
+		scheduleError error
+	)
+	for _, p := range schedule.Placements {
+		if successes >= task.Instances {
+			break
+		}
+
+		var (
+			reply *citadel.Container
+			s     = p.Slave
+		)
+
+		if err := nc.Request(fmt.Sprintf("execute.%s", s.ID), p.Container, &reply, m.Timeout); err != nil {
 			logger.WithField("error", err).Error("cannot publish task")
 			if scheduleError == nil {
 				scheduleError = err
@@ -88,8 +99,11 @@ func (h *masterHandler) runHander(w http.ResponseWriter, r *http.Request) {
 			"slave":        s.ID,
 			"container_id": reply.ID,
 		}).Info("scheduled task")
+
+		successes++
 	}
-	if scheduleError != nil {
+
+	if scheduleError != nil && successes != task.Instances {
 		http.Error(w, scheduleError.Error(), http.StatusInternalServerError)
 	}
 }
