@@ -3,7 +3,6 @@ package master
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"citadelapp.io/citadel"
@@ -15,8 +14,6 @@ var (
 
 // Master is the master node in a cluster
 type Master struct {
-	sync.Mutex
-
 	ID      string        `json:"id,omitempty"`
 	Addr    string        `json:"addr,omitempty"`
 	Timeout time.Duration `json:"-"`
@@ -33,9 +30,6 @@ func New(uuid, addr string, timeout time.Duration) (*Master, error) {
 }
 
 func (m *Master) Schedule(task *citadel.Task, repo Repository) (*Schedule, error) {
-	m.Lock()
-	defer m.Unlock()
-
 	// get the list of available slaves that could run the task
 	placements := []*Placement{}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/master"
@@ -14,6 +15,8 @@ import (
 )
 
 type masterHandler struct {
+	sync.Mutex
+
 	m    *master.Master
 	nc   *nats.EncodedConn
 	repo repository.Repository
@@ -41,11 +44,16 @@ func (h *masterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *masterHandler) runHander(w http.ResponseWriter, r *http.Request) {
+	h.Lock()
+	defer h.Unlock()
+
 	var (
-		task *citadel.Task
-		m    = h.m
-		nc   = h.nc
-		repo = h.repo
+		successes     int
+		scheduleError error
+		task          *citadel.Task
+		m             = h.m
+		nc            = h.nc
+		repo          = h.repo
 	)
 
 	defer r.Body.Close()
@@ -74,10 +82,6 @@ func (h *masterHandler) runHander(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		successes     int
-		scheduleError error
-	)
 	for _, p := range schedule.Placements {
 		if successes >= task.Instances {
 			break
