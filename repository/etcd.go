@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"citadelapp.io/citadel"
@@ -23,6 +24,46 @@ func NewEtcdRepository(machines []string, sync bool) Repository {
 		r.client.SyncCluster()
 	}
 	return r
+}
+
+// name == /local
+// translatted to /citadel/services/local/services
+func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) {
+	out := []*citadel.Service{}
+
+	resp, err := e.client.Get(path.Join("/citadel/services", buildServiceName(name, "services")), true, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return out, nil
+		}
+		return nil, err
+	}
+
+	for _, n := range resp.Node.Nodes {
+		for _, sdir := range n.Nodes {
+			if sdir.Key == path.Join(n.Key, "config") {
+				var s *citadel.Service
+				if err := e.unmarshal(sdir.Value, &s); err != nil {
+					return nil, err
+				}
+				out = append(out, s)
+			}
+		}
+	}
+
+	return out, nil
+}
+
+// name == local/redis
+// translatted to /citadel/services/local/services/redis/config
+func (e *etcdRepository) SaveService(name string, s *citadel.Service) error {
+	data, err := e.marshal(s)
+	if err != nil {
+		return err
+	}
+
+	_, err = e.client.Set(path.Join("/citadel/services", buildServiceName(name, "config")), data, 0)
+	return err
 }
 
 // RegisterSlave registers the uuid and slave information into the key
@@ -175,4 +216,30 @@ func (e *etcdRepository) unmarshal(data string, v interface{}) error {
 // isNotFoundErr returns true if the error is of type Key Not Found
 func isNotFoundErr(err error) bool {
 	return strings.Contains(err.Error(), "Key not found")
+}
+
+func buildServiceName(fullPath, prefix string) string {
+	if fullPath == "" || fullPath == "/" {
+		return "/"
+	}
+
+	dir, name := filepath.Split(fullPath)
+
+	var (
+		parts = strings.Split(dir, "/")
+		full  = []string{}
+	)
+
+	switch len(parts) {
+	case 0:
+		return path.Join(name, prefix)
+	}
+
+	for _, p := range parts {
+		if p != "" {
+			full = append(full, p, "services")
+		}
+	}
+
+	return path.Join(append(full, name, prefix)...)
 }
