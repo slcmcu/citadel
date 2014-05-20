@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"citadelapp.io/citadel"
@@ -30,13 +31,7 @@ func NewEtcdRepository(machines []string, sync bool) Repository {
 func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) {
 	out := []*citadel.Service{}
 
-	if name != "/" {
-		n, full := buildServiceName(name)
-		full = append(full, n, "services")
-		name = path.Join(full...)
-	}
-
-	resp, err := e.client.Get(path.Join("/citadel/services", name), true, true)
+	resp, err := e.client.Get(path.Join("/citadel/services", buildServiceName(name, "services")), true, true)
 	if err != nil {
 		if isNotFoundErr(err) {
 			return out, nil
@@ -67,10 +62,7 @@ func (e *etcdRepository) SaveService(name string, s *citadel.Service) error {
 		return err
 	}
 
-	name, full := buildServiceName(name)
-	full = append(full, name, "config")
-
-	_, err = e.client.Set(path.Join(append([]string{"/citadel/services"}, full...)...), data, 0)
+	_, err = e.client.Set(path.Join("/citadel/services", buildServiceName(name, "config")), data, 0)
 	return err
 }
 
@@ -226,18 +218,28 @@ func isNotFoundErr(err error) bool {
 	return strings.Contains(err.Error(), "Key not found")
 }
 
-func buildServiceName(name string) (string, []string) {
+func buildServiceName(fullPath, prefix string) string {
+	if fullPath == "" || fullPath == "/" {
+		return "/"
+	}
+
+	dir, name := filepath.Split(fullPath)
+
 	var (
-		parts = strings.Split(name, "/")
+		parts = strings.Split(dir, "/")
 		full  = []string{}
 	)
 
-	if len(parts) < 2 || len(parts) == 2 {
-		return name, []string{}
+	switch len(parts) {
+	case 0:
+		return path.Join(name, prefix)
 	}
 
-	for _, p := range parts[:1] {
-		full = append(full, p, "services")
+	for _, p := range parts {
+		if p != "" {
+			full = append(full, p, "services")
+		}
 	}
-	return parts[len(parts)], full
+
+	return path.Join(append(full, name, prefix)...)
 }
