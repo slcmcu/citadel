@@ -25,6 +25,55 @@ func NewEtcdRepository(machines []string, sync bool) Repository {
 	return r
 }
 
+// name == /local
+// translatted to /citadel/services/local/services
+func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) {
+	out := []*citadel.Service{}
+
+	if name != "/" {
+		n, full := buildServiceName(name)
+		full = append(full, n, "services")
+		name = path.Join(full...)
+	}
+
+	resp, err := e.client.Get(path.Join("/citadel/services", name), true, true)
+	if err != nil {
+		if isNotFoundErr(err) {
+			return out, nil
+		}
+		return nil, err
+	}
+
+	for _, n := range resp.Node.Nodes {
+		for _, sdir := range n.Nodes {
+			if sdir.Key == path.Join(n.Key, "config") {
+				var s *citadel.Service
+				if err := e.unmarshal(sdir.Value, &s); err != nil {
+					return nil, err
+				}
+				out = append(out, s)
+			}
+		}
+	}
+
+	return out, nil
+}
+
+// name == local/redis
+// translatted to /citadel/services/local/services/redis/config
+func (e *etcdRepository) SaveService(name string, s *citadel.Service) error {
+	data, err := e.marshal(s)
+	if err != nil {
+		return err
+	}
+
+	name, full := buildServiceName(name)
+	full = append(full, name, "config")
+
+	_, err = e.client.Set(path.Join(append([]string{"/citadel/services"}, full...)...), data, 0)
+	return err
+}
+
 // RegisterSlave registers the uuid and slave information into the key
 // /citadel/slaves/<uuid> and /citadel/slaves/<uuid>/config with the ttl
 func (e *etcdRepository) RegisterSlave(uuid string, s *slave.Slave, ttl int) error {
@@ -175,4 +224,20 @@ func (e *etcdRepository) unmarshal(data string, v interface{}) error {
 // isNotFoundErr returns true if the error is of type Key Not Found
 func isNotFoundErr(err error) bool {
 	return strings.Contains(err.Error(), "Key not found")
+}
+
+func buildServiceName(name string) (string, []string) {
+	var (
+		parts = strings.Split(name, "/")
+		full  = []string{}
+	)
+
+	if len(parts) < 2 || len(parts) == 2 {
+		return name, []string{}
+	}
+
+	for _, p := range parts[:1] {
+		full = append(full, p, "services")
+	}
+	return parts[len(parts)], full
 }

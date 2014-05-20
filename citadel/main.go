@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	logger  = logrus.New()
-	service *citadel.Service
+	logger   = logrus.New()
+	machines = []string{os.Getenv("ETCD_MACHINES")}
+	service  *citadel.Service
 )
 
 func newLocalService() *citadel.Service {

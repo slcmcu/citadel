@@ -13,6 +13,7 @@ type Service struct {
 	Addr     string             `json:"addr,omitempty"`
 	Cpus     int                `json:"cpus,omitempty"`
 	Memory   float64            `json:"memory,omitempty"`
+	Type     string             `json:"type,omitempty"`
 	Commands map[string]Command `json:"-"`
 }
 
