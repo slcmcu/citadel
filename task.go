@@ -1,6 +1,8 @@
 package citadel
 
+// Task represents a task submitting to modify a service
 type Task struct {
-	Container *Container `json:"container,omitempty"`
-	Instances int        `json:"instances,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	Instances int      `json:"instances,omitempty"`
+	Service   *Service `json:"service,omitempty"`
 }
