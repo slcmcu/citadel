@@ -14,7 +14,7 @@ var newCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{"type", "", "service type"},
 		cli.StringFlag{"addr", "", "address of the service"},
-		cli.Float64Flag{"memory", 0, "memory amount of the service"},
+		cli.IntFlag{"memory", 0, "memory amount of the service"},
 		cli.IntFlag{"cpus", 1, "number of cpus for the service"},
 	},
 }
@@ -22,7 +22,7 @@ var newCommand = cli.Command{
 func newAction(context *cli.Context) {
 	var (
 		fullPath = context.Args().First()
-		memory   = context.Float64("memory")
+		memory   = context.Int("memory")
 		cpus     = context.Int("cpus")
 		addr     = context.String("addr")
 		tpe      = context.String("type")

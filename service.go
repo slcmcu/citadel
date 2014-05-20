@@ -10,10 +10,10 @@ var (
 // consumed
 type Service struct {
 	Name     string             `json:"name,omitempty"`
-	Addr     string             `json:"addr,omitempty"`
-	Cpus     int                `json:"cpus,omitempty"`
-	Memory   float64            `json:"memory,omitempty"`
 	Type     string             `json:"type,omitempty"`
+	Addr     string             `json:"addr,omitempty"`   // address to the service, can include port number
+	Cpus     int                `json:"cpus,omitempty"`   // number of cpus assiged to the service
+	Memory   int                `json:"memory,omitempty"` // memory limit in mb
 	Commands map[string]Command `json:"-"`
 }
 

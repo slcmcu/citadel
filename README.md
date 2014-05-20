@@ -2,6 +2,7 @@
 Citadel provides a service oriented approach to cluster management.  Everything is a service and every service has a set of standard endpoints.
 
 ### Keyspace
+
 ```bash
 /citadel/config
 
@@ -17,27 +18,6 @@ Citadel provides a service oriented approach to cluster management.  Everything 
 * Not a service discovery method
 * Schedule tasks with tight resourse limits and monitor resources on the cluster
 * Host independent, all you need is docker
-
-
-### Development
-The only hard dep right now for building the project is to the Go installed.  After that just `go run citadel.go` and navigate to `localhost:3000` in your broswer to begin interacting with the ui.
-
-
-### Architecture
-* api
-    * provides the web ui
-    * sends messages to agents
-* agent
-    * runs on each host
-    * sends messages to docker
-    * collects host metrics 
-    * collects container metrics 
-* database
-    * stores metrics (influxdb)
-    * stores runtime data (etcd)
-    * aggregates host information (etcd)
-    * lock server for the cluster (etcd)
-
 
 ### Metrics
 Host metrics are collected and stored in `select * from metrics.hosts.b8f6b1166755` where `b8f6b1166755` is the host's unique name.
