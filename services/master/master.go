@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/actions"
 	"citadelapp.io/citadel/repository"
 )
 
@@ -55,12 +56,16 @@ func (m *MasterService) stophandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// this should return a handle to the agent
 	service, err := m.repo.FetchService(task.Name)
 	if err != nil {
 		m.httpError(w, err)
 		return
 	}
-
+	if err := actions.LoadActions(service); err != nil {
+		m.httpError(w, err)
+		return
+	}
 	if err := service.Stop(); err != nil {
 		m.httpError(w, err)
 		return

@@ -1,5 +1,21 @@
 package actions
 
-import "citadelapp.io/citadel"
+import (
+	"errors"
 
-var Actions = make(map[string]citadel.Action)
+	"citadelapp.io/citadel"
+)
+
+var (
+	Actions          = make(map[string]citadel.Action)
+	ErrNoServiceType = errors.New("service type not registered")
+)
+
+func LoadActions(s *citadel.Service) error {
+	action := Actions[s.Type]
+	if action == nil {
+		return ErrNoServiceType
+	}
+	s.Action = action
+	return nil
+}
