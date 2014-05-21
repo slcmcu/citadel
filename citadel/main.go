@@ -3,8 +3,6 @@ package main
 import (
 	"os"
 
-	"citadelapp.io/citadel"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 )
@@ -12,21 +10,7 @@ import (
 var (
 	logger   = logrus.New()
 	machines = []string{os.Getenv("ETCD_MACHINES")}
-	service  *citadel.Service
 )
-
-func newLocalService() *citadel.Service {
-	nilCommand := &citadel.NilCommand{}
-
-	return &citadel.Service{
-		Name: "cli",
-		Commands: map[string]citadel.Command{
-			"list":  nilCommand,
-			"start": nilCommand,
-			"stop":  nilCommand,
-		},
-	}
-}
 
 func main() {
 	app := cli.NewApp()
@@ -39,8 +23,6 @@ func main() {
 	app.Commands = []cli.Command{
 		newCommand,
 	}
-
-	service = newLocalService()
 
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal(err)
