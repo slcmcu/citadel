@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/repository"
 	"github.com/codegangsta/cli"
 )
 
@@ -26,8 +25,12 @@ func newAction(context *cli.Context) {
 		cpus     = context.Int("cpus")
 		addr     = context.String("addr")
 		tpe      = context.String("type")
-		repo     = repository.NewEtcdRepository(machines, false)
 	)
+
+	service, err := newService(context)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	switch {
 	case fullPath == "":
@@ -39,7 +42,7 @@ func newAction(context *cli.Context) {
 	}
 
 	_, name := filepath.Split(fullPath)
-	s := &citadel.Service{
+	data := &citadel.ServiceData{
 		Name:   name,
 		Cpus:   cpus,
 		Addr:   addr,
@@ -47,7 +50,16 @@ func newAction(context *cli.Context) {
 		Type:   tpe,
 	}
 
-	if err := repo.SaveService(fullPath, s); err != nil {
+	rundata, err := service.Run(&citadel.Task{
+		Name:      name,
+		Service:   data,
+		Instances: 1,
+	})
+
+	if err != nil {
 		logger.Fatal(err)
 	}
+
+	// FIXME: print out the rundata in a nice report
+	logger.Println(rundata)
 }

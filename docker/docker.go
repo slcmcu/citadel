@@ -30,15 +30,15 @@ func (d *Service) Data() *citadel.ServiceData {
 	return d.data
 }
 
-func (d *Service) List(t *citadel.Task) ([]citadel.Service, error) {
+func (d *Service) List(t *citadel.Task) ([]*citadel.ServiceData, error) {
 	containers, err := d.docker.ListContainers(false)
 	if err != nil {
 		return nil, err
 	}
-	out := []citadel.Service{}
+	out := []*citadel.ServiceData{}
 
 	for _, c := range containers {
-		var service citadel.Service
+		var service *citadel.ServiceData
 
 		switch t.Service.Type {
 		case "docker":
@@ -60,7 +60,7 @@ func (d *Service) List(t *citadel.Task) ([]citadel.Service, error) {
 	return out, nil
 }
 
-func (d *Service) Run(t *citadel.Task) (interface{}, error) {
+func (d *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 	if t.Service.Type == "docker" {
 		return nil, fmt.Errorf("cannot start docker service")
 	}
@@ -84,7 +84,7 @@ func (d *Service) Run(t *citadel.Task) (interface{}, error) {
 	return nil, nil
 }
 
-func (d *Service) Stop(t *citadel.Task) (interface{}, error) {
+func (d *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
 	if t.Service.Type == "docker" {
 		return nil, fmt.Errorf("cannot stop docker service")
 	}
@@ -97,8 +97,19 @@ func (d *Service) Stop(t *citadel.Task) (interface{}, error) {
 	return nil, nil
 }
 
-func (d *Service) containerToService(id, name string) (citadel.Service, error) {
-	return NewContainer(id, name, d.docker)
+func (d *Service) containerToService(id, name string) (*citadel.ServiceData, error) {
+	c, err := d.docker.InspectContainer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &citadel.ServiceData{
+		Type:   c.Image,
+		Name:   name,
+		Cpus:   stringToCpus(c.Config.Cpuset),
+		Memory: c.Config.Memory,
+		Addr:   c.NetworkSettings.IpAddress,
+	}, nil
 }
 
 func cpusToString(cpus int) string {

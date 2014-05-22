@@ -5,22 +5,30 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"citadelapp.io/citadel/repository"
+	"citadelapp.io/citadel"
+
 	"github.com/codegangsta/cli"
 )
 
 func viewAction(context *cli.Context) {
 	var (
-		repo    = repository.NewEtcdRepository(machines, false)
-		name, _ = parseRawCommand(context)
-		w       = tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
+		viewName, _ = parseRawCommand(context)
+		w           = tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
 	)
 
-	if name == "" {
-		name = "/"
+	service, err := newService(context)
+	if err != nil {
+		logger.Fatal(err)
 	}
 
-	services, err := repo.FetchServices(name)
+	if viewName == "" {
+		viewName = "/"
+	}
+
+	services, err := service.List(&citadel.Task{
+		Name: viewName,
+	})
+
 	if err != nil {
 		logger.Fatal(err)
 	}

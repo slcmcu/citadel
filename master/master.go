@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"citadelapp.io/citadel"
+	"citadelapp.io/citadel/handler"
 	"citadelapp.io/citadel/repository"
 )
 
@@ -35,34 +36,33 @@ func (s *Service) List(t *citadel.Task) ([]*citadel.ServiceData, error) {
 		t.Name = "/"
 	}
 
-	return repo.FetchServices(t.Name)
+	return s.repo.FetchServices(t.Name)
 }
 
-func (s *Service) Run(t *citadel.Task) (interface{}, error) {
+func (s *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	panic("not implemented")
-}
-
-func (s *Service) Stop(t *citadel.Task) (interface{}, error) {
-	s.Lock()
-	defer s.Unlock()
-
-	// this should return a handle to the agent
-	service, err := m.repo.FetchService(task.Name)
+	service, err := s.repo.FetchService(t.Name)
 	if err != nil {
-		m.httpError(w, err)
-		return
+		return nil, err
 	}
 
-	if err := actions.LoadActions(service); err != nil {
-		m.httpError(w, err)
-		return
+	client := handler.NewClient(service)
+
+	return client.Run(t)
+}
+
+func (s *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	service, err := s.repo.FetchService(t.Name)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := service.Stop(); err != nil {
-		m.httpError(w, err)
-		return
-	}
+	client := handler.NewClient(service)
+
+	return client.Stop(t)
 }

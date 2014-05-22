@@ -4,8 +4,8 @@ type Service interface {
 	Data() *ServiceData
 
 	List(t *Task) ([]*ServiceData, error)
-	Run(t *Task) (interface{}, error)
-	Stop(t *Task) (interface{}, error)
+	Run(t *Task) (*RunResult, error)
+	Stop(t *Task) (*StopResult, error)
 }
 
 // ServiceData represents a resource in a cluster that can be consumed
@@ -15,4 +15,10 @@ type ServiceData struct {
 	Addr   string `json:"addr,omitempty"`   // address to the service, can include port number
 	Cpus   int    `json:"cpus,omitempty"`   // number of cpus assiged to the service
 	Memory int    `json:"memory,omitempty"` // memory limit in mb
+}
+
+type RunResult struct {
+}
+
+type StopResult struct {
 }

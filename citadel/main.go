@@ -20,6 +20,10 @@ func main() {
 	app.Email = "michael@crosbymichael.com"
 	app.Action = viewAction
 
+	app.Flags = []cli.Flag{
+		cli.StringFlag{"service", "/master", "service endpoint to hit"},
+	}
+
 	app.Commands = []cli.Command{
 		newCommand,
 	}
