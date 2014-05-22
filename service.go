@@ -1,32 +1,24 @@
 package citadel
 
-import "errors"
+type Service interface {
+	Data() *ServiceData
 
-var (
-	ErrNoCommand = errors.New("command not available")
-)
+	List(t *Task) ([]*ServiceData, error)
+	Run(t *Task) (*RunResult, error)
+	Stop(t *Task) (*StopResult, error)
+}
 
-// Service represents a resource in a cluster that can be
-// consumed
-type Service struct {
+// ServiceData represents a resource in a cluster that can be consumed
+type ServiceData struct {
 	Name   string `json:"name,omitempty"`
 	Type   string `json:"type,omitempty"`
 	Addr   string `json:"addr,omitempty"`   // address to the service, can include port number
 	Cpus   int    `json:"cpus,omitempty"`   // number of cpus assiged to the service
 	Memory int    `json:"memory,omitempty"` // memory limit in mb
-	Action Action `json:"-"`
 }
 
-// List returns the services that are children of the current
-// service
-func (s *Service) List() ([]*Service, error) {
-	return s.Action.List(s)
+type RunResult struct {
 }
 
-func (s *Service) Start() error {
-	return s.Action.Start(s)
-}
-
-func (s *Service) Stop() error {
-	return s.Action.Stop(s)
+type StopResult struct {
 }
