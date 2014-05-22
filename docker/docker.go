@@ -17,13 +17,17 @@ type Service struct {
 
 // New returns a new Service interacting with a docker daemon.  The namespace
 // is the image namespace required to create new containers
-func New(namespace string, data *citadel.ServiceData, docker *dockerclient.DockerClient) citadel.Service {
+func New(namespace, dockerUrl string, data *citadel.ServiceData) (citadel.Service, error) {
+	client, err := dockerclient.NewDockerClient(dockerUrl)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Service{
 		data:      data,
-		docker:    docker,
+		docker:    client,
 		namespace: namespace,
-	}
+	}, nil
 }
 
 func (d *Service) Data() *citadel.ServiceData {

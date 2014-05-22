@@ -31,6 +31,7 @@ func main() {
 	app.Commands = []cli.Command{
 		newCommand,
 		masterCommand,
+		slaveCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

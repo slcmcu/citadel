@@ -36,6 +36,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listhandler(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("list")
+
 	task, err := h.unmarshalTask(r)
 	if err != nil {
 		h.httpError(w, err)
@@ -52,6 +54,8 @@ func (h *Handler) listhandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) runhandler(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("run")
+
 	task, err := h.unmarshalTask(r)
 	if err != nil {
 		h.httpError(w, err)
@@ -68,6 +72,8 @@ func (h *Handler) runhandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) stophandler(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("stop")
+
 	task, err := h.unmarshalTask(r)
 	if err != nil {
 		h.httpError(w, err)
