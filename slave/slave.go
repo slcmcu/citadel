@@ -1,6 +1,8 @@
 package slave
 
 import (
+	"path/filepath"
+
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
 )
@@ -22,6 +24,10 @@ func New(data *citadel.ServiceData, client citadel.Service, repo repository.Repo
 		client: client,
 	}
 
+	if err := slave.loadExisting(); err != nil {
+		return nil, err
+	}
+
 	return slave, nil
 }
 
@@ -39,4 +45,19 @@ func (s *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 
 func (s *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
 	return s.client.Stop(t)
+}
+
+func (s *Service) loadExisting() error {
+	services, err := s.client.List(&citadel.Task{})
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		if err := s.repo.SaveService(filepath.Join(s.data.Name, service.Name), service); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
