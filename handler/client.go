@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -97,5 +98,5 @@ func (c *ClientService) newRequest(task *citadel.Task, p string) (*http.Request,
 		data = buf
 	}
 
-	return http.NewRequest("POST", path.Join(c.data.Addr, p), data)
+	return http.NewRequest("POST", fmt.Sprintf("http://%s", path.Join(c.data.Addr, p)), data)
 }

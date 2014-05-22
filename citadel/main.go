@@ -13,6 +13,10 @@ var (
 )
 
 func main() {
+	if len(machines) == 0 {
+		logger.Fatal("machines must be specifed in environment var ETCD_MACHINES")
+	}
+
 	app := cli.NewApp()
 	app.Name = "citadel"
 	app.Version = "0.1"
@@ -26,6 +30,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		newCommand,
+		masterCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {
