@@ -18,6 +18,8 @@ type ServiceData struct {
 }
 
 type RunResult struct {
+	ID   string `json:"id,omitempty"`   // ID of the service
+	Addr string `json:"addr,omitempty"` // address to the service, can include port number
 }
 
 type StopResult struct {

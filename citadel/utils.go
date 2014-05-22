@@ -26,7 +26,7 @@ func parseRawCommand(context *cli.Context) (string, string) {
 func newService(context *cli.Context) (citadel.Service, error) {
 	repo := repository.NewEtcdRepository(machines, false)
 
-	service, err := repo.FetchService(context.String("service"))
+	service, err := repo.FetchService(context.GlobalString("service"))
 	if err != nil {
 		return nil, err
 	}

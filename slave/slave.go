@@ -40,7 +40,16 @@ func (s *Service) List(t *citadel.Task) ([]*citadel.ServiceData, error) {
 }
 
 func (s *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
-	return s.client.Run(t)
+	result, err := s.client.Run(t)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.SaveService(filepath.Join(s.data.Name, t.Name), t.Service); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {

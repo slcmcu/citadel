@@ -29,7 +29,7 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
-		newCommand,
+		runCommand,
 		masterCommand,
 		slaveCommand,
 	}

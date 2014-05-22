@@ -1,6 +1,7 @@
 package master
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -44,14 +45,20 @@ func (s *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	parent, _ := filepath.Split(t.Name)
-	service, err := s.repo.FetchService(parent)
+	// TODO: scheduling logic
+	// right now we will just get all of our services and pick one at random
+	services, err := s.repo.FetchServices(s.data.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	client := handler.NewClient(service)
+	if len(services) == 0 {
+		return nil, fmt.Errorf("no services registered to run task")
+	}
 
+	client := handler.NewClient(services[0])
+
+	// FIXME: master should save the new rundata to the service
 	return client.Run(t)
 }
 

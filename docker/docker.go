@@ -73,8 +73,15 @@ func (d *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 		return nil, err
 	}
 
-	// FIXME: return a report of the run with state information
-	return nil, nil
+	container, err := d.docker.InspectContainer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &citadel.RunResult{
+		ID:   id,
+		Addr: container.NetworkSettings.IpAddress,
+	}, nil
 }
 
 func (d *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
