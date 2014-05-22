@@ -2,7 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"citadelapp.io/citadel"
@@ -42,18 +41,7 @@ func (d *Service) List(t *citadel.Task) ([]*citadel.ServiceData, error) {
 	out := []*citadel.ServiceData{}
 
 	for _, c := range containers {
-		var service *citadel.ServiceData
-
-		switch t.Service.Type {
-		case "docker":
-			service, err = d.containerToService(c.Id, c.Names[0])
-		default:
-			_, name := filepath.Split(c.Image)
-			if name == t.Service.Type {
-				service, err = d.containerToService(c.Id, c.Names[0])
-			}
-		}
-
+		service, err := d.containerToService(c.Id, c.Names[0])
 		if err != nil {
 			return nil, err
 		} else if service != nil {
