@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"citadelapp.io/citadel"
@@ -41,7 +42,7 @@ func (d *Service) List(t *citadel.Task) ([]*citadel.ServiceData, error) {
 	out := []*citadel.ServiceData{}
 
 	for _, c := range containers {
-		service, err := d.containerToService(c.Id, c.Names[0])
+		service, err := d.containerToService(c.Id, c.Names[0], c.Image)
 		if err != nil {
 			return nil, err
 		} else if service != nil {
@@ -89,14 +90,14 @@ func (d *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
 	return nil, nil
 }
 
-func (d *Service) containerToService(id, name string) (*citadel.ServiceData, error) {
+func (d *Service) containerToService(id, name, image string) (*citadel.ServiceData, error) {
 	c, err := d.docker.InspectContainer(id)
 	if err != nil {
 		return nil, err
 	}
 
 	return &citadel.ServiceData{
-		Type:   c.Image,
+		Type:   cleanImageName(image),
 		Name:   name,
 		Cpus:   stringToCpus(c.Config.Cpuset),
 		Memory: c.Config.Memory,
@@ -114,4 +115,9 @@ func cpusToString(cpus int) string {
 
 func stringToCpus(cpuset string) int {
 	return len(strings.Split(cpuset, ","))
+}
+
+func cleanImageName(image string) string {
+	_, image = filepath.Split(image)
+	return strings.Split(image, ":")[0]
 }
