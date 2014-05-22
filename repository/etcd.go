@@ -26,8 +26,8 @@ func NewEtcdRepository(machines []string, sync bool) Repository {
 
 // name == /local
 // translatted to /citadel/services/local/services
-func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) {
-	out := []*citadel.Service{}
+func (e *etcdRepository) FetchServices(name string) ([]*citadel.ServiceData, error) {
+	out := []*citadel.ServiceData{}
 
 	resp, err := e.client.Get(path.Join("/citadel/services", buildServiceName(name, "services")), true, true)
 	if err != nil {
@@ -40,7 +40,7 @@ func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) 
 	for _, n := range resp.Node.Nodes {
 		for _, sdir := range n.Nodes {
 			if sdir.Key == path.Join(n.Key, "config") {
-				var s *citadel.Service
+				var s *citadel.ServiceData
 				if err := e.unmarshal(sdir.Value, &s); err != nil {
 					return nil, err
 				}
@@ -52,13 +52,13 @@ func (e *etcdRepository) FetchServices(name string) ([]*citadel.Service, error) 
 	return out, nil
 }
 
-func (e *etcdRepository) FetchService(name string) (*citadel.Service, error) {
+func (e *etcdRepository) FetchService(name string) (*citadel.ServiceData, error) {
 	resp, err := e.client.Get(path.Join("/citadel/services", buildServiceName(name, "config")), true, true)
 	if err != nil {
 		return nil, err
 	}
 
-	var s *citadel.Service
+	var s *citadel.ServiceData
 	if err := e.unmarshal(resp.Node.Value, &s); err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (e *etcdRepository) FetchService(name string) (*citadel.Service, error) {
 
 // name == local/redis
 // translatted to /citadel/services/local/services/redis/config
-func (e *etcdRepository) SaveService(name string, s *citadel.Service) error {
+func (e *etcdRepository) SaveService(name string, s *citadel.ServiceData) error {
 	data, err := e.marshal(s)
 	if err != nil {
 		return err
