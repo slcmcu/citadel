@@ -41,7 +41,7 @@ citadel /master
 export DOCKER_HOST=tcp://192.168.56.101:4243
 
 #            slave name
-citadel --service local slave --cpus 2 --memory 1024
+citadel --service /master/local slave --cpus 2 --memory 1024
 
 # query the master for the slave
 citadel /master
