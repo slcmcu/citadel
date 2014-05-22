@@ -1,6 +1,7 @@
 package master
 
 import (
+	"path/filepath"
 	"sync"
 
 	"citadelapp.io/citadel"
@@ -43,7 +44,8 @@ func (s *Service) Run(t *citadel.Task) (*citadel.RunResult, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	service, err := s.repo.FetchService(t.Name)
+	parent, _ := filepath.Split(t.Name)
+	service, err := s.repo.FetchService(parent)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +59,8 @@ func (s *Service) Stop(t *citadel.Task) (*citadel.StopResult, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	service, err := s.repo.FetchService(t.Name)
+	parent, _ := filepath.Split(t.Name)
+	service, err := s.repo.FetchService(parent)
 	if err != nil {
 		return nil, err
 	}
