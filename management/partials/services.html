@@ -1,0 +1,20 @@
+<table class="ui table segment">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Address</th>
+            <th>CPUs</th>
+            <th>Memory</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="service in services">
+            <td>{{service.name}}</td>
+            <td>{{service.type}}</td>
+            <td>{{service.addr}}</td>
+            <td>{{service.cpus}}</td>
+            <td>{{service.memory}} mb</td>
+        </tr>
+    </tbody>
+</table>
