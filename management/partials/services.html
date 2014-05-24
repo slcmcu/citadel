@@ -10,7 +10,9 @@
     </thead>
     <tbody>
         <tr ng-repeat="service in services">
-            <td>{{service.name}}</td>
+            <td>
+                <a href="/#/services/{{service.name}}">{{service.name}}</a>
+            </td>
             <td>{{service.type}}</td>
             <td>{{service.addr}}</td>
             <td>{{service.cpus}}</td>

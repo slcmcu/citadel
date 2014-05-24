@@ -5,7 +5,10 @@ angular.module('citadel.services', ['ngResource'])
         return $resource('/api/services/:name/:action', {}, {
             query: {
                 method: 'GET',
-                isArray: true
+                isArray: true,
+                params: {
+                    name: "@name"
+                }
             },
             metrics: {
                 method: 'GET',

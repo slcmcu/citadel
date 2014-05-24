@@ -30,10 +30,12 @@ function DashboardController($scope, Services) {
 }
 
 // Services display information about the cluster services that are running
-function ServicesController($scope, Services) {
+function ServicesController($scope, $routeParams, Services) {
     $scope.template = 'partials/services.html';
 
-    Services.query({}, function (data) {
+    Services.query({
+        name: $routeParams.id
+    }, function (data) {
         $scope.services = data;
     });
 }

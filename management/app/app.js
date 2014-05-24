@@ -7,13 +7,9 @@ angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters', 'ci
                 templateUrl: 'partials/dashboard.html',
                 controller: 'DashboardController'
             });
-            $routeProvider.when('/containers', {
-                templateUrl: 'partials/containers.html',
-                controller: 'ContainersController'
-            });
-            $routeProvider.when('/containers/:id', {
-                templateUrl: 'partials/container.html',
-                controller: 'ContainerController'
+            $routeProvider.when('/services/:id*', {
+                templateUrl: 'partials/dashboard.html',
+                controller: 'DashboardController'
             });
             $routeProvider.otherwise({
                 redirectTo: '/'

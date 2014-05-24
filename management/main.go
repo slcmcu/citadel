@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net/http"
 	"os"
+	"path"
 
 	"citadelapp.io/citadel/metrics"
 	"citadelapp.io/citadel/repository"
@@ -41,7 +42,18 @@ func getservices(w http.ResponseWriter, r *http.Request) {
 }
 
 func getservice(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
 
+	services, err := repo.FetchServices(path.Join("/", name))
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(services); err != nil {
+		httpError(w, err)
+		return
+	}
 }
 
 func httpError(w http.ResponseWriter, err error) {
@@ -69,8 +81,8 @@ func main() {
 		logger.WithField("error", err).Fatal("new metrics store")
 	}
 
-	apiRouter.HandleFunc("/api/services", getservices)
 	apiRouter.HandleFunc("/api/services/{name:.*}", getservice)
+	apiRouter.HandleFunc("/api/services", getservices)
 
 	globalMux.Handle("/api/", apiRouter)
 	globalMux.Handle("/", http.FileServer(http.Dir(assets)))
