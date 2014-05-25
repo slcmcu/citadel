@@ -37,19 +37,34 @@ func (e *etcdRepository) FetchServices(name string) ([]*citadel.ServiceData, err
 		return nil, err
 	}
 
-	for _, n := range resp.Node.Nodes {
-		for _, sdir := range n.Nodes {
-			if sdir.Key == path.Join(n.Key, "config") {
-				var s *citadel.ServiceData
-				if err := e.unmarshal(sdir.Value, &s); err != nil {
-					return nil, err
-				}
-				out = append(out, s)
-			}
-		}
+	if err := e.createServiceData(resp.Node.Nodes, &out); err != nil {
+		return nil, err
 	}
 
 	return out, nil
+}
+
+func (e *etcdRepository) createServiceData(nodes etcd.Nodes, out *[]*citadel.ServiceData) error {
+	for _, n := range nodes {
+		for _, sdir := range n.Nodes {
+			_, name := filepath.Split(sdir.Key)
+
+			switch name {
+			case "config":
+				var s *citadel.ServiceData
+				if err := e.unmarshal(sdir.Value, &s); err != nil {
+					return err
+				}
+				s.Name = strings.TrimSuffix(strings.TrimPrefix(sdir.Key, "/citadel/services"), "/config")
+				*out = append(*out, s)
+			case "services":
+				if err := e.createServiceData(sdir.Nodes, out); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (e *etcdRepository) FetchService(name string) (*citadel.ServiceData, error) {
