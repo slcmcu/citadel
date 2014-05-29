@@ -18,6 +18,7 @@ var slaveCommand = cli.Command{
 	Action:      slaveAction,
 	Description: "slave service that manages other services",
 	Flags: []cli.Flag{
+		cli.StringFlag{"namespace", "stackbrew", "docker namespace"},
 		cli.StringFlag{"type", "docker", "service type"},
 		cli.StringFlag{"addr", "127.0.0.1:3001", "address of the service"},
 		cli.IntFlag{"memory", 0, "memory amount of the service"},
@@ -42,7 +43,7 @@ func slaveAction(context *cli.Context) {
 	switch data.Type {
 	case "docker":
 		url := strings.Replace(os.Getenv("DOCKER_HOST"), "tcp", "http", -1)
-		daemon, err := docker.New("crosbymichael", url, data)
+		daemon, err := docker.New(context.String("namespace"), url, data)
 		if err != nil {
 			logger.Fatal(err)
 		}
