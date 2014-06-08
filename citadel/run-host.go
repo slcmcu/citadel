@@ -64,6 +64,6 @@ func runHostAction(context *cli.Context) {
 	}
 	defer r.DeleteHost(id)
 
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := http.ListenAndServe(":8787", nil); err != nil {
 	}
 }
