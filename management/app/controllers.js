@@ -1,17 +1,17 @@
 'use strict';
 
 // Page header that displays the totals for the cluster
-function HeaderController($scope, Services) {
+function HeaderController($scope, Hosts) {
     $scope.template = 'partials/header.html';
 
-    Services.query({}, function (d) {
-        $scope.services = d.length;
+    Hosts.query({}, function (d) {
+        $scope.hosts = d.length;
     });
 }
 
 // Dashboard includes overall information with graphs and services 
 // for the cluster
-function DashboardController($scope, Services) {
+function DashboardController($scope, Hosts) {
     /*
     Host.metrics({
         name: "b8f6b1166755"
@@ -29,14 +29,13 @@ function DashboardController($scope, Services) {
     */
 }
 
-// Services display information about the cluster services that are running
-function ServicesController($scope, $routeParams, Services) {
-    $scope.template = 'partials/services.html';
+function HostsController($scope, $routeParams, Hosts) {
+    $scope.template = 'partials/hosts.html';
 
-    Services.query({
+    Hosts.query({
         name: $routeParams.id
     }, function (data) {
-        $scope.services = data;
+        $scope.hosts = data;
     });
 }
 

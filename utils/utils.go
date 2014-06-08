@@ -49,5 +49,5 @@ func GetMachineID() (string, error) {
 		}
 		return "", err
 	}
-	return string(data), nil
+	return strings.Trim(string(data), "\n"), nil
 }

@@ -20,6 +20,7 @@ func hostAction(context *cli.Context) {
 	if err != nil {
 		logger.WithField("error", err).Fatal("unable to connect to repository")
 	}
+	defer r.Close()
 
 	hosts, err := r.FetchHosts()
 	if err != nil {

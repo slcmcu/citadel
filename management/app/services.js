@@ -1,8 +1,8 @@
 'use strict';
 
 angular.module('citadel.services', ['ngResource'])
-    .factory('Services', function ($resource) {
-        return $resource('/api/services/:name/:action', {}, {
+    .factory('Hosts', function ($resource) {
+        return $resource('/api/hosts/:name/:action', {}, {
             query: {
                 method: 'GET',
                 isArray: true,

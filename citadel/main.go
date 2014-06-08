@@ -25,6 +25,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		hostCommand,
+		runHostCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

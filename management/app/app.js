@@ -7,7 +7,7 @@ angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters', 'ci
                 templateUrl: 'partials/dashboard.html',
                 controller: 'DashboardController'
             });
-            $routeProvider.when('/services/:id*', {
+            $routeProvider.when('/hosts/:id*', {
                 templateUrl: 'partials/dashboard.html',
                 controller: 'DashboardController'
             });
