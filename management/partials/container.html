@@ -16,6 +16,7 @@
             <th>Host</th>
             <th>Cpu</th>
             <th>Memory</th>
+            <th>Status</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -30,6 +31,7 @@
             <td>{{container.host_id|truncate}}</td>
             <td>{{container.cpus}}</td>
             <td>{{container.memory}} mb</td>
+            <td class="{{container.state|servicestatus}}">{{container.state.status}}</td>
 
             <td>
                 <div class="ui inline group">
