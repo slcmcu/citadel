@@ -6,6 +6,16 @@ function HeaderController($scope, Hosts) {
 
     Hosts.query({}, function (d) {
         $scope.hosts = d.length;
+        var cpus = 0;
+        var memory = 0;
+
+        angular.forEach(d, function (v) {
+            cpus += v.cpus;
+            memory += v.memory;
+        });
+
+        $scope.cpus = cpus;
+        $scope.memory = memory;
     });
 }
 
