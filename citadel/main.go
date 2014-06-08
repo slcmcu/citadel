@@ -8,30 +8,23 @@ import (
 )
 
 var (
-	logger   = logrus.New()
-	machines = []string{os.Getenv("ETCD_MACHINES")}
+	logger = logrus.New()
 )
 
 func main() {
-	if len(machines) == 0 {
-		logger.Fatal("machines must be specifed in environment var ETCD_MACHINES")
-	}
-
 	app := cli.NewApp()
 	app.Name = "citadel"
 	app.Version = "0.1"
 	app.Author = "@crosbymichael"
 	app.Email = "michael@crosbymichael.com"
-	app.Action = viewAction
+	//	app.Action = viewAction
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"service", "/master", "service endpoint to hit"},
+		cli.StringFlag{"repository", "127.0.0.1:27015", "repository to connect to"},
 	}
 
 	app.Commands = []cli.Command{
-		runCommand,
-		masterCommand,
-		slaveCommand,
+		hostCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {
