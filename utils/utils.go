@@ -51,3 +51,18 @@ func GetMachineID() (string, error) {
 	}
 	return strings.Trim(string(data), "\n"), nil
 }
+
+func RemoveTag(name string) string {
+	if hasTag, index := checkTag(name); hasTag {
+		return name[:index]
+	}
+	return name
+}
+
+func checkTag(name string) (bool, int) {
+	index := strings.LastIndex(name, ":")
+	if index == -1 || strings.Contains(name[index:], "/") {
+		return false, -1
+	}
+	return true, index
+}
