@@ -12,27 +12,23 @@
     <thead>
         <tr>
             <th>Image</th>
-            <th>ID</th>
-            <th>Host</th>
+            <th>Instances</th>
             <th>Cpu</th>
             <th>Memory</th>
-            <th>Status</th>
             <th>Actions</th>
         </tr>
     </thead>
 
     <tbody>
-        <tr ng-repeat="container in containers">
+        <tr ng-repeat="container in containers | orderBy:predicate">
 
             <td>
                 <a href="/#/containers/{{container.image}}">{{container.image}}</a>
             </td>
 
-            <td>{{container.id|truncate}}</td>
-            <td>{{container.host_id}}</td>
+            <td>{{container.instances}}</td>
             <td>{{container.cpus}}</td>
             <td>{{container.memory}} mb</td>
-            <td class="{{container.state|servicestatus}}">{{container.state.status}}</td>
 
             <td>
                 <div class="ui inline group">

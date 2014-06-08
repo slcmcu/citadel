@@ -104,7 +104,7 @@ func loadContainers(hostId string, r *repository.Repository, client *dockerclien
 
 		cc := &citadel.Container{
 			ID:     full.Id,
-			Image:  utils.RemoveTag(c.Image),
+			Image:  utils.CleanImageName(c.Image),
 			HostID: hostId,
 			Cpus:   full.Config.CpuShares, // FIXME: not the right place, this is cpuset
 		}

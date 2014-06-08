@@ -1,7 +1,7 @@
 'use strict';
 
 // Page header that displays the totals for the cluster
-function HeaderController($scope, Hosts) {
+function HeaderController($scope, Hosts, Containers) {
     $scope.template = 'partials/header.html';
 
     Hosts.query({}, function (d) {
@@ -16,6 +16,10 @@ function HeaderController($scope, Hosts) {
 
         $scope.cpus = cpus;
         $scope.memory = memory;
+    });
+
+    Containers.query({}, function (d) {
+        $scope.containers = d.length;
     });
 }
 
@@ -51,11 +55,41 @@ function HostsController($scope, $routeParams, Hosts) {
 
 function ContainersController($scope, $routeParams, Containers) {
     $scope.template = 'partials/containers.html';
+    $scope.predicate = '-instances';
 
     Containers.query({
         name: $routeParams.id
     }, function (data) {
-        $scope.containers = data;
+        var groups = {};
+        angular.forEach(data, function (v) {
+            if (groups[v.image] === null || groups[v.image] === undefined) {
+                groups[v.image] = [];
+            }
+
+            var c = groups[v.image];
+            c.push(v);
+        });
+
+
+        var containers = [];
+        angular.forEach(groups, function (v, k) {
+            var cpus = 0;
+            var memory = 0;
+
+            angular.forEach(v, function (c) {
+                cpus += c.cpus;
+                memory += c.memory;
+            });
+
+            containers.push({
+                image: k,
+                instances: v.length,
+                cpus: cpus || 0,
+                memory: memory || 0
+            });
+        });
+
+        $scope.containers = containers;
     });
 }
 
