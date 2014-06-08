@@ -20,7 +20,7 @@ func main() {
 	//	app.Action = viewAction
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"repository", "127.0.0.1:27015", "repository to connect to"},
+		cli.StringFlag{"repository", "127.0.0.1:28015", "repository to connect to"},
 	}
 
 	app.Commands = []cli.Command{
