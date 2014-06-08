@@ -7,6 +7,7 @@ import (
 	"citadelapp.io/citadel/repository"
 	"citadelapp.io/citadel/utils"
 	"github.com/codegangsta/cli"
+	"github.com/samalba/dockerclient"
 )
 
 var runHostCommand = cli.Command{
@@ -16,6 +17,7 @@ var runHostCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{"region", "", "region where the host is running"},
 		cli.StringFlag{"addr", "", "external ip address for the host"},
+		cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker remote ip address"},
 		cli.IntFlag{"cpus", -1, "number of cpus available to the host"},
 		cli.IntFlag{"memory", -1, "number of mb of memory available to the host"},
 	},
@@ -64,6 +66,54 @@ func runHostAction(context *cli.Context) {
 	}
 	defer r.DeleteHost(id)
 
-	if err := http.ListenAndServe(":8787", nil); err != nil {
+	client, err := dockerclient.NewDockerClient(context.String("docker"))
+	if err != nil {
+		logger.WithField("error", err).Fatal("unable to connect to docker")
 	}
+
+	if err := loadContainers(id, r, client); err != nil {
+		logger.WithField("error", err).Fatal("unable to load containers")
+	}
+
+	if err := http.ListenAndServe(":8787", nil); err != nil {
+		logger.WithField("error", err).Fatal("unable to listen on http")
+	}
+}
+
+func loadContainers(hostId string, r *repository.Repository, client *dockerclient.DockerClient) error {
+	containers, err := client.ListContainers(true)
+	if err != nil {
+		return err
+	}
+
+	for _, c := range containers {
+		full, err := client.InspectContainer(c.Id)
+		if err != nil {
+			return err
+		}
+
+		cc := &citadel.Container{
+			ID:     full.Id,
+			Image:  c.Image,
+			HostID: hostId,
+			Cpus:   full.Config.CpuShares, // FIXME: not the right place
+		}
+
+		if full.Config.Memory > 0 {
+			cc.Memory = full.Config.Memory / 1024 / 1024
+		}
+
+		if full.State.Running {
+			cc.State.Status = citadel.Running
+		} else {
+			cc.State.Status = citadel.Stopped
+		}
+		cc.State.ExitCode = full.State.ExitCode
+
+		if err := r.SaveContainer(cc); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

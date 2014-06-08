@@ -44,6 +44,19 @@ func getHosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getContainers(w http.ResponseWriter, r *http.Request) {
+	containers, err := repo.FetchContainers()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(containers); err != nil {
+		httpError(w, err)
+		return
+	}
+}
+
 func main() {
 	var (
 		err error
@@ -58,6 +71,7 @@ func main() {
 	}
 
 	apiRouter.HandleFunc("/api/hosts", getHosts)
+	apiRouter.HandleFunc("/api/containers", getContainers)
 
 	globalMux.Handle("/api/", apiRouter)
 	globalMux.Handle("/", http.FileServer(http.Dir(assets)))

@@ -28,9 +28,9 @@ type Container struct {
 	// ID is a unique identifier for a container
 	ID string `json:"id,omitempty" gorethink:"id,omitempty"`
 	// Image is the base image name that the container is created from
-	Image string
+	Image string `json:"image,omitempty" gorethink:"image,omitempty"`
 	// HostID is the host where the container is running
-	HostID string `json:"host_id,omitempty gorethink:"host_id,omitempty"`
+	HostID string `json:"host_id,omitempty" gorethink:"host_id,omitempty"`
 	// Cpus is the number of cpus that the container has reserved
 	Cpus int `json:"cpus,omitempty" gorethink:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the container has reserved
