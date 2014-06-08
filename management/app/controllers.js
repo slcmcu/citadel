@@ -57,6 +57,10 @@ function ContainersController($scope, Containers) {
     $scope.template = 'partials/containers.html';
     $scope.predicate = '-instances';
 
+    $scope.deploy = function () {
+        $('#deploy-modal').modal('show');
+    };
+
     Containers.query({}, function (data) {
         var groups = {};
         angular.forEach(data, function (v) {
@@ -94,6 +98,8 @@ function ContainersController($scope, Containers) {
 function ContainerController($scope, $routeParams, Containers) {
     $scope.template = 'partials/container.html';
 
+    $scope.image = $routeParams.name;
+
     Containers.query({}, function (d) {
         var containers = [];
 
@@ -105,6 +111,10 @@ function ContainerController($scope, $routeParams, Containers) {
 
         $scope.containers = containers;
     });
+}
+
+function DeployController($scope) {
+    $scope.template = 'partials/deploy.html';
 }
 
 // this needs to move to some super start init func
