@@ -11,7 +11,7 @@
     <tbody>
         <tr ng-repeat="host in hosts">
             <td>
-                <a href="/#/hosts/{{host.id}}">{{host.id}}</a>
+                <a href="/#/hosts/{{host.id}}">{{host.id|truncate}}</a>
             </td>
             <td>{{host.region}}</td>
             <td>{{host.addr}}</td>
