@@ -3,18 +3,20 @@
 angular.module('citadel.filters', [])
     .filter('servicestatus', function () {
         return function (status) {
-            switch (status.toLowerCase()) {
-            case 'sick':
+            switch (status.status) {
+            case 'stopped':
                 return 'error';
-            case 'stale':
-                return 'warning';
             default:
                 return 'positive';
             }
         };
     })
-    .filter('tomb', function () {
-        return function (bytes) {
-            return bytes / 1024 / 1024;
+    .filter('truncate', function () {
+        return function (t) {
+            if (t.length < 12) {
+                return t;
+            }
+
+            return t.substring(0, 12);
         };
     });

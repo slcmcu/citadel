@@ -4,61 +4,57 @@ import (
 	"encoding/json"
 	"flag"
 	"net/http"
-	"os"
-	"path"
 
-	"citadelapp.io/citadel/metrics"
 	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 
 var (
-	assets string
+	assets   string
+	repoAddr string
 
-	store metrics.Store
-	repo  repository.Repository
+	repo *repository.Repository
 
-	machines = []string{os.Getenv("ETCD_MACHINES")}
-	logger   = logrus.New()
+	logger = logrus.New()
 )
 
 func init() {
-	flag.StringVar(&assets, "assets", "management", "Path the the http assets")
+	flag.StringVar(&assets, "assets", "management", "path the the http assets")
+	flag.StringVar(&repoAddr, "repository", "127.0.0.1:28015", "repository address")
+
 	flag.Parse()
-}
-
-func getservices(w http.ResponseWriter, r *http.Request) {
-	services, err := repo.FetchServices("/")
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(services); err != nil {
-		httpError(w, err)
-		return
-	}
-}
-
-func getservice(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-
-	services, err := repo.FetchServices(path.Join("/", name))
-	if err != nil {
-		httpError(w, err)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(services); err != nil {
-		httpError(w, err)
-		return
-	}
 }
 
 func httpError(w http.ResponseWriter, err error) {
 	logger.Error(err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func getHosts(w http.ResponseWriter, r *http.Request) {
+	hosts, err := repo.FetchHosts()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(hosts); err != nil {
+		httpError(w, err)
+		return
+	}
+}
+
+func getContainers(w http.ResponseWriter, r *http.Request) {
+	containers, err := repo.FetchContainers()
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(containers); err != nil {
+		httpError(w, err)
+		return
+	}
 }
 
 func main() {
@@ -70,19 +66,12 @@ func main() {
 		apiRouter = mux.NewRouter()
 	)
 
-	repo = repository.NewEtcdRepository(machines, false)
-
-	conf, err := repo.FetchConfig()
-	if err != nil {
-		logger.WithField("error", err).Fatal("fetch config")
+	if repo, err = repository.New(repoAddr); err != nil {
+		logger.WithField("error", err).Fatal("cannot connect to repository")
 	}
 
-	if store, err = metrics.NewStore(conf); err != nil {
-		logger.WithField("error", err).Fatal("new metrics store")
-	}
-
-	apiRouter.HandleFunc("/api/services/{name:.*}", getservice)
-	apiRouter.HandleFunc("/api/services", getservices)
+	apiRouter.HandleFunc("/api/hosts", getHosts)
+	apiRouter.HandleFunc("/api/containers", getContainers)
 
 	globalMux.Handle("/api/", apiRouter)
 	globalMux.Handle("/", http.FileServer(http.Dir(assets)))

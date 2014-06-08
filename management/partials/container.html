@@ -7,17 +7,40 @@
     </a>
 </div>
 
+<h2>{{image}}</h2>
 <table class="ui table segment">
+
     <thead>
         <tr>
-            <th>Key</th>
-            <th>Value</th>
+            <th>ID</th>
+            <th>Host</th>
+            <th>Cpu</th>
+            <th>Memory</th>
+            <th>Status</th>
+            <th>Actions</th>
         </tr>
     </thead>
+
     <tbody>
-        <tr ng-repeat="pair in data">
-            <td>{{pair.key}}</td>
-            <td>{{pair.value}}</td>
+        <tr ng-repeat="container in containers">
+
+            <td>
+                <a href="/#/containers/{{image}}/{{container.id}}">{{container.id|truncate}}</a>
+            </td>
+
+            <td>{{container.host_id|truncate}}</td>
+            <td>{{container.cpus}}</td>
+            <td>{{container.memory}} mb</td>
+            <td class="{{container.state|servicestatus}}">{{container.state.status}}</td>
+
+            <td>
+                <div class="ui inline group">
+                    <i class="refresh icon"></i>
+                    <i class="trash icon"></i>
+                </div>
+            </td>
+
         </tr>
     </tbody>
+
 </table>
