@@ -25,3 +25,7 @@ func New(addr string) (*Repository, error) {
 func (r *Repository) Close() error {
 	return r.session.Close()
 }
+
+func (r *Repository) Session() *gorethink.Session {
+	return r.session
+}

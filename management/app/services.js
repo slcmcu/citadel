@@ -19,4 +19,23 @@ angular.module('citadel.services', ['ngResource'])
                 }
             },
         });
+    })
+    .factory('Containers', function ($resource) {
+        return $resource('/api/containers/:name/:action', {}, {
+            query: {
+                method: 'GET',
+                isArray: true,
+                params: {
+                    name: "@name"
+                }
+            },
+            metrics: {
+                method: 'GET',
+                isArray: true,
+                params: {
+                    action: 'metrics',
+                    name: "@name"
+                }
+            },
+        });
     });

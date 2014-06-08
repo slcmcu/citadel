@@ -49,6 +49,16 @@ function HostsController($scope, $routeParams, Hosts) {
     });
 }
 
+function ContainersController($scope, $routeParams, Containers) {
+    $scope.template = 'partials/containers.html';
+
+    Containers.query({
+        name: $routeParams.id
+    }, function (data) {
+        $scope.containers = data;
+    });
+}
+
 // this needs to move to some super start init func
 function toggleStartSidebar() {
     $('.ui.sidebar').sidebar({

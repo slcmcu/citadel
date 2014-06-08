@@ -7,6 +7,7 @@ import (
 	"citadelapp.io/citadel/repository"
 	"citadelapp.io/citadel/utils"
 	"github.com/codegangsta/cli"
+	"github.com/dancannon/gorethink"
 	"github.com/samalba/dockerclient"
 )
 
@@ -81,6 +82,15 @@ func runHostAction(context *cli.Context) {
 }
 
 func loadContainers(hostId string, r *repository.Repository, client *dockerclient.DockerClient) error {
+	sesson := r.Session()
+
+	// delete all containers for this host and recreate them
+	if _, err := gorethink.Table("containers").Filter(func(row gorethink.RqlTerm) interface{} {
+		return row.Field("host_id").Eq(hostId)
+	}).Delete().Run(sesson); err != nil {
+		return err
+	}
+
 	containers, err := client.ListContainers(true)
 	if err != nil {
 		return err
