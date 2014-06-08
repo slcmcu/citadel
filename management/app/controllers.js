@@ -53,13 +53,11 @@ function HostsController($scope, $routeParams, Hosts) {
     });
 }
 
-function ContainersController($scope, $routeParams, Containers) {
+function ContainersController($scope, Containers) {
     $scope.template = 'partials/containers.html';
     $scope.predicate = '-instances';
 
-    Containers.query({
-        name: $routeParams.id
-    }, function (data) {
+    Containers.query({}, function (data) {
         var groups = {};
         angular.forEach(data, function (v) {
             if (groups[v.image] === null || groups[v.image] === undefined) {
@@ -87,6 +85,22 @@ function ContainersController($scope, $routeParams, Containers) {
                 cpus: cpus || 0,
                 memory: memory || 0
             });
+        });
+
+        $scope.containers = containers;
+    });
+}
+
+function ContainerController($scope, $routeParams, Containers) {
+    $scope.template = 'partials/container.html';
+
+    Containers.query({}, function (d) {
+        var containers = [];
+
+        angular.forEach(d, function (v) {
+            if (v.image == $routeParams.name) {
+                containers.push(v);
+            }
         });
 
         $scope.containers = containers;
