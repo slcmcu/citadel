@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	assets   string
-	repoAddr string
+	assets     string
+	repoAddr   string
+	listenAddr string
 
 	repo *repository.Repository
 
@@ -22,6 +23,7 @@ var (
 func init() {
 	flag.StringVar(&assets, "assets", "management", "path the the http assets")
 	flag.StringVar(&repoAddr, "repository", "127.0.0.1:28015", "repository address")
+	flag.StringVar(&listenAddr, "listenAddr", ":3002", "management listen address")
 
 	flag.Parse()
 }
@@ -76,7 +78,7 @@ func main() {
 	globalMux.Handle("/api/", apiRouter)
 	globalMux.Handle("/", http.FileServer(http.Dir(assets)))
 
-	if err := http.ListenAndServe(":3002", globalMux); err != nil {
+	if err := http.ListenAndServe(listenAddr, globalMux); err != nil {
 		logger.WithField("error", err).Fatal("serve management ui")
 	}
 }
