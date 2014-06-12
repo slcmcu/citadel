@@ -11,6 +11,14 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
+type (
+	HostEngine struct {
+		client     *dockerclient.DockerClient
+		repository *repository.Repository
+		id         string
+	}
+)
+
 var runHostCommand = cli.Command{
 	Name:   "run-host",
 	Usage:  "run the host and connect it to the cluster",
@@ -72,58 +80,91 @@ func runHostAction(context *cli.Context) {
 		logger.WithField("error", err).Fatal("unable to connect to docker")
 	}
 
-	if err := loadContainers(id, r, client); err != nil {
+	hostEngine := &HostEngine{
+		client:     client,
+		repository: r,
+		id:         id,
+	}
+	if err := hostEngine.loadContainers(); err != nil {
 		logger.WithField("error", err).Fatal("unable to load containers")
 	}
+
+	// listen for events
+	client.StartMonitorEvents(hostEngine.dockerEventHandler)
 
 	if err := http.ListenAndServe(":8787", nil); err != nil {
 		logger.WithField("error", err).Fatal("unable to listen on http")
 	}
 }
 
-func loadContainers(hostId string, r *repository.Repository, client *dockerclient.DockerClient) error {
-	sesson := r.Session()
+func (eng *HostEngine) loadContainers() error {
+	sesson := eng.repository.Session()
 
 	// delete all containers for this host and recreate them
 	if _, err := gorethink.Table("containers").Filter(func(row gorethink.RqlTerm) interface{} {
-		return row.Field("host_id").Eq(hostId)
+		return row.Field("host_id").Eq(eng.id)
 	}).Delete().Run(sesson); err != nil {
 		return err
 	}
 
-	containers, err := client.ListContainers(true)
+	containers, err := eng.client.ListContainers(true)
 	if err != nil {
 		return err
 	}
 
 	for _, c := range containers {
-		full, err := client.InspectContainer(c.Id)
+		cc, err := eng.generateContainerInfo(c)
 		if err != nil {
 			return err
 		}
-
-		cc := &citadel.Container{
-			ID:     full.Id,
-			Image:  utils.CleanImageName(c.Image),
-			HostID: hostId,
-			Cpus:   full.Config.CpuShares, // FIXME: not the right place, this is cpuset
-		}
-
-		if full.Config.Memory > 0 {
-			cc.Memory = full.Config.Memory / 1024 / 1024
-		}
-
-		if full.State.Running {
-			cc.State.Status = citadel.Running
-		} else {
-			cc.State.Status = citadel.Stopped
-		}
-		cc.State.ExitCode = full.State.ExitCode
-
-		if err := r.SaveContainer(cc); err != nil {
+		if err := eng.repository.SaveContainer(cc); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (eng *HostEngine) generateContainerInfo(cnt interface{}) (*citadel.Container, error) {
+	c := cnt.(dockerclient.Container)
+	info, err := eng.client.InspectContainer(c.Id)
+	if err != nil {
+		return nil, err
+	}
+	cc := &citadel.Container{
+		ID:     info.Id,
+		Image:  utils.CleanImageName(c.Image),
+		HostID: eng.id,
+		Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
+	}
+
+	if info.Config.Memory > 0 {
+		cc.Memory = info.Config.Memory / 1024 / 1024
+	}
+
+	if info.State.Running {
+		cc.State.Status = citadel.Running
+	} else {
+		cc.State.Status = citadel.Stopped
+	}
+	cc.State.ExitCode = info.State.ExitCode
+	return cc, nil
+}
+
+func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...interface{}) {
+	switch event.Status {
+	case "start":
+		// reload containers into repository
+		// when adding a single container, the Container struct is not
+		// returned but instead ContainerInfo.  to keep the same
+		// generateContainerInfo for a citadel container, i simply
+		// re-run the loadContainers.  this can probably be improved.
+		eng.loadContainers()
+	case "destroy":
+		// remove container from repository
+		if err := eng.repository.DeleteContainer(event.Id); err != nil {
+			logger.Warnf("Unable to remove container from repository: %s", err)
+			return
+		}
+	}
 }
