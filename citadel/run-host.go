@@ -2,6 +2,9 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
@@ -85,16 +88,38 @@ func runHostAction(context *cli.Context) {
 		repository: r,
 		id:         id,
 	}
-	if err := hostEngine.loadContainers(); err != nil {
+	go hostEngine.run()
+	hostEngine.waitForInterrupt()
+}
+
+func (eng *HostEngine) waitForInterrupt() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	for _ = range sigChan {
+		// stop engine
+		eng.stop()
+		os.Exit(0)
+	}
+}
+
+func (eng *HostEngine) run() {
+	logger.Info("Starting up")
+	if err := eng.loadContainers(); err != nil {
 		logger.WithField("error", err).Fatal("unable to load containers")
 	}
 
 	// listen for events
-	client.StartMonitorEvents(hostEngine.dockerEventHandler)
+	eng.client.StartMonitorEvents(eng.dockerEventHandler)
 
 	if err := http.ListenAndServe(":8787", nil); err != nil {
 		logger.WithField("error", err).Fatal("unable to listen on http")
 	}
+}
+
+func (eng *HostEngine) stop() {
+	logger.Info("Shutting down")
+	// remove host from repository
+	eng.repository.DeleteHost(eng.id)
 }
 
 func (eng *HostEngine) loadContainers() error {

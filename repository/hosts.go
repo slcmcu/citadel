@@ -32,6 +32,11 @@ func (r *Repository) FetchHosts() ([]*citadel.Host, error) {
 
 // DeleteHost deletes a specific host by the host id
 func (r *Repository) DeleteHost(id string) error {
+	// remove host containers
+	if _, err := gorethink.Table("containers").Filter(gorethink.Row.Field("host_id").Eq(id)).Delete().Run(r.session); err != nil {
+		return err
+	}
+	// remove host
 	if _, err := gorethink.Table("hosts").Get(id).Delete().Run(r.session); err != nil {
 		return err
 	}
