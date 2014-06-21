@@ -19,6 +19,7 @@ type (
 		client     *dockerclient.DockerClient
 		repository *repository.Repository
 		id         string
+		listenAddr string
 	}
 )
 
@@ -27,25 +28,31 @@ var runHostCommand = cli.Command{
 	Usage:  "run the host and connect it to the cluster",
 	Action: runHostAction,
 	Flags: []cli.Flag{
+		cli.StringFlag{"host-id", "", "specify host id (default: detected)"},
 		cli.StringFlag{"region", "", "region where the host is running"},
 		cli.StringFlag{"addr", "", "external ip address for the host"},
 		cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker remote ip address"},
 		cli.IntFlag{"cpus", -1, "number of cpus available to the host"},
 		cli.IntFlag{"memory", -1, "number of mb of memory available to the host"},
+		cli.StringFlag{"listen, l", ":8787", "listen address"},
 	},
 }
 
 func runHostAction(context *cli.Context) {
 	var (
-		cpus   = context.Int("cpus")
-		memory = context.Int("memory")
-		addr   = context.String("addr")
-		region = context.String("region")
+		cpus       = context.Int("cpus")
+		memory     = context.Int("memory")
+		addr       = context.String("addr")
+		region     = context.String("region")
+		hostId     = context.String("host-id")
+		listenAddr = context.String("listen")
 	)
-
-	id, err := utils.GetMachineID()
-	if err != nil {
-		logger.WithField("error", err).Fatal("unable to read machine id")
+	if hostId == "" {
+		id, err := utils.GetMachineID()
+		if err != nil {
+			logger.WithField("error", err).Fatal("unable to read machine id")
+		}
+		hostId = id
 	}
 
 	switch {
@@ -66,7 +73,7 @@ func runHostAction(context *cli.Context) {
 	defer r.Close()
 
 	host := &citadel.Host{
-		ID:     id,
+		ID:     hostId,
 		Memory: memory,
 		Cpus:   cpus,
 		Addr:   addr,
@@ -76,7 +83,7 @@ func runHostAction(context *cli.Context) {
 	if err := r.SaveHost(host); err != nil {
 		logger.WithField("error", err).Fatal("unable to save host")
 	}
-	defer r.DeleteHost(id)
+	defer r.DeleteHost(hostId)
 
 	client, err := dockerclient.NewDockerClient(context.String("docker"))
 	if err != nil {
@@ -86,7 +93,8 @@ func runHostAction(context *cli.Context) {
 	hostEngine := &HostEngine{
 		client:     client,
 		repository: r,
-		id:         id,
+		id:         hostId,
+		listenAddr: listenAddr,
 	}
 	go hostEngine.run()
 	hostEngine.waitForInterrupt()
@@ -111,7 +119,7 @@ func (eng *HostEngine) run() {
 	// listen for events
 	eng.client.StartMonitorEvents(eng.dockerEventHandler)
 
-	if err := http.ListenAndServe(":8787", nil); err != nil {
+	if err := http.ListenAndServe(eng.listenAddr, nil); err != nil {
 		logger.WithField("error", err).Fatal("unable to listen on http")
 	}
 }
