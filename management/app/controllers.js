@@ -99,7 +99,7 @@ function ContainersController($scope, Containers) {
     });
 }
 
-function ContainerController($scope, $routeParams, Containers) {
+function ContainerController($scope, $routeParams, $location, Containers, Tasks) {
     $scope.template = 'partials/container.html';
 
     $scope.image = $routeParams.name;
@@ -115,6 +115,39 @@ function ContainerController($scope, $routeParams, Containers) {
 
         $scope.containers = containers;
     });
+
+    $scope.stop = function(container) {
+        Tasks.add({
+            command: "stop",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
+
+    $scope.restart = function(container) {
+        Tasks.add({
+            command: "restart",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
+
+    $scope.destroy = function(container) {
+        Tasks.add({
+            command: "destroy",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
 }
 
 function DeployController($scope, $routeParams, Hosts, Tasks) {

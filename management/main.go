@@ -53,7 +53,6 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err)
 		return
 	}
-
 	if err := json.NewEncoder(w).Encode(containers); err != nil {
 		httpError(w, err)
 		return

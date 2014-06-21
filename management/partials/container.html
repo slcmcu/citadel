@@ -34,9 +34,16 @@
             <td class="{{container.state|servicestatus}}">{{container.state.status}}</td>
 
             <td>
-                <div class="ui inline group">
-                    <i class="refresh icon"></i>
-                    <i class="trash icon"></i>
+                <div class="ui buttons">
+                    <div class="ui icon button" ng-click="restart(container)">
+                          <i class="refresh icon"></i>
+                    </div>
+                    <div class="ui icon button" ng-click="stop(container)">
+                        <i class="stop icon"></i>
+                    </div>
+                    <div class="ui icon button" ng-click="destroy(container)">
+                          <i class="trash icon"></i>
+                    </div>
                 </div>
             </td>
 

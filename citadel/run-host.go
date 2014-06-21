@@ -192,19 +192,19 @@ func (eng *HostEngine) generateContainerInfo(cnt interface{}) (*citadel.Containe
 
 func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...interface{}) {
 	switch event.Status {
-	case "start":
-		// reload containers into repository
-		// when adding a single container, the Container struct is not
-		// returned but instead ContainerInfo.  to keep the same
-		// generateContainerInfo for a citadel container, i simply
-		// re-run the loadContainers.  this can probably be improved.
-		eng.loadContainers()
 	case "destroy":
 		// remove container from repository
 		if err := eng.repository.DeleteContainer(event.Id); err != nil {
 			logger.Warnf("Unable to remove container from repository: %s", err)
 			return
 		}
+	default:
+		// reload containers into repository
+		// when adding a single container, the Container struct is not
+		// returned but instead ContainerInfo.  to keep the same
+		// generateContainerInfo for a citadel container, i simply
+		// re-run the loadContainers.  this can probably be improved.
+		eng.loadContainers()
 	}
 }
 
@@ -235,6 +235,27 @@ func (eng *HostEngine) taskHandler(task *citadel.Task) {
 			"args": task.Args,
 		}).Info("processing run task")
 		eng.runHandler(task)
+		return
+	case "restart":
+		logger.WithFields(logrus.Fields{
+			"host": task.Host,
+			"args": task.Args,
+		}).Info("processing restart task")
+		eng.restartHandler(task)
+		return
+	case "stop":
+		logger.WithFields(logrus.Fields{
+			"host": task.Host,
+			"args": task.Args,
+		}).Info("processing stop task")
+		eng.stopHandler(task)
+		return
+	case "destroy":
+		logger.WithFields(logrus.Fields{
+			"host": task.Host,
+			"args": task.Args,
+		}).Info("processing destroy task")
+		eng.destroyHandler(task)
 		return
 	default:
 		logger.WithFields(logrus.Fields{
@@ -310,5 +331,63 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 			"containerId": containerId,
 			"image":       image,
 		}).Info("started container")
+	}
+}
+
+func (eng *HostEngine) stopHandler(task *citadel.Task) {
+	logger.WithFields(logrus.Fields{
+		"host": task.Host,
+		"id":   task.Args["containerId"],
+	}).Info("stopping container")
+	// remove task
+	defer eng.repository.DeleteTask(task.Id)
+	containerId := task.Args["containerId"].(string)
+	if err := eng.client.StopContainer(containerId, 10); err != nil {
+		logger.WithFields(logrus.Fields{
+			"containerId": containerId,
+			"err":         err,
+		}).Error("error stopping container")
+		return
+	}
+}
+
+func (eng *HostEngine) restartHandler(task *citadel.Task) {
+	logger.WithFields(logrus.Fields{
+		"host": task.Host,
+		"id":   task.Args["containerId"],
+	}).Info("restarting container")
+	// remove task
+	defer eng.repository.DeleteTask(task.Id)
+	containerId := task.Args["containerId"].(string)
+	if err := eng.client.RestartContainer(containerId, 10); err != nil {
+		logger.WithFields(logrus.Fields{
+			"containerId": containerId,
+			"err":         err,
+		}).Error("error restarting container")
+		return
+	}
+}
+
+func (eng *HostEngine) destroyHandler(task *citadel.Task) {
+	logger.WithFields(logrus.Fields{
+		"host": task.Host,
+		"id":   task.Args["containerId"],
+	}).Info("destroying container")
+	// remove task
+	defer eng.repository.DeleteTask(task.Id)
+	containerId := task.Args["containerId"].(string)
+	if err := eng.client.KillContainer(containerId); err != nil {
+		logger.WithFields(logrus.Fields{
+			"containerId": containerId,
+			"err":         err,
+		}).Error("error killing container")
+		return
+	}
+	if err := eng.client.RemoveContainer(containerId); err != nil {
+		logger.WithFields(logrus.Fields{
+			"containerId": containerId,
+			"err":         err,
+		}).Error("error removing container")
+		return
 	}
 }
