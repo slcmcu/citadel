@@ -10,6 +10,7 @@ import (
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
 	"citadelapp.io/citadel/utils"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/dancannon/gorethink"
 	"github.com/samalba/dockerclient"
@@ -116,7 +117,7 @@ func (eng *HostEngine) waitForInterrupt() {
 }
 
 func (eng *HostEngine) run() {
-	logger.Info("Starting up")
+	logger.Info("Starting Citadel")
 	if err := eng.loadContainers(); err != nil {
 		logger.WithField("error", err).Fatal("unable to load containers")
 	}
@@ -130,7 +131,7 @@ func (eng *HostEngine) run() {
 }
 
 func (eng *HostEngine) stop() {
-	logger.Info("Shutting down")
+	logger.Info("Stopping")
 	// remove host from repository
 	eng.repository.DeleteHost(eng.id)
 }
@@ -219,9 +220,95 @@ func (eng *HostEngine) watch() {
 			for _, task := range tasks {
 				// filter this hosts tasks
 				if task.Host == eng.id {
-					logger.Infof("Task: %s", task.Id)
+					go eng.taskHandler(task)
 				}
 			}
 		}
+	}
+}
+
+func (eng *HostEngine) taskHandler(task *citadel.Task) {
+	switch task.Command {
+	case "run":
+		logger.WithFields(logrus.Fields{
+			"host": task.Host,
+			"args": task.Args,
+		}).Info("processing run task")
+		eng.runHandler(task)
+		return
+	default:
+		logger.WithFields(logrus.Fields{
+			"command": task.Command,
+			"args":    task.Args,
+		}).Error("unknown task command")
+		return
+	}
+}
+
+func (eng *HostEngine) runHandler(task *citadel.Task) {
+	logger.WithFields(logrus.Fields{
+		"host":      task.Host,
+		"image":     task.Args["image"],
+		"cpus":      task.Args["cpus"],
+		"memory":    task.Args["memory"],
+		"instances": task.Args["instances"],
+	}).Info("running container")
+	// remove task
+	eng.repository.DeleteTask(task.Id)
+	instances := int(task.Args["instances"].(float64))
+	// run containers
+	for i := 0; i < instances; i++ {
+		image := task.Args["image"].(string)
+		cpus := int(task.Args["cpus"].(float64))
+		memory := int(task.Args["memory"].(float64))
+		containerConfig := &dockerclient.ContainerConfig{
+			Image:     image,
+			Memory:    memory * 1048576, // convert to bytes
+			CpuShares: cpus,
+			Tty:       true,
+			OpenStdin: true,
+		}
+		hostConfig := &dockerclient.HostConfig{
+			PublishAllPorts: true,
+		}
+		// create container
+		containerId, err := eng.client.CreateContainer(containerConfig, "")
+		if err != nil {
+			switch err.Error() {
+			case "Not found":
+				// missing image; pull
+				eng.client.PullImage(image, "latest")
+				// containerId is blank if image is missing; create new config
+				cId, err := eng.client.CreateContainer(containerConfig, "")
+				if err != nil {
+					logger.WithFields(logrus.Fields{
+						"image": image,
+						"err":   err,
+					}).Error("error creating container")
+					return
+				}
+				containerId = cId
+			default:
+				logger.WithFields(logrus.Fields{
+					"image": image,
+					"err":   err,
+				}).Error("error creating container")
+				return
+			}
+		}
+		// start container
+		if err := eng.client.StartContainer(containerId, hostConfig); err != nil {
+			logger.WithFields(logrus.Fields{
+				"image": image,
+				"err":   err,
+			}).Error("error starting container")
+			return
+		}
+
+		logger.WithFields(logrus.Fields{
+			"host":        task.Host,
+			"containerId": containerId,
+			"image":       image,
+		}).Info("started container")
 	}
 }
