@@ -217,7 +217,10 @@ func (eng *HostEngine) watch() {
 				logger.Fatal("unable to fetch queue: %s", err)
 			}
 			for _, task := range tasks {
-				logger.Infof("Task: %s", task.Id)
+				// filter this hosts tasks
+				if task.Host == eng.id {
+					logger.Infof("Task: %s", task.Id)
+				}
 			}
 		}
 	}
