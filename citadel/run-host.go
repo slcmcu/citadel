@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
@@ -96,7 +97,11 @@ func runHostAction(context *cli.Context) {
 		id:         hostId,
 		listenAddr: listenAddr,
 	}
+	// start
 	go hostEngine.run()
+	// watch for operations
+	go hostEngine.watch()
+	// handle stop signal
 	hostEngine.waitForInterrupt()
 }
 
@@ -198,6 +203,22 @@ func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...int
 		if err := eng.repository.DeleteContainer(event.Id); err != nil {
 			logger.Warnf("Unable to remove container from repository: %s", err)
 			return
+		}
+	}
+}
+
+func (eng *HostEngine) watch() {
+	tickerChan := time.NewTicker(time.Millisecond * 2000).C // check for new instances every 2 seconds
+	for {
+		select {
+		case <-tickerChan:
+			tasks, err := eng.repository.FetchTasks()
+			if err != nil {
+				logger.Fatal("unable to fetch queue: %s", err)
+			}
+			for _, task := range tasks {
+				logger.Infof("Task: %s", task.Id)
+			}
 		}
 	}
 }

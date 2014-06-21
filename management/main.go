@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net/http"
 
+	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -59,6 +60,17 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func postTasks(w http.ResponseWriter, r *http.Request) {
+	d := json.NewDecoder(r.Body)
+	var t citadel.Task
+	if err := d.Decode(&t); err != nil {
+		httpError(w, err)
+		return
+	}
+	repo.AddTask(&t)
+	return
+}
+
 func main() {
 	var (
 		err error
@@ -73,7 +85,8 @@ func main() {
 	}
 
 	apiRouter.HandleFunc("/api/hosts", getHosts)
-	apiRouter.HandleFunc("/api/containers", getContainers)
+	apiRouter.HandleFunc("/api/containers", getContainers).Methods("GET")
+	apiRouter.HandleFunc("/api/tasks", postTasks).Methods("POST")
 
 	globalMux.Handle("/api/", apiRouter)
 	globalMux.Handle("/", http.FileServer(http.Dir(assets)))

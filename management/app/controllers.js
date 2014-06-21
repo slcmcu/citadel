@@ -58,7 +58,11 @@ function ContainersController($scope, Containers) {
     $scope.predicate = '-instances';
 
     $scope.deploy = function () {
-        $('#deploy-modal').modal('show');
+        $('#deploy-modal').modal('show',{
+            onApprove: function() {
+                console.log("approve");
+            }
+        });
     };
 
     Containers.query({}, function (data) {
@@ -113,8 +117,31 @@ function ContainerController($scope, $routeParams, Containers) {
     });
 }
 
-function DeployController($scope) {
+function DeployController($scope, $routeParams, Hosts, Tasks) {
+    $scope.init = function() {
+        $('.ui.dropdown').dropdown();
+    };
+
     $scope.template = 'partials/deploy.html';
+
+    Hosts.query({
+        name: $routeParams.id
+    }, function (data) {
+        $scope.hosts = data;
+    });
+
+    $scope.launch = function() {
+        Tasks.add({
+            command: "run",
+            args: {
+                image: $scope.image,
+                cpus: $scope.cpus,
+                memory: $scope.memory,
+                instances: $scope.instances,
+                hostId: $scope.host
+            }
+        });
+    };
 }
 
 // this needs to move to some super start init func

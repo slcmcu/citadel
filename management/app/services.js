@@ -38,4 +38,11 @@ angular.module('citadel.services', ['ngResource'])
                 }
             },
         });
+    })
+    .factory('Tasks', function ($resource) {
+        return $resource('/api/tasks/:action', {}, {
+            add: {
+                method: 'POST'
+            },
+        });
     });
