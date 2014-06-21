@@ -6,7 +6,7 @@ type Task struct {
 	// command is the command to exec (i.e. start, stop, run, destroy, etc.)
 	Command string `json:"command,omitempty" gorethink:"command,omitempty"`
 	// hostId is the target for the task
-	HostId string `json:"hostId,omitempty" gorethink:"hostId,omitempty"`
+	Host string `json:"host,omitempty" gorethink:"host,omitempty"`
 	// type is the type of task (i.e. container, image, host, etc.)
 	Type string `json:"type,omitempty" gorethink:"type,omitempty"`
 	// args are the arguments for the command

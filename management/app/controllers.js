@@ -130,15 +130,19 @@ function DeployController($scope, $routeParams, Hosts, Tasks) {
         $scope.hosts = data;
     });
 
+    $scope.select = function(host) {
+        $scope.selectedHost = host;
+    };
+
     $scope.launch = function() {
         Tasks.add({
             command: "run",
+            host: $scope.selectedHost.id,
             args: {
                 image: $scope.image,
                 cpus: $scope.cpus,
                 memory: $scope.memory,
-                instances: $scope.instances,
-                hostId: $scope.host
+                instances: $scope.instances
             }
         });
     };
