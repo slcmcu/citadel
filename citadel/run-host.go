@@ -297,6 +297,10 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 		if err != nil {
 			switch err.Error() {
 			case "Not found":
+				logger.WithFields(logrus.Fields{
+					"host":  task.Host,
+					"image": image,
+				}).Info("pulling image")
 				// missing image; pull
 				eng.client.PullImage(image, "latest")
 				// containerId is blank if image is missing; create new config
