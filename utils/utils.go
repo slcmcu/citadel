@@ -40,9 +40,9 @@ func GetUUID() (string, error) {
 	return "", ErrUnableToGenerateUUID
 }
 
-// Return the value in /etc/machine-id
+// Return the value in /etc/hostname
 func GetMachineID() (string, error) {
-	data, err := ioutil.ReadFile("/etc/machine-id")
+	data, err := ioutil.ReadFile("/etc/hostname")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("host does not support /etc/machine-id")
