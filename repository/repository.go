@@ -1,6 +1,8 @@
 package repository
 
-import "github.com/dancannon/gorethink"
+import (
+	"github.com/dancannon/gorethink"
+)
 
 type Repository struct {
 	session *gorethink.Session

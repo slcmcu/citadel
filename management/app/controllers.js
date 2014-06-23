@@ -58,7 +58,11 @@ function ContainersController($scope, Containers) {
     $scope.predicate = '-instances';
 
     $scope.deploy = function () {
-        $('#deploy-modal').modal('show');
+        $('#deploy-modal').modal('show',{
+            onApprove: function() {
+                console.log("approve");
+            }
+        });
     };
 
     Containers.query({}, function (data) {
@@ -95,7 +99,7 @@ function ContainersController($scope, Containers) {
     });
 }
 
-function ContainerController($scope, $routeParams, Containers) {
+function ContainerController($scope, $routeParams, $location, Containers, Tasks) {
     $scope.template = 'partials/container.html';
 
     $scope.image = $routeParams.name;
@@ -111,10 +115,70 @@ function ContainerController($scope, $routeParams, Containers) {
 
         $scope.containers = containers;
     });
+
+    $scope.stop = function(container) {
+        Tasks.add({
+            command: "stop",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
+
+    $scope.restart = function(container) {
+        Tasks.add({
+            command: "restart",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
+
+    $scope.destroy = function(container) {
+        Tasks.add({
+            command: "destroy",
+            host: container.host_id,
+            args: {
+                containerId: container.id
+            }
+        });
+        $location.path("/containers");
+    };
 }
 
-function DeployController($scope) {
+function DeployController($scope, $routeParams, Hosts, Tasks) {
+    $scope.init = function() {
+        $('.ui.dropdown').dropdown();
+    };
+
     $scope.template = 'partials/deploy.html';
+
+    Hosts.query({
+        name: $routeParams.id
+    }, function (data) {
+        $scope.hosts = data;
+    });
+
+    $scope.select = function(host) {
+        $scope.selectedHost = host;
+    };
+
+    $scope.launch = function() {
+        Tasks.add({
+            command: "run",
+            host: $scope.selectedHost.id,
+            args: {
+                image: $scope.image,
+                cpus: $scope.cpus,
+                memory: $scope.memory,
+                instances: $scope.instances
+            }
+        });
+    };
 }
 
 // this needs to move to some super start init func

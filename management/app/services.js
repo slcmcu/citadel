@@ -36,6 +36,16 @@ angular.module('citadel.services', ['ngResource'])
                     action: 'metrics',
                     name: "@name"
                 }
+            }
+        });
+    })
+    .factory('Tasks', function ($resource) {
+        return $resource('/api/tasks/:action', {}, {
+            add: {
+                method: 'POST'
+            },
+            containerStop: {
+                method: 'POST'
             },
         });
     });
