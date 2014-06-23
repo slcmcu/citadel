@@ -15,9 +15,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "citadel"
 	app.Version = "0.1"
-	app.Author = "@crosbymichael"
-	app.Email = "michael@crosbymichael.com"
-	//	app.Action = viewAction
+	app.Author = "citadel team"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{"repository", "127.0.0.1:28015", "repository to connect to"},
