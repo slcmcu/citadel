@@ -1,33 +1,37 @@
 package repository
 
 import (
-	"github.com/dancannon/gorethink"
+	"fmt"
+
+	"github.com/coreos/go-etcd/etcd"
 )
 
 type Repository struct {
-	session *gorethink.Session
+	client    *etcd.Client
+	namespace string
 }
 
 // New returns a new repository connected the the database
-func New(addr string) (*Repository, error) {
-	s, err := gorethink.Connect(gorethink.ConnectOpts{
-		Address:  addr,
-		Database: "citadel",
-	})
-	if err != nil {
-		return nil, err
+func New(etcdMachines []string, namespace string) *Repository {
+	c := etcd.NewClient(etcdMachines)
+
+	repo := &Repository{
+		client:    c,
+		namespace: fmt.Sprintf("/%s", namespace),
+	}
+	repo.init()
+	return repo
+}
+
+// init initializes etcd with top level keyspaces
+func (r *Repository) init() {
+	keys := []string{
+		r.namespace,
+		fmt.Sprintf("%s/hosts", r.namespace),
+		fmt.Sprintf("%s/tasks", r.namespace),
+	}
+	for _, k := range keys {
+		r.client.CreateDir(k, 0)
 	}
 
-	return &Repository{
-		session: s,
-	}, nil
-}
-
-// Closes closes the underlying session to the datastore
-func (r *Repository) Close() error {
-	return r.session.Close()
-}
-
-func (r *Repository) Session() *gorethink.Session {
-	return r.session
 }

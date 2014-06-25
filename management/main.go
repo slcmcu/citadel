@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"net/http"
+	"strings"
 
 	"citadelapp.io/citadel"
 	"citadelapp.io/citadel/repository"
@@ -12,18 +13,16 @@ import (
 )
 
 var (
-	assets     string
-	repoAddr   string
-	listenAddr string
-
-	repo *repository.Repository
-
-	logger = logrus.New()
+	assets       string
+	etcdMachines string
+	listenAddr   string
+	repo         *repository.Repository
+	logger       = logrus.New()
 )
 
 func init() {
 	flag.StringVar(&assets, "assets", "management", "path the the http assets")
-	flag.StringVar(&repoAddr, "repository", "127.0.0.1:28015", "repository address")
+	flag.StringVar(&etcdMachines, "etcd-machines", "http://127.0.0.1:4001", "comma separated list of etcd machines")
 	flag.StringVar(&listenAddr, "listenAddr", ":3002", "management listen address")
 
 	flag.Parse()
@@ -79,10 +78,11 @@ func main() {
 		apiRouter = mux.NewRouter()
 	)
 
-	if repo, err = repository.New(repoAddr); err != nil {
-		logger.WithField("error", err).Fatal("cannot connect to repository")
+	machines := strings.Split(etcdMachines, ",")
+	if err != nil {
+		logger.WithField("error", err).Fatal("unable to parse etcd machines")
 	}
-
+	repo = repository.New(machines, "citadel")
 	apiRouter.HandleFunc("/api/hosts", getHosts)
 	apiRouter.HandleFunc("/api/containers", getContainers).Methods("GET")
 	apiRouter.HandleFunc("/api/tasks", postTasks).Methods("POST")

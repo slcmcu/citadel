@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"citadelapp.io/citadel/utils"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/dancannon/gorethink"
 	"github.com/samalba/dockerclient"
 )
 
@@ -68,11 +68,8 @@ func runHostAction(context *cli.Context) {
 		logger.Fatal("region must have a value")
 	}
 
-	r, err := repository.New(context.GlobalString("repository"))
-	if err != nil {
-		logger.WithField("error", err).Fatal("unable to connect to repository")
-	}
-	defer r.Close()
+	machines := strings.Split(context.GlobalString("etcd-machines"), ",")
+	r := repository.New(machines, "citadel")
 
 	host := &citadel.Host{
 		ID:     hostId,
@@ -137,14 +134,7 @@ func (eng *HostEngine) stop() {
 }
 
 func (eng *HostEngine) loadContainers() error {
-	sesson := eng.repository.Session()
-
-	// delete all containers for this host and recreate them
-	if _, err := gorethink.Table("containers").Filter(func(row gorethink.RqlTerm) interface{} {
-		return row.Field("host_id").Eq(eng.id)
-	}).Delete().Run(sesson); err != nil {
-		return err
-	}
+	eng.repository.DeleteHostContainers(eng.id)
 
 	containers, err := eng.client.ListContainers(true)
 	if err != nil {
@@ -194,7 +184,7 @@ func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...int
 	switch event.Status {
 	case "destroy":
 		// remove container from repository
-		if err := eng.repository.DeleteContainer(event.Id); err != nil {
+		if err := eng.repository.DeleteContainer(eng.id, event.Id); err != nil {
 			logger.Warnf("Unable to remove container from repository: %s", err)
 			return
 		}
@@ -275,7 +265,7 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 		"instances": task.Args["instances"],
 	}).Info("running container")
 	// remove task
-	eng.repository.DeleteTask(task.Id)
+	eng.repository.DeleteTask(*task.ID)
 	instances := int(task.Args["instances"].(float64))
 	// run containers
 	for i := 0; i < instances; i++ {
@@ -344,7 +334,7 @@ func (eng *HostEngine) stopHandler(task *citadel.Task) {
 		"id":   task.Args["containerId"],
 	}).Info("stopping container")
 	// remove task
-	defer eng.repository.DeleteTask(task.Id)
+	defer eng.repository.DeleteTask(*task.ID)
 	containerId := task.Args["containerId"].(string)
 	if err := eng.client.StopContainer(containerId, 10); err != nil {
 		logger.WithFields(logrus.Fields{
@@ -361,7 +351,7 @@ func (eng *HostEngine) restartHandler(task *citadel.Task) {
 		"id":   task.Args["containerId"],
 	}).Info("restarting container")
 	// remove task
-	defer eng.repository.DeleteTask(task.Id)
+	defer eng.repository.DeleteTask(*task.ID)
 	containerId := task.Args["containerId"].(string)
 	if err := eng.client.RestartContainer(containerId, 10); err != nil {
 		logger.WithFields(logrus.Fields{
@@ -378,7 +368,7 @@ func (eng *HostEngine) destroyHandler(task *citadel.Task) {
 		"id":   task.Args["containerId"],
 	}).Info("destroying container")
 	// remove task
-	defer eng.repository.DeleteTask(task.Id)
+	defer eng.repository.DeleteTask(*task.ID)
 	containerId := task.Args["containerId"].(string)
 	if err := eng.client.KillContainer(containerId); err != nil {
 		logger.WithFields(logrus.Fields{
