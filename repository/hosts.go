@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"citadelapp.io/citadel"
-	_ "github.com/coreos/go-etcd/etcd"
 )
 
 // SaveHost will save a single host with the unique id
