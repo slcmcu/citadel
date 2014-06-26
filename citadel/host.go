@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"citadelapp.io/citadel/repository"
@@ -16,11 +17,8 @@ var hostCommand = cli.Command{
 }
 
 func hostAction(context *cli.Context) {
-	r, err := repository.New(context.GlobalString("repository"))
-	if err != nil {
-		logger.WithField("error", err).Fatal("unable to connect to repository")
-	}
-	defer r.Close()
+	machines := strings.Split(context.GlobalString("etcd-machines"), ",")
+	r := repository.New(machines, "citadel")
 
 	hosts, err := r.FetchHosts()
 	if err != nil {

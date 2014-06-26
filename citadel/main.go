@@ -18,7 +18,7 @@ func main() {
 	app.Author = "citadel team"
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"repository", "127.0.0.1:28015", "repository to connect to"},
+		cli.StringFlag{"etcd-machines", "http://127.0.0.1:4001", "comma separated list of etcd hosts"},
 	}
 
 	app.Commands = []cli.Command{

@@ -1,35 +1,65 @@
 package repository
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"citadelapp.io/citadel"
-	"github.com/dancannon/gorethink"
 )
 
 func (r *Repository) SaveContainer(c *citadel.Container) error {
-	if _, err := gorethink.Table("containers").Insert(c).RunWrite(r.session); err != nil {
+	d, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	key := fmt.Sprintf("%s/hosts/%s/containers/%s", r.namespace, c.HostID, c.ID)
+	if _, err := r.client.Set(key, string(d), 0); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Repository) FetchContainers() ([]*citadel.Container, error) {
+	// find all hosts and then find all containers for each host
+	hosts, err := r.FetchHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	// find containers
+	var containers []*citadel.Container
+	for _, h := range hosts {
+		cKey := fmt.Sprintf("%s/hosts/%s/containers", r.namespace, h.ID)
+		cResults, err := r.client.Get(cKey, false, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, cr := range cResults.Node.Nodes {
+			var c *citadel.Container
+			if err := json.Unmarshal([]byte(cr.Value), &c); err != nil {
+				return nil, err
+			}
+			containers = append(containers, c)
+		}
+	}
+
+	return containers, nil
+}
+
+func (r *Repository) DeleteContainer(hostId string, id string) error {
+	// remove host container
+	key := fmt.Sprintf("%s/hosts/%s/containers/%s", r.namespace, hostId, id)
+	if _, err := r.client.Delete(key, true); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *Repository) FetchContainers() ([]*citadel.Container, error) {
-	results, err := gorethink.Table("containers").Run(r.session)
-	if err != nil {
-		return nil, err
-	}
-	defer results.Close()
-
-	var containers []*citadel.Container
-	if err := results.ScanAll(&containers); err != nil {
-		return nil, err
-	}
-
-	return containers, nil
-}
-
-func (r *Repository) DeleteContainer(id string) error {
-	if _, err := gorethink.Table("containers").Get(id).Delete().Run(r.session); err != nil {
+func (r *Repository) DeleteHostContainers(hostId string) error {
+	// remove host containers
+	key := fmt.Sprintf("%s/hosts/%s/containers/", r.namespace, hostId)
+	if _, err := r.client.RawDelete(key, true, true); err != nil {
 		return err
 	}
 
