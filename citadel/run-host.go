@@ -264,10 +264,14 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 		"memory":    task.Args["memory"],
 		"instances": task.Args["instances"],
 		"cmd":       task.Args["cmd"],
+		"volumes":   task.Args["volumes"],
 	}).Info("running container")
 	// remove task
 	eng.repository.DeleteTask(*task.ID)
 	instances := int(task.Args["instances"].(float64))
+	volumes := task.Args["volumes"].(string)
+	// parse volumes
+	binds, vols := parseVolumes(volumes)
 	// run containers
 	for i := 0; i < instances; i++ {
 		image := task.Args["image"].(string)
@@ -281,8 +285,10 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 			Tty:       true,
 			OpenStdin: true,
 			Cmd:       cmd,
+			Volumes:   vols,
 		}
 		hostConfig := &dockerclient.HostConfig{
+			Binds:           binds,
 			PublishAllPorts: true,
 		}
 		// create container

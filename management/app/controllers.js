@@ -176,6 +176,7 @@ function DeployController($scope, $routeParams, Hosts, Tasks) {
                 cpus: $scope.cpus,
                 memory: $scope.memory,
                 cmd: $scope.cmd,
+                volumes: $scope.volumes,
                 instances: $scope.instances
             }
         });
