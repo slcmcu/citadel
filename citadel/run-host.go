@@ -263,6 +263,7 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 		"cpus":      task.Args["cpus"],
 		"memory":    task.Args["memory"],
 		"instances": task.Args["instances"],
+		"cmd":       task.Args["cmd"],
 	}).Info("running container")
 	// remove task
 	eng.repository.DeleteTask(*task.ID)
@@ -272,12 +273,14 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 		image := task.Args["image"].(string)
 		cpus := int(task.Args["cpus"].(float64))
 		memory := int(task.Args["memory"].(float64))
+		cmd := strings.Split(task.Args["cmd"].(string), " ")
 		containerConfig := &dockerclient.ContainerConfig{
 			Image:     image,
 			Memory:    memory * 1048576, // convert to bytes
 			CpuShares: cpus,
 			Tty:       true,
 			OpenStdin: true,
+			Cmd:       cmd,
 		}
 		hostConfig := &dockerclient.HostConfig{
 			PublishAllPorts: true,
