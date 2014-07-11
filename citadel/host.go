@@ -180,6 +180,7 @@ func (eng *HostEngine) watch() {
 
 		for _, task := range tasks {
 			// filter this hosts tasks
+			// TODO: each host should have it's own keyspace where it is listening for it's tasks
 			if task.Host == eng.id {
 				go eng.taskHandler(task)
 			}
@@ -238,6 +239,7 @@ func (eng *HostEngine) runHandler(task *citadel.Task) error {
 			"image": task.Image,
 		}).Info("started container")
 	}
+
 	return nil
 }
 
