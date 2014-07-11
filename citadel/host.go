@@ -169,6 +169,7 @@ func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...int
 	}
 }
 
+// TODO: change this to use an etcd watch
 func (eng *HostEngine) watch() {
 	tickerChan := time.NewTicker(time.Millisecond * 2000).C
 	for _ = range tickerChan {
@@ -187,47 +188,48 @@ func (eng *HostEngine) watch() {
 }
 
 func (eng *HostEngine) taskHandler(task *citadel.Task) {
+	var err error
 	switch task.Command {
 	case "run":
 		logger.WithFields(logrus.Fields{
 			"host": task.Host,
 		}).Info("processing run task")
 
-		eng.runHandler(task)
+		err = eng.runHandler(task)
 	case "stop":
 		logger.WithFields(logrus.Fields{
 			"host": task.Host,
 		}).Info("processing stop task")
 
-		eng.stopHandler(task)
+		err = eng.stopHandler(task)
 	case "destroy":
 		logger.WithFields(logrus.Fields{
 			"host": task.Host,
 		}).Info("processing destroy task")
 
-		eng.destroyHandler(task)
+		err = eng.destroyHandler(task)
 	default:
 		logger.WithFields(logrus.Fields{
 			"command": task.Command,
 		}).Error("unknown task command")
 	}
+
+	if err != nil {
+		logger.WithField("error", err).Error("error running task")
+	}
 }
 
-func (eng *HostEngine) runHandler(task *citadel.Task) {
+func (eng *HostEngine) runHandler(task *citadel.Task) error {
 	eng.repository.DeleteTask(task.ID)
 
 	for i := 0; i < task.Instances; i++ {
 		id, err := eng.host.CreateContainer(task)
 		if err != nil {
-			logger.WithField("error", err).Error("create container")
-			return
+			return err
 		}
 
 		if err := eng.host.StartContainer(id); err != nil {
-			logger.WithFields(logrus.Fields{
-				"err": err,
-			}).Error("error starting container")
-			return
+			return err
 		}
 
 		logger.WithFields(logrus.Fields{
@@ -236,25 +238,21 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 			"image": task.Image,
 		}).Info("started container")
 	}
+	return nil
 }
 
-func (eng *HostEngine) stopHandler(task *citadel.Task) {
+func (eng *HostEngine) stopHandler(task *citadel.Task) error {
+	defer eng.repository.DeleteTask(task.ID)
+
+	return eng.host.StopContainer(task.ContainerID)
+}
+
+func (eng *HostEngine) destroyHandler(task *citadel.Task) error {
 	defer eng.repository.DeleteTask(task.ID)
 
 	if err := eng.host.StopContainer(task.ContainerID); err != nil {
-		logger.WithField("error", err).Error("stop container")
-	}
-}
-
-func (eng *HostEngine) destroyHandler(task *citadel.Task) {
-	defer eng.repository.DeleteTask(task.ID)
-
-	if err := eng.host.StopContainer(task.ContainerID); err != nil {
-		logger.WithField("error", err).Error("stop container")
-		return
+		return err
 	}
 
-	if err := eng.host.DeleteContainer(task.ContainerID); err != nil {
-		logger.WithField("error", err).Error("delete container")
-	}
+	return eng.host.DeleteContainer(task.ContainerID)
 }
