@@ -10,23 +10,24 @@ import (
 
 func (r *Repository) AddTask(t *citadel.Task) error {
 	// assign new random uuid if not present
-	if t.ID == nil {
+	if t.ID == "" {
 		uid, err := uuid.NewV4()
 		if err != nil {
 			return err
 		}
-		id := uid.String()
-		t.ID = &id
+		t.ID = uid.String()
 	}
 
 	d, err := json.Marshal(t)
 	if err != nil {
 		return err
 	}
-	key := fmt.Sprintf("%s/tasks/%s", r.namespace, *t.ID)
+
+	key := fmt.Sprintf("%s/tasks/%s", r.namespace, t.ID)
 	if _, err := r.client.Set(key, string(d), 0); err != nil {
 		return err
 	}
+
 	return nil
 }
 
