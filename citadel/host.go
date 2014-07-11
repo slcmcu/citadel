@@ -49,6 +49,7 @@ func hostAction(context *cli.Context) {
 		hostId     = context.String("host-id")
 		listenAddr = context.String("listen")
 	)
+
 	if hostId == "" {
 		id, err := utils.GetMachineID()
 		if err != nil {
@@ -95,11 +96,10 @@ func hostAction(context *cli.Context) {
 		id:         hostId,
 		listenAddr: listenAddr,
 	}
-	// start
+
 	go hostEngine.run()
-	// watch for operations
 	go hostEngine.watch()
-	// handle stop signal
+
 	hostEngine.waitForInterrupt()
 }
 
@@ -115,6 +115,7 @@ func (eng *HostEngine) waitForInterrupt() {
 
 func (eng *HostEngine) run() {
 	logger.Info("Starting Citadel")
+
 	if err := eng.loadContainers(); err != nil {
 		logger.WithField("error", err).Fatal("unable to load containers")
 	}
@@ -248,14 +249,6 @@ func (eng *HostEngine) taskHandler(task *citadel.Task) {
 }
 
 func (eng *HostEngine) runHandler(task *citadel.Task) {
-	logger.WithFields(logrus.Fields{
-		"host":      task.Host,
-		"image":     task.Image,
-		"cpus":      task.Cpus,
-		"memory":    task.Memory,
-		"instances": task.Instances,
-	}).Info("running container")
-
 	eng.repository.DeleteTask(task.ID)
 
 	for i := 0; i < task.Instances; i++ {
@@ -289,11 +282,6 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 }
 
 func (eng *HostEngine) stopHandler(task *citadel.Task) {
-	logger.WithFields(logrus.Fields{
-		"host": task.Host,
-		"id":   task.ContainerID,
-	}).Info("stopping container")
-
 	defer eng.repository.DeleteTask(task.ID)
 
 	containerId := task.ContainerID
@@ -306,11 +294,6 @@ func (eng *HostEngine) stopHandler(task *citadel.Task) {
 }
 
 func (eng *HostEngine) restartHandler(task *citadel.Task) {
-	logger.WithFields(logrus.Fields{
-		"host": task.Host,
-		"id":   task.ContainerID,
-	}).Info("restarting container")
-
 	defer eng.repository.DeleteTask(task.ID)
 
 	containerId := task.ContainerID
@@ -323,11 +306,6 @@ func (eng *HostEngine) restartHandler(task *citadel.Task) {
 }
 
 func (eng *HostEngine) destroyHandler(task *citadel.Task) {
-	logger.WithFields(logrus.Fields{
-		"host": task.Host,
-		"id":   task.ContainerID,
-	}).Info("destroying container")
-
 	defer eng.repository.DeleteTask(task.ID)
 
 	containerId := task.ContainerID
