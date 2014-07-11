@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"citadelapp.io/citadel"
+	"github.com/citadel/citadel"
 )
 
 func TestAddContainer(t *testing.T) {

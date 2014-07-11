@@ -1,10 +1,10 @@
 package repository
 
 import (
-	"citadelapp.io/citadel"
 	"encoding/json"
 	"fmt"
 
+	"github.com/citadel/citadel"
 	uuid "github.com/nu7hatch/gouuid"
 )
 

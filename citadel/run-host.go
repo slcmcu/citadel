@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/repository"
-	"citadelapp.io/citadel/utils"
 	"github.com/Sirupsen/logrus"
+	"github.com/citadel/citadel"
+	"github.com/citadel/citadel/repository"
+	"github.com/citadel/citadel/utils"
 	"github.com/codegangsta/cli"
 	"github.com/samalba/dockerclient"
 )

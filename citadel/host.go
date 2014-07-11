@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"citadelapp.io/citadel/repository"
+	"github.com/citadel/citadel/repository"
 	"github.com/codegangsta/cli"
 )
 
