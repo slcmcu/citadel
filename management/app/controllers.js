@@ -171,14 +171,10 @@ function DeployController($scope, $routeParams, Hosts, Tasks) {
         Tasks.add({
             command: "run",
             host: $scope.selectedHost.id,
-            args: {
-                image: $scope.image,
-                cpus: $scope.cpus,
-                memory: $scope.memory,
-                cmd: $scope.cmd,
-                volumes: $scope.volumes,
-                instances: $scope.instances
-            }
+            image: $scope.image,
+            cpus: $scope.cpus,
+            memory: $scope.memory,
+            instances: $scope.instances
         });
     };
 }
