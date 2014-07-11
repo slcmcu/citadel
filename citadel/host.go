@@ -18,7 +18,7 @@ import (
 
 type (
 	HostEngine struct {
-		client     *dockerclient.DockerClient
+		host       *citadel.Host
 		repository *repository.Repository
 		id         string
 		listenAddr string
@@ -72,12 +72,18 @@ func hostAction(context *cli.Context) {
 	machines := strings.Split(context.GlobalString("etcd-machines"), ",")
 	r := repository.New(machines, "citadel")
 
+	client, err := dockerclient.NewDockerClient(context.String("docker"))
+	if err != nil {
+		logger.WithField("error", err).Fatal("unable to connect to docker")
+	}
+
 	host := &citadel.Host{
 		ID:     hostId,
 		Memory: memory,
 		Cpus:   cpus,
 		Addr:   addr,
 		Region: region,
+		Docker: client,
 	}
 
 	if err := r.SaveHost(host); err != nil {
@@ -85,13 +91,8 @@ func hostAction(context *cli.Context) {
 	}
 	defer r.DeleteHost(hostId)
 
-	client, err := dockerclient.NewDockerClient(context.String("docker"))
-	if err != nil {
-		logger.WithField("error", err).Fatal("unable to connect to docker")
-	}
-
 	hostEngine := &HostEngine{
-		client:     client,
+		host:       host,
 		repository: r,
 		id:         hostId,
 		listenAddr: listenAddr,
@@ -120,8 +121,8 @@ func (eng *HostEngine) run() {
 		logger.WithField("error", err).Fatal("unable to load containers")
 	}
 
-	// listen for events
-	eng.client.StartMonitorEvents(eng.dockerEventHandler)
+	// TODO: redo this part
+	// eng.client.StartMonitorEvents(eng.dockerEventHandler)
 
 	if err := http.ListenAndServe(eng.listenAddr, nil); err != nil {
 		logger.WithField("error", err).Fatal("unable to listen on http")
@@ -137,48 +138,18 @@ func (eng *HostEngine) stop() {
 func (eng *HostEngine) loadContainers() error {
 	eng.repository.DeleteHostContainers(eng.id)
 
-	containers, err := eng.client.ListContainers(true)
+	containers, err := eng.host.GetContainers()
 	if err != nil {
 		return err
 	}
 
 	for _, c := range containers {
-		cc, err := eng.generateContainerInfo(c)
-		if err != nil {
-			return err
-		}
-		if err := eng.repository.SaveContainer(cc); err != nil {
+		if err := eng.repository.SaveContainer(c); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func (eng *HostEngine) generateContainerInfo(cnt interface{}) (*citadel.Container, error) {
-	c := cnt.(dockerclient.Container)
-	info, err := eng.client.InspectContainer(c.Id)
-	if err != nil {
-		return nil, err
-	}
-	cc := &citadel.Container{
-		ID:     info.Id,
-		Image:  utils.CleanImageName(c.Image),
-		HostID: eng.id,
-		Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
-	}
-
-	if info.Config.Memory > 0 {
-		cc.Memory = info.Config.Memory / 1024 / 1024
-	}
-
-	if info.State.Running {
-		cc.State.Status = citadel.Running
-	} else {
-		cc.State.Status = citadel.Stopped
-	}
-	cc.State.ExitCode = info.State.ExitCode
-	return cc, nil
 }
 
 func (eng *HostEngine) dockerEventHandler(event *dockerclient.Event, args ...interface{}) {
@@ -223,12 +194,6 @@ func (eng *HostEngine) taskHandler(task *citadel.Task) {
 		}).Info("processing run task")
 
 		eng.runHandler(task)
-	case "restart":
-		logger.WithFields(logrus.Fields{
-			"host": task.Host,
-		}).Info("processing restart task")
-
-		eng.restartHandler(task)
 	case "stop":
 		logger.WithFields(logrus.Fields{
 			"host": task.Host,
@@ -252,21 +217,13 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 	eng.repository.DeleteTask(task.ID)
 
 	for i := 0; i < task.Instances; i++ {
-		containerConfig := &dockerclient.ContainerConfig{
-			Image:     task.Image,
-			Memory:    task.Memory * 1024 * 1024,
-			CpuShares: task.Cpus,
-		}
-
-		containerId, err := eng.client.CreateContainer(containerConfig, "")
+		id, err := eng.host.CreateContainer(task)
 		if err != nil {
-			logger.WithFields(logrus.Fields{
-				"err": err,
-			}).Error("error creating container")
+			logger.WithField("error", err).Error("create container")
 			return
 		}
 
-		if err := eng.client.StartContainer(containerId, nil); err != nil {
+		if err := eng.host.StartContainer(id); err != nil {
 			logger.WithFields(logrus.Fields{
 				"err": err,
 			}).Error("error starting container")
@@ -275,7 +232,7 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 
 		logger.WithFields(logrus.Fields{
 			"host":  task.Host,
-			"id":    containerId,
+			"id":    id,
 			"image": task.Image,
 		}).Info("started container")
 	}
@@ -284,43 +241,20 @@ func (eng *HostEngine) runHandler(task *citadel.Task) {
 func (eng *HostEngine) stopHandler(task *citadel.Task) {
 	defer eng.repository.DeleteTask(task.ID)
 
-	containerId := task.ContainerID
-	if err := eng.client.StopContainer(containerId, 10); err != nil {
-		logger.WithFields(logrus.Fields{
-			"id":  containerId,
-			"err": err,
-		}).Error("error stopping container")
-	}
-}
-
-func (eng *HostEngine) restartHandler(task *citadel.Task) {
-	defer eng.repository.DeleteTask(task.ID)
-
-	containerId := task.ContainerID
-	if err := eng.client.RestartContainer(containerId, 10); err != nil {
-		logger.WithFields(logrus.Fields{
-			"containerId": containerId,
-			"err":         err,
-		}).Error("error restarting container")
+	if err := eng.host.StopContainer(task.ContainerID); err != nil {
+		logger.WithField("error", err).Error("stop container")
 	}
 }
 
 func (eng *HostEngine) destroyHandler(task *citadel.Task) {
 	defer eng.repository.DeleteTask(task.ID)
 
-	containerId := task.ContainerID
-	if err := eng.client.KillContainer(containerId); err != nil {
-		logger.WithFields(logrus.Fields{
-			"containerId": containerId,
-			"err":         err,
-		}).Error("error killing container")
+	if err := eng.host.StopContainer(task.ContainerID); err != nil {
+		logger.WithField("error", err).Error("stop container")
 		return
 	}
 
-	if err := eng.client.RemoveContainer(containerId); err != nil {
-		logger.WithFields(logrus.Fields{
-			"containerId": containerId,
-			"err":         err,
-		}).Error("error removing container")
+	if err := eng.host.DeleteContainer(task.ContainerID); err != nil {
+		logger.WithField("error", err).Error("delete container")
 	}
 }
