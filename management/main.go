@@ -52,6 +52,7 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err)
 		return
 	}
+
 	if err := json.NewEncoder(w).Encode(containers); err != nil {
 		httpError(w, err)
 		return
@@ -59,14 +60,16 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 }
 
 func postTasks(w http.ResponseWriter, r *http.Request) {
-	d := json.NewDecoder(r.Body)
-	var t citadel.Task
-	if err := d.Decode(&t); err != nil {
+	var t *citadel.Task
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		httpError(w, err)
 		return
 	}
-	repo.AddTask(&t)
-	return
+
+	if err := repo.AddTask(t); err != nil {
+		httpError(w, err)
+		return
+	}
 }
 
 func main() {
@@ -82,6 +85,7 @@ func main() {
 	if err != nil {
 		logger.WithField("error", err).Fatal("unable to parse etcd machines")
 	}
+
 	repo = repository.New(machines, "citadel")
 	apiRouter.HandleFunc("/api/hosts", getHosts)
 	apiRouter.HandleFunc("/api/containers", getContainers).Methods("GET")
