@@ -3,7 +3,7 @@ package repository
 import (
 	"testing"
 
-	"citadelapp.io/citadel"
+	"github.com/citadel/citadel"
 )
 
 func TestAddTask(t *testing.T) {

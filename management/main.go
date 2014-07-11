@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"citadelapp.io/citadel"
-	"citadelapp.io/citadel/repository"
 	"github.com/Sirupsen/logrus"
+	"github.com/citadel/citadel"
+	"github.com/citadel/citadel/repository"
 	"github.com/gorilla/mux"
 )
 

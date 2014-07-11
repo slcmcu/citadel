@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"citadelapp.io/citadel"
+	"github.com/citadel/citadel"
 )
 
 // SaveHost will save a single host with the unique id

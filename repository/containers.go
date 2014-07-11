@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"citadelapp.io/citadel"
+	"github.com/citadel/citadel"
 )
 
 func (r *Repository) SaveContainer(c *citadel.Container) error {
