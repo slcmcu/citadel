@@ -3,7 +3,6 @@ package citadel
 import (
 	"sync"
 
-	"github.com/citadel/citadel/utils"
 	"github.com/samalba/dockerclient"
 )
 
@@ -68,28 +67,10 @@ func (h *Host) GetContainers() ([]*Container, error) {
 
 	containers := []*Container{}
 	for _, dc := range dockerContainers {
-		info, err := h.docker.InspectContainer(dc.Id)
+		c, err := h.inspect(dc.Id)
 		if err != nil {
 			return nil, err
 		}
-
-		c := &Container{
-			ID:     info.Id,
-			Image:  utils.CleanImageName(dc.Image),
-			HostID: h.ID,
-			Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
-		}
-
-		if info.Config.Memory > 0 {
-			c.Memory = info.Config.Memory / 1024 / 1024
-		}
-
-		if info.State.Running {
-			c.State.Status = Running
-		} else {
-			c.State.Status = Stopped
-		}
-		c.State.ExitCode = info.State.ExitCode
 
 		containers = append(containers, c)
 	}
@@ -112,12 +93,63 @@ func (h *Host) RunContainer(c *Container) error {
 		return err
 	}
 
-	return h.docker.StartContainer(id, nil)
+	if err := h.docker.StartContainer(id, nil); err != nil {
+		return err
+	}
+
+	current, err := h.inspect(id)
+	if err != nil {
+		return err
+	}
+
+	c.State = current.State
+
+	return nil
 }
 
 func (h *Host) StopContainer(c *Container) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	return h.docker.StopContainer(c.ID, 10)
+	if err := h.docker.StopContainer(c.ID, 10); err != nil {
+		return err
+	}
+
+	// update the state on the original container so that when it is
+	// returned it has the latest information
+	current, err := h.inspect(c.ID)
+	if err != nil {
+		return err
+	}
+	c.State = current.State
+
+	return nil
+}
+
+func (h *Host) inspect(id string) (*Container, error) {
+	info, err := h.docker.InspectContainer(id)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &Container{
+		ID:     info.Id,
+		Image:  info.Image,
+		HostID: h.ID,
+		Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
+	}
+
+	if info.Config.Memory > 0 {
+		c.Memory = info.Config.Memory / 1024 / 1024
+	}
+
+	if info.State.Running {
+		c.State.Status = Running
+	} else {
+		c.State.Status = Stopped
+	}
+
+	c.State.ExitCode = info.State.ExitCode
+
+	return c, nil
 }

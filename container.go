@@ -1,7 +1,5 @@
 package citadel
 
-import "time"
-
 // Status of the container
 type Status string
 
@@ -15,10 +13,6 @@ const (
 type State struct {
 	// The current status of the container
 	Status Status `json:"status,omitempty"`
-	// StartedAt is the time when the container was launched
-	StartedAt time.Time `json:"started_at,omitempty`
-	// ExitedAt is the time the container exited
-	ExitedAt time.Time `json:"exited_at,omitempty"`
 	// ExitCode is the code which the container last returned on exit
 	ExitCode int `json:"exit_code,omitempty"`
 }
