@@ -3,7 +3,7 @@ package citadel
 import (
 	"sync"
 
-	"citadelapp.io/citadel/utils"
+	"github.com/citadel/citadel/utils"
 	"github.com/samalba/dockerclient"
 )
 
