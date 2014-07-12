@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -42,7 +43,7 @@ func GetUUID() (string, error) {
 
 // Return the value in /etc/hostname
 func GetMachineID() (string, error) {
-	data, err := ioutil.ReadFile("/etc/hostname")
+	data, err := ioutil.ReadFile("/etc/machine-id")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("host does not support /etc/machine-id")
@@ -89,4 +90,18 @@ func CleanImageName(name string) string {
 		return RemoveSlash(RemoveTag(name))
 	}
 	return CleanImageName(parts[1])
+}
+
+func IToCpuset(cpus int) string {
+	nums := make([]string, cpus)
+
+	for i := 0; i < cpus; i++ {
+		nums[i] = strconv.Itoa(i)
+	}
+
+	return strings.Join(nums, ",")
+}
+
+func CpusetTOI(cpuset string) int {
+	return len(strings.Split(cpuset, ","))
 }
