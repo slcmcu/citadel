@@ -44,6 +44,14 @@ func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.
 		managedContainers: make(map[string]*Container),
 	}
 
+	if err := h.loadState(); err != nil {
+		return nil, err
+	}
+
+	if err := h.verifyState(); err != nil {
+		return nil, err
+	}
+
 	docker.StartMonitorEvents(h.eventHandler, nil)
 
 	return h, nil
@@ -206,7 +214,7 @@ func (h *Host) inspect(id string) (*Container, error) {
 func (h *Host) saveState() error {
 	h.logger.Debug("saving host state")
 
-	f, err := os.OpenFile("host-state.json", os.O_CREATE|os.O_RDWR|os.O_EXCL, 0600)
+	f, err := os.OpenFile("host-state.json", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
@@ -217,6 +225,51 @@ func (h *Host) saveState() error {
 	}
 
 	h.logger.Debug("host state saved")
+
+	return nil
+}
+
+func (h *Host) loadState() error {
+	f, err := os.Open("host-state.json")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return err
+	}
+	defer f.Close()
+
+	h.logger.Debug("loading host state from disk")
+
+	if err := json.NewDecoder(f).Decode(&h.managedContainers); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Host) verifyState() error {
+	for id, c := range h.managedContainers {
+		info, err := h.docker.InspectContainer(id)
+		if err != nil {
+			if err == dockerclient.ErrNotFound {
+				h.logger.WithField("id", id).Warn("container no longer exists in docker")
+
+				delete(h.managedContainers, id)
+
+				continue
+			}
+
+			return err
+		}
+
+		if c.State.Status == Running && !info.State.Running {
+			h.logger.WithField("id", id).Warn("state mismatch")
+
+			c.State.Status = Stopped
+		}
+	}
 
 	return nil
 }
