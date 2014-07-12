@@ -22,6 +22,13 @@ type State struct {
 	ExitCode int `json:"exit_code,omitempty"`
 }
 
+// Port represents a port mapping
+type Port struct {
+	Proto     string `json:"proto,omitempty"`
+	Container int    `json:"container,omitempty"`
+	Host      int    `json:"host,omitempty"`
+}
+
 // Container represents a running container on the cluster
 type Container struct {
 	// ID is a unique identifier for a container
@@ -38,4 +45,6 @@ type Container struct {
 	State State `json:"state,omitempty"`
 	// Type is the container job type
 	Type ContainerType `json:"type,omitempty"`
+	// Ports is a collection of port mappings for a container
+	Ports []*Port `json:"ports,omitempty"`
 }

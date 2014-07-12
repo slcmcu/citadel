@@ -1,6 +1,8 @@
 package citadel
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -125,7 +127,28 @@ func (h *Host) RunContainer(c *Container) error {
 }
 
 func (h *Host) startContainer(c *Container) error {
-	if err := h.docker.StartContainer(c.ID, nil); err != nil {
+	var hostConfig *dockerclient.HostConfig
+
+	if c.Ports != nil {
+		hostConfig = &dockerclient.HostConfig{
+			PortBindings: make(map[string][]dockerclient.PortBinding),
+		}
+
+		for _, p := range c.Ports {
+			proto := "tcp"
+			if p.Proto != "" {
+				proto = p.Proto
+			}
+
+			hostConfig.PortBindings[fmt.Sprintf("%d/%s", p.Container, proto)] = []dockerclient.PortBinding{
+				{
+					HostPort: fmt.Sprint(p.Host),
+				},
+			}
+		}
+	}
+
+	if err := h.docker.StartContainer(c.ID, hostConfig); err != nil {
 		return err
 	}
 
@@ -191,6 +214,32 @@ func (h *Host) inspect(id string) (*Container, error) {
 	}
 
 	c.State.ExitCode = info.State.ExitCode
+
+	if info.HostConfig != nil && info.HostConfig.PortBindings != nil {
+		for cp, bindings := range info.HostConfig.PortBindings {
+			var (
+				container int
+				proto     string
+			)
+
+			if _, err := fmt.Sscanf(cp, "%d/%s", &container, &proto); err != nil {
+				return nil, err
+			}
+
+			for _, b := range bindings {
+				hostPort, err := strconv.Atoi(b.HostPort)
+				if err != nil {
+					return nil, err
+				}
+
+				c.Ports = append(c.Ports, &Port{
+					Proto:     proto,
+					Container: container,
+					Host:      hostPort,
+				})
+			}
+		}
+	}
 
 	return c, nil
 }
