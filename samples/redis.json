@@ -3,5 +3,12 @@
     "image": "crosbymichael/redis",
     "cpus": 1,
     "memory": 512,
-    "type": "service"
+    "type": "service",
+    "ports": [
+        {
+            "proto": "tcp",
+            "host": 6379,
+            "container": 6379
+        }
+    ]
 }
