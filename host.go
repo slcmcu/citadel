@@ -34,15 +34,20 @@ type Host struct {
 	docker *dockerclient.DockerClient
 }
 
-func NewHost(id string, cpus int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+func NewHost(id string, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
 	mem := sigar.Mem{}
 	if err := mem.Get(); err != nil {
 		return nil, err
 	}
 
+	cpus := sigar.CpuList{}
+	if err := cpus.Get(); err != nil {
+		return nil, err
+	}
+
 	h := &Host{
 		ID:                id,
-		Cpus:              cpus,
+		Cpus:              len(cpus.List),
 		Memory:            int(mem.Total / 1024 / 1024),
 		Labels:            labels,
 		docker:            docker,
