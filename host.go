@@ -104,6 +104,10 @@ func (h *Host) RunContainer(c *Container) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
+	if _, exists := h.managedContainers[c.ID]; exists {
+		return fmt.Errorf("container %s is already managed", c.ID)
+	}
+
 	config := &dockerclient.ContainerConfig{
 		Image:  c.Image,
 		Memory: c.Memory * 1024 * 1024,
@@ -117,6 +121,8 @@ func (h *Host) RunContainer(c *Container) error {
 	if err := h.startContainer(c); err != nil {
 		return err
 	}
+
+	h.managedContainers[c.ID] = c
 
 	return nil
 }
@@ -155,8 +161,6 @@ func (h *Host) startContainer(c *Container) error {
 	c.State = current.State
 	c.State.StartedAt = time.Now()
 	c.State.ExitedAt = time.Time{}
-
-	h.managedContainers[c.ID] = c
 
 	return nil
 }
