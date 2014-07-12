@@ -1,7 +1,7 @@
 {
     "id": "redis",
     "image": "crosbymichael/redis",
-    "cpus": 1,
+    "cpus": [0],
     "memory": 512,
     "type": "service",
     "ports": [

@@ -14,7 +14,7 @@ type Server struct {
 	r    *mux.Router
 }
 
-func NewServer(h *Host) http.Handler {
+func NewServer(h *Host) *Server {
 	s := &Server{
 		host: h,
 		r:    mux.NewRouter(),
@@ -28,6 +28,10 @@ func NewServer(h *Host) http.Handler {
 	return s
 }
 
+func (s *Server) Close() error {
+	return s.host.Close()
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.r.ServeHTTP(w, r)
 }
@@ -37,13 +41,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listHandler(w http.ResponseWriter, r *http.Request) {
-	containers, err := s.host.GetContainers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, containers)
+	s.marshal(w, s.host.Containers())
 }
 
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {

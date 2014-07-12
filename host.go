@@ -1,10 +1,11 @@
 package citadel
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/citadel/citadel/utils"
@@ -25,11 +26,11 @@ type Host struct {
 	// Label is specific attributes of a host
 	Labels []string `json:"labels,omitempty"`
 
-	docker *dockerclient.DockerClient `json:"-"`
-
 	// containers that were started with citadel
 	managedContainers map[string]*Container
-	logger            *logrus.Logger
+
+	logger *logrus.Logger
+	docker *dockerclient.DockerClient
 }
 
 func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
@@ -43,6 +44,14 @@ func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.
 		managedContainers: make(map[string]*Container),
 	}
 
+	if err := h.loadState(); err != nil {
+		return nil, err
+	}
+
+	if err := h.verifyState(); err != nil {
+		return nil, err
+	}
+
 	docker.StartMonitorEvents(h.eventHandler, nil)
 
 	return h, nil
@@ -50,7 +59,6 @@ func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.
 
 func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
-	case "start":
 	case "die":
 		container, err := h.inspect(event.Id)
 		if err != nil {
@@ -61,53 +69,58 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 
 		// only restart it if it's a managed container
 		if c, exists := h.managedContainers[container.ID]; exists && c.Type == Service {
+			container.State.ExitedAt = time.Now()
+
 			if err := h.startContainer(container); err != nil {
 				h.logger.WithField("error", err).Error("restarting dead container")
 			}
 		}
 
 		h.mux.Unlock()
+	default:
+		h.logger.WithFields(logrus.Fields{
+			"type": event.Status,
+			"id":   event.Id,
+			"from": event.From,
+		}).Debug("docker event")
 	}
 }
 
 // Close stops the events monitor
 func (h *Host) Close() error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
 	h.docker.StopAllMonitorEvents()
+
+	if err := h.saveState(); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// GetContainers returns all containers on the host
-func (h *Host) GetContainers() ([]*Container, error) {
+func (h *Host) Containers() []*Container {
+	out := []*Container{}
+
 	h.mux.Lock()
-	defer h.mux.Unlock()
 
-	dockerContainers, err := h.docker.ListContainers(true)
-	if err != nil {
-		return nil, err
+	for _, c := range h.managedContainers {
+		out = append(out, c)
 	}
 
-	containers := []*Container{}
-	for _, dc := range dockerContainers {
-		c, err := h.inspect(dc.Id)
-		if err != nil {
-			return nil, err
-		}
+	h.mux.Unlock()
 
-		managed, exists := h.managedContainers[c.ID]
-		if exists {
-			c.Type = managed.Type
-		}
-
-		containers = append(containers, c)
-	}
-
-	return containers, nil
+	return out
 }
 
 func (h *Host) RunContainer(c *Container) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
+
+	if _, exists := h.managedContainers[c.ID]; exists {
+		return fmt.Errorf("container %s is already managed", c.ID)
+	}
 
 	config := &dockerclient.ContainerConfig{
 		Image:  c.Image,
@@ -122,6 +135,8 @@ func (h *Host) RunContainer(c *Container) error {
 	if err := h.startContainer(c); err != nil {
 		return err
 	}
+
+	h.managedContainers[c.ID] = c
 
 	return nil
 }
@@ -158,8 +173,8 @@ func (h *Host) startContainer(c *Container) error {
 	}
 
 	c.State = current.State
-
-	h.managedContainers[c.ID] = c
+	c.State.StartedAt = time.Now()
+	c.State.ExitedAt = time.Time{}
 
 	return nil
 }
@@ -178,7 +193,9 @@ func (h *Host) StopContainer(c *Container) error {
 	if err != nil {
 		return err
 	}
+
 	c.State = current.State
+	c.State.ExitedAt = time.Now()
 
 	delete(h.managedContainers, c.ID)
 
@@ -191,55 +208,68 @@ func (h *Host) inspect(id string) (*Container, error) {
 		return nil, err
 	}
 
-	c := &Container{
-		ID:     strings.TrimPrefix(info.Name, "/"),
-		Image:  info.Image,
-		HostID: h.ID,
-		Cpus:   utils.CpusetTOI(info.Config.Cpuset),
+	return containerFromDocker(h, info)
+}
+
+func (h *Host) saveState() error {
+	h.logger.Debug("saving host state")
+
+	f, err := os.OpenFile("host-state.json", os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(h.managedContainers); err != nil {
+		return err
 	}
 
-	// if cpuset is not specified then the container has all the cpus on the host
-	if c.Cpus == 0 {
-		c.Cpus = h.Cpus
+	h.logger.Debug("host state saved")
+
+	return nil
+}
+
+func (h *Host) loadState() error {
+	f, err := os.Open("host-state.json")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return err
+	}
+	defer f.Close()
+
+	h.logger.Debug("loading host state from disk")
+
+	if err := json.NewDecoder(f).Decode(&h.managedContainers); err != nil {
+		return err
 	}
 
-	if info.Config.Memory > 0 {
-		c.Memory = info.Config.Memory / 1024 / 1024
-	}
+	return nil
+}
 
-	if info.State.Running {
-		c.State.Status = Running
-	} else {
-		c.State.Status = Stopped
-	}
+func (h *Host) verifyState() error {
+	for id, c := range h.managedContainers {
+		info, err := h.docker.InspectContainer(id)
+		if err != nil {
+			if err == dockerclient.ErrNotFound {
+				h.logger.WithField("id", id).Warn("container no longer exists in docker")
 
-	c.State.ExitCode = info.State.ExitCode
+				delete(h.managedContainers, id)
 
-	if info.HostConfig != nil && info.HostConfig.PortBindings != nil {
-		for cp, bindings := range info.HostConfig.PortBindings {
-			var (
-				container int
-				proto     string
-			)
-
-			if _, err := fmt.Sscanf(cp, "%d/%s", &container, &proto); err != nil {
-				return nil, err
+				continue
 			}
 
-			for _, b := range bindings {
-				hostPort, err := strconv.Atoi(b.HostPort)
-				if err != nil {
-					return nil, err
-				}
+			return err
+		}
 
-				c.Ports = append(c.Ports, &Port{
-					Proto:     proto,
-					Container: container,
-					Host:      hostPort,
-				})
-			}
+		if c.State.Status == Running && !info.State.Running {
+			h.logger.WithField("id", id).Warn("state mismatch")
+
+			c.State.Status = Stopped
 		}
 	}
 
-	return c, nil
+	return nil
 }
