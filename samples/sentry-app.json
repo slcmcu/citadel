@@ -1,0 +1,34 @@
+{
+    "id": "sentry_app",
+    "instances": 1,
+    "type": "application",
+    "ports": [
+        {
+            "proto": "tcp",
+            "host": 9000,
+            "container": 9000
+        }
+    ],
+    "containers":[ 
+        {
+            "id": "postgres",
+            "image": "crosbymichael/postres",
+            "cpus": 1,
+            "memory": 768,
+            "type": "service",
+            "volumes": [
+                {
+                    "id": "postgres",
+                    "path": "/data"
+                }
+            ]
+        },
+        {
+            "id": "sentry",
+            "image": "crosbymichael/sentry",
+            "cpus": 1,
+            "memory": 256,
+            "type": "service",
+        }
+    ]
+}
