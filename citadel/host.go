@@ -22,6 +22,8 @@ var hostCommand = cli.Command{
 		cli.IntFlag{"cpus", -1, "number of cpus available to the host"},
 		cli.IntFlag{"memory", -1, "number of mb of memory available to the host"},
 		cli.StringFlag{"listen", ":8787", "listen address"},
+		cli.StringFlag{"ssl-cert", "", "SSL certificate"},
+		cli.StringFlag{"ssl-key", "", "SSL key"},
 		cli.StringSliceFlag{"labels", &cli.StringSlice{}, "labels to apply as attributes of the host"},
 	},
 }
@@ -37,7 +39,7 @@ func hostAction(context *cli.Context) {
 	server := citadel.NewServer(host)
 	go waitForInterrupt(server)
 
-	if err := http.ListenAndServe(context.String("addr"), server); err != nil {
+	if err := http.ListenAndServeTLS(context.String("addr"), context.String("ssl-cert"), context.String("ssl-key"), server); err != nil {
 		logger.WithField("error", err).Fatal("listen and serve")
 	}
 }
