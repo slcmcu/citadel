@@ -2,11 +2,16 @@ package citadel
 
 // Status of the container
 type Status string
+type ContainerType string
 
 const (
 	Created Status = "created"
 	Running Status = "running"
 	Stopped Status = "stopped"
+
+	Undefined ContainerType = ""        // Undefined type, will be treated like a batch task
+	Service   ContainerType = "service" // Long running task
+	Batch     ContainerType = "batch"   // One time short lived task
 )
 
 // State represents the containers state
@@ -31,4 +36,6 @@ type Container struct {
 	Memory int `json:"memory,omitempty"`
 	// State is the current state of the container
 	State State `json:"state,omitempty"`
+	// Type is the container job type
+	Type ContainerType `json:"type,omitempty"`
 }

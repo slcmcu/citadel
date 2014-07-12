@@ -1,6 +1,7 @@
 package citadel
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/samalba/dockerclient"
@@ -9,6 +10,8 @@ import (
 // Host represents a host machine on the cluster
 // running docker containers
 type Host struct {
+	mux sync.Mutex
+
 	// ID is a unique identifier for a host
 	ID string `json:"id,omitempty"`
 	// Cpus is the number of cpus the host has available
@@ -18,18 +21,20 @@ type Host struct {
 	// Label is specific attributes of a host
 	Labels []string `json:"labels,omitempty"`
 
-	docker     *dockerclient.DockerClient `json:"-"`
-	containers []*Container
-	mux        sync.Mutex
+	docker *dockerclient.DockerClient `json:"-"`
+
+	// containers that were started with citadel
+	managedContainers map[string]*Container
 }
 
 func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient) (*Host, error) {
 	h := &Host{
-		ID:     id,
-		Cpus:   cpus,
-		Memory: memory,
-		Labels: labels,
-		docker: docker,
+		ID:                id,
+		Cpus:              cpus,
+		Memory:            memory,
+		Labels:            labels,
+		docker:            docker,
+		managedContainers: make(map[string]*Container),
 	}
 
 	docker.StartMonitorEvents(h.eventHandler, nil)
@@ -41,10 +46,19 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
 	case "start":
 	case "die":
-	case "kill":
-	case "stop":
-	case "pause":
-	case "unpause":
+		container, err := h.inspect(event.Id)
+		if err != nil {
+			// TODO: handle errors here
+			panic(err)
+		}
+
+		// only restart it if it's a managed container
+		if _, exists := h.managedContainers[container.ID]; exists {
+			if err := h.startContainer(container); err != nil {
+				// TODO: handle errors here
+				panic(err)
+			}
+		}
 	}
 }
 
@@ -72,6 +86,11 @@ func (h *Host) GetContainers() ([]*Container, error) {
 			return nil, err
 		}
 
+		managed, exists := h.managedContainers[c.ID]
+		if exists {
+			c.Type = managed.Type
+		}
+
 		containers = append(containers, c)
 	}
 
@@ -88,21 +107,30 @@ func (h *Host) RunContainer(c *Container) error {
 		CpuShares: c.Cpus,
 	}
 
-	id, err := h.docker.CreateContainer(config, c.ID)
-	if err != nil {
+	if _, err := h.docker.CreateContainer(config, c.ID); err != nil {
 		return err
 	}
 
-	if err := h.docker.StartContainer(id, nil); err != nil {
+	if err := h.startContainer(c); err != nil {
 		return err
 	}
 
-	current, err := h.inspect(id)
+	return nil
+}
+
+func (h *Host) startContainer(c *Container) error {
+	if err := h.docker.StartContainer(c.ID, nil); err != nil {
+		return err
+	}
+
+	current, err := h.inspect(c.ID)
 	if err != nil {
 		return err
 	}
 
 	c.State = current.State
+
+	h.managedContainers[c.ID] = c
 
 	return nil
 }
@@ -123,6 +151,8 @@ func (h *Host) StopContainer(c *Container) error {
 	}
 	c.State = current.State
 
+	h.managedContainers[c.ID] = c
+
 	return nil
 }
 
@@ -133,7 +163,7 @@ func (h *Host) inspect(id string) (*Container, error) {
 	}
 
 	c := &Container{
-		ID:     info.Id,
+		ID:     strings.TrimPrefix(info.Name, "/"),
 		Image:  info.Image,
 		HostID: h.ID,
 		Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
