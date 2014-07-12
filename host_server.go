@@ -23,7 +23,8 @@ func NewServer(h *Host) *Server {
 	s.r.HandleFunc("/stop", s.stopHandler).Methods("POST")
 	s.r.HandleFunc("/run", s.runHandler).Methods("POST")
 	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
-	s.r.HandleFunc("/", s.listHandler).Methods("GET")
+	s.r.HandleFunc("/containers/{id:.*}", s.getContainer).Methods("GET")
+	s.r.HandleFunc("/containers", s.listHandler).Methods("GET")
 
 	return s
 }
@@ -42,6 +43,18 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) listHandler(w http.ResponseWriter, r *http.Request) {
 	s.marshal(w, s.host.Containers())
+}
+
+func (s *Server) getContainer(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	c, err := s.host.Container(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	s.marshal(w, c)
 }
 
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {

@@ -57,36 +57,7 @@ func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.
 	return h, nil
 }
 
-func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
-	switch event.Status {
-	case "die":
-		container, err := h.inspect(event.Id)
-		if err != nil {
-			h.logger.WithField("error", err).Error("fetch dead container information")
-			return
-		}
-		h.mux.Lock()
-
-		// only restart it if it's a managed container
-		if c, exists := h.managedContainers[container.ID]; exists && c.Type == Service {
-			container.State.ExitedAt = time.Now()
-
-			if err := h.startContainer(container); err != nil {
-				h.logger.WithField("error", err).Error("restarting dead container")
-			}
-		}
-
-		h.mux.Unlock()
-	default:
-		h.logger.WithFields(logrus.Fields{
-			"type": event.Status,
-			"id":   event.Id,
-			"from": event.From,
-		}).Debug("docker event")
-	}
-}
-
-// Close stops the events monitor
+// Close stops the events monitor and saves the host's state to disk
 func (h *Host) Close() error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
@@ -112,6 +83,20 @@ func (h *Host) Containers() []*Container {
 	h.mux.Unlock()
 
 	return out
+}
+
+func (h *Host) Container(id string) (*Container, error) {
+	h.mux.Lock()
+
+	c, exists := h.managedContainers[id]
+
+	h.mux.Unlock()
+
+	if !exists {
+		return nil, fmt.Errorf("container %s does not exist", id)
+	}
+
+	return c, nil
 }
 
 func (h *Host) RunContainer(c *Container) error {
@@ -272,4 +257,33 @@ func (h *Host) verifyState() error {
 	}
 
 	return nil
+}
+
+func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
+	switch event.Status {
+	case "die":
+		container, err := h.inspect(event.Id)
+		if err != nil {
+			h.logger.WithField("error", err).Error("fetch dead container information")
+			return
+		}
+		h.mux.Lock()
+
+		// only restart it if it's a managed container
+		if c, exists := h.managedContainers[container.ID]; exists && c.Type == Service {
+			container.State.ExitedAt = time.Now()
+
+			if err := h.startContainer(container); err != nil {
+				h.logger.WithField("error", err).Error("restarting dead container")
+			}
+		}
+
+		h.mux.Unlock()
+	default:
+		h.logger.WithFields(logrus.Fields{
+			"type": event.Status,
+			"id":   event.Id,
+			"from": event.From,
+		}).Debug("docker event")
+	}
 }
