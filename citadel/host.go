@@ -20,7 +20,6 @@ var hostCommand = cli.Command{
 		cli.StringFlag{"addr", "", "external ip address for the host"},
 		cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker remote ip address"},
 		cli.IntFlag{"cpus", -1, "number of cpus available to the host"},
-		cli.IntFlag{"memory", -1, "number of mb of memory available to the host"},
 		cli.StringFlag{"listen", ":8787", "listen address"},
 		cli.StringFlag{"ssl-cert", "", "SSL certificate"},
 		cli.StringFlag{"ssl-key", "", "SSL key"},
@@ -31,7 +30,7 @@ var hostCommand = cli.Command{
 func hostAction(context *cli.Context) {
 	validateContext(context)
 
-	host, err := citadel.NewHost(getHostId(), context.Int("cpus"), context.Int("memory"), context.StringSlice("labels"), getClient(context), logger)
+	host, err := citadel.NewHost(getHostId(), context.Int("cpus"), context.StringSlice("labels"), getClient(context), logger)
 	if err != nil {
 		logger.WithField("error", err).Fatal("create host")
 	}
@@ -77,8 +76,6 @@ func validateContext(context *cli.Context) {
 	switch {
 	case context.Int("cpus") < 1:
 		logger.Fatal("cpus must have a value")
-	case context.Int("memory") < 1:
-		logger.Fatal("memory must have a value")
 	case context.String("addr") == "":
 		logger.Fatal("addr must have a value")
 	}

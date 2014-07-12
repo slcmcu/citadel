@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/citadel/citadel/utils"
+	"github.com/cloudfoundry/gosigar"
 	"github.com/samalba/dockerclient"
 )
 
@@ -33,11 +34,16 @@ type Host struct {
 	docker *dockerclient.DockerClient
 }
 
-func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+func NewHost(id string, cpus int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+	mem := sigar.Mem{}
+	if err := mem.Get(); err != nil {
+		return nil, err
+	}
+
 	h := &Host{
 		ID:                id,
 		Cpus:              cpus,
-		Memory:            memory,
+		Memory:            int(mem.Total / 1024 / 1024),
 		Labels:            labels,
 		docker:            docker,
 		logger:            logger,
