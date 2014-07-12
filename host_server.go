@@ -20,10 +20,11 @@ func NewServer(h *Host) http.Handler {
 		r:    mux.NewRouter(),
 	}
 
-	s.r.HandleFunc("/stop", s.stopHandler)
-	s.r.HandleFunc("/run", s.runHandler)
-	s.r.HandleFunc("/list", s.listHandler)
-	s.r.HandleFunc("/host", s.hostHandler)
+	s.r.HandleFunc("/stop", s.stopHandler).Methods("POST")
+	s.r.HandleFunc("/run", s.runHandler).Methods("POST")
+
+	s.r.HandleFunc("/list", s.listHandler).Methods("GET")
+	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
 
 	return s
 }

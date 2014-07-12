@@ -1,0 +1,6 @@
+{
+    "id": "redis",
+    "image": "crosbymichael/redis",
+    "cpus": 1,
+    "memory": 512
+}
