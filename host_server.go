@@ -37,13 +37,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listHandler(w http.ResponseWriter, r *http.Request) {
-	containers, err := s.host.GetContainers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, containers)
+	s.marshal(w, s.host.Containers())
 }
 
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ package citadel
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/citadel/citadel/utils"
@@ -23,11 +24,11 @@ type Host struct {
 	// Label is specific attributes of a host
 	Labels []string `json:"labels,omitempty"`
 
-	docker *dockerclient.DockerClient `json:"-"`
-
 	// containers that were started with citadel
 	managedContainers map[string]*Container
-	logger            *logrus.Logger
+
+	logger *logrus.Logger
+	docker *dockerclient.DockerClient
 }
 
 func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
@@ -48,7 +49,6 @@ func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.
 
 func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
-	case "start":
 	case "die":
 		container, err := h.inspect(event.Id)
 		if err != nil {
@@ -59,48 +59,45 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 
 		// only restart it if it's a managed container
 		if c, exists := h.managedContainers[container.ID]; exists && c.Type == Service {
+			container.State.ExitedAt = time.Now()
+
 			if err := h.startContainer(container); err != nil {
 				h.logger.WithField("error", err).Error("restarting dead container")
 			}
 		}
 
 		h.mux.Unlock()
+	default:
+		h.logger.WithFields(logrus.Fields{
+			"type": event.Status,
+			"id":   event.Id,
+			"from": event.From,
+		}).Debug("docker event")
 	}
 }
 
 // Close stops the events monitor
 func (h *Host) Close() error {
+	h.mux.Lock()
+
 	h.docker.StopAllMonitorEvents()
+
+	h.mux.Unlock()
 
 	return nil
 }
 
-// GetContainers returns all containers on the host
-func (h *Host) GetContainers() ([]*Container, error) {
+func (h *Host) Containers() []*Container {
+	out := []*Container{}
 	h.mux.Lock()
-	defer h.mux.Unlock()
 
-	dockerContainers, err := h.docker.ListContainers(true)
-	if err != nil {
-		return nil, err
+	for _, c := range h.managedContainers {
+		out = append(out, c)
 	}
 
-	containers := []*Container{}
-	for _, dc := range dockerContainers {
-		c, err := h.inspect(dc.Id)
-		if err != nil {
-			return nil, err
-		}
+	h.mux.Unlock()
 
-		managed, exists := h.managedContainers[c.ID]
-		if exists {
-			c.Type = managed.Type
-		}
-
-		containers = append(containers, c)
-	}
-
-	return containers, nil
+	return out
 }
 
 func (h *Host) RunContainer(c *Container) error {
@@ -156,6 +153,8 @@ func (h *Host) startContainer(c *Container) error {
 	}
 
 	c.State = current.State
+	c.State.StartedAt = time.Now()
+	c.State.ExitedAt = time.Time{}
 
 	h.managedContainers[c.ID] = c
 
@@ -176,7 +175,9 @@ func (h *Host) StopContainer(c *Container) error {
 	if err != nil {
 		return err
 	}
+
 	c.State = current.State
+	c.State.ExitedAt = time.Now()
 
 	delete(h.managedContainers, c.ID)
 

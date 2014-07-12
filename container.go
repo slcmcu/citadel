@@ -1,5 +1,7 @@
 package citadel
 
+import "time"
+
 // Status of the container
 type Status string
 type ContainerType string
@@ -19,7 +21,12 @@ type State struct {
 	// The current status of the container
 	Status Status `json:"status,omitempty"`
 	// ExitCode is the code which the container last returned on exit
-	ExitCode int `json:"exit_code,omitempty"`
+	ExitCode int `json:"exit_code"`
+	// StartedAt is the time the container was last started
+	StartedAt time.Time `json:"started_at,omitempty"`
+	// ExitedAt is the time the container last exited.  It is set to zero when a
+	// container is started again
+	ExitedAt time.Time `json:"exited_at,omitempty"`
 }
 
 // Port represents a port mapping
