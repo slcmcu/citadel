@@ -14,7 +14,7 @@ type Server struct {
 	r    *mux.Router
 }
 
-func NewServer(h *Host) http.Handler {
+func NewServer(h *Host) *Server {
 	s := &Server{
 		host: h,
 		r:    mux.NewRouter(),
@@ -26,6 +26,10 @@ func NewServer(h *Host) http.Handler {
 	s.r.HandleFunc("/", s.listHandler).Methods("GET")
 
 	return s
+}
+
+func (s *Server) Close() error {
+	return s.host.Close()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,9 @@
 package citadel
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -79,16 +81,20 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 // Close stops the events monitor
 func (h *Host) Close() error {
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
 	h.docker.StopAllMonitorEvents()
 
-	h.mux.Unlock()
+	if err := h.saveState(); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (h *Host) Containers() []*Container {
 	out := []*Container{}
+
 	h.mux.Lock()
 
 	for _, c := range h.managedContainers {
@@ -195,4 +201,22 @@ func (h *Host) inspect(id string) (*Container, error) {
 	}
 
 	return containerFromDocker(h, info)
+}
+
+func (h *Host) saveState() error {
+	h.logger.Debug("saving host state")
+
+	f, err := os.OpenFile("host-state.json", os.O_CREATE|os.O_RDWR|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(h.managedContainers); err != nil {
+		return err
+	}
+
+	h.logger.Debug("host state saved")
+
+	return nil
 }

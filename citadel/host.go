@@ -32,18 +32,21 @@ func hostAction(context *cli.Context) {
 	}
 
 	server := citadel.NewServer(host)
-	go waitForInterrupt()
+	go waitForInterrupt(server)
 
 	if err := http.ListenAndServe(config.Addr, server); err != nil {
 		logger.WithField("error", err).Fatal("listen and serve")
 	}
 }
 
-func waitForInterrupt() {
+func waitForInterrupt(s *citadel.Server) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
 	for _ = range sigChan {
+		if err := s.Close(); err != nil {
+			logger.WithField("error", err).Fatal("closing server")
+		}
 		os.Exit(0)
 	}
 }
