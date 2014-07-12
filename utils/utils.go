@@ -92,16 +92,34 @@ func CleanImageName(name string) string {
 	return CleanImageName(parts[1])
 }
 
-func IToCpuset(cpus int) string {
-	nums := make([]string, cpus)
-
-	for i := 0; i < cpus; i++ {
-		nums[i] = strconv.Itoa(i)
-	}
-
-	return strings.Join(nums, ",")
+func IToCpuset(cpus []int) string {
+	return strings.Join(toA(cpus), ",")
 }
 
-func CpusetTOI(cpuset string) int {
-	return len(strings.Split(cpuset, ","))
+func toA(i []int) []string {
+	s := make([]string, len(i))
+
+	for j, ii := range i {
+		s[j] = strconv.Itoa(ii)
+	}
+
+	return s
+}
+
+func CpusetTOI(cpuset string) []int {
+	var (
+		s = strings.Split(cpuset, ",")
+		i = make([]int, len(s))
+	)
+
+	for j, ss := range s {
+		si, err := strconv.Atoi(ss)
+		if err != nil {
+			panic(err)
+		}
+
+		i[j] = si
+	}
+
+	return i
 }

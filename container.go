@@ -38,7 +38,7 @@ type Container struct {
 	// HostID is the host where the container is running
 	HostID string `json:"host_id,omitempty"`
 	// Cpus is the number of cpus that the container has reserved
-	Cpus int `json:"cpus,omitempty"`
+	Cpus []int `json:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the container has reserved
 	Memory int `json:"memory,omitempty"`
 	// State is the current state of the container

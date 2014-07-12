@@ -13,7 +13,7 @@
         {
             "id": "postgres",
             "image": "crosbymichael/postres",
-            "cpus": 1,
+            "cpus": [0, 1],
             "memory": 768,
             "type": "service",
             "volumes": [
@@ -26,7 +26,7 @@
         {
             "id": "sentry",
             "image": "crosbymichael/sentry",
-            "cpus": 1,
+            "cpus": [0],
             "memory": 256,
             "type": "service",
         }

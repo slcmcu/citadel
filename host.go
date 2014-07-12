@@ -199,8 +199,10 @@ func (h *Host) inspect(id string) (*Container, error) {
 	}
 
 	// if cpuset is not specified then the container has all the cpus on the host
-	if c.Cpus == 0 {
-		c.Cpus = h.Cpus
+	if len(c.Cpus) == 0 {
+		for i := 0; i < h.Cpus; i++ {
+			c.Cpus = append(c.Cpus, i)
+		}
 	}
 
 	if info.Config.Memory > 0 {
