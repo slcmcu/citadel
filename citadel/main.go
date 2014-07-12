@@ -17,10 +17,6 @@ func main() {
 	app.Version = "0.1"
 	app.Author = "citadel team"
 
-	app.Flags = []cli.Flag{
-		cli.StringFlag{"etcd-machines", "http://127.0.0.1:4001", "comma separated list of etcd hosts"},
-	}
-
 	app.Commands = []cli.Command{
 		hostCommand,
 	}
