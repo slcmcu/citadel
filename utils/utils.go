@@ -42,7 +42,7 @@ func GetUUID() (string, error) {
 
 // Return the value in /etc/hostname
 func GetMachineID() (string, error) {
-	data, err := ioutil.ReadFile("/etc/hostname")
+	data, err := ioutil.ReadFile("/etc/machine-id")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("host does not support /etc/machine-id")

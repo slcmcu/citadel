@@ -17,7 +17,6 @@ var hostCommand = cli.Command{
 	Usage:  "run the host and connect it to the cluster",
 	Action: hostAction,
 	Flags: []cli.Flag{
-		cli.StringFlag{"region", "", "region where the host is running"},
 		cli.StringFlag{"addr", "", "external ip address for the host"},
 		cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker remote ip address"},
 		cli.IntFlag{"cpus", -1, "number of cpus available to the host"},
