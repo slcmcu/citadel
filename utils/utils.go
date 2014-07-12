@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -89,4 +90,18 @@ func CleanImageName(name string) string {
 		return RemoveSlash(RemoveTag(name))
 	}
 	return CleanImageName(parts[1])
+}
+
+func IToCpuset(cpus int) string {
+	nums := make([]string, cpus)
+
+	for i := 0; i < cpus; i++ {
+		nums[i] = strconv.Itoa(i)
+	}
+
+	return strings.Join(nums, ",")
+}
+
+func CpusetTOI(cpuset string) int {
+	return len(strings.Split(cpuset, ","))
 }

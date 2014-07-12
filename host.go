@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/citadel/citadel/utils"
 	"github.com/samalba/dockerclient"
 )
 
@@ -104,9 +105,9 @@ func (h *Host) RunContainer(c *Container) error {
 	defer h.mux.Unlock()
 
 	config := &dockerclient.ContainerConfig{
-		Image:     c.Image,
-		Memory:    c.Memory * 1024 * 1024,
-		CpuShares: c.Cpus,
+		Image:  c.Image,
+		Memory: c.Memory * 1024 * 1024,
+		Cpuset: utils.IToCpuset(c.Cpus),
 	}
 
 	if _, err := h.docker.CreateContainer(config, c.ID); err != nil {
@@ -168,7 +169,12 @@ func (h *Host) inspect(id string) (*Container, error) {
 		ID:     strings.TrimPrefix(info.Name, "/"),
 		Image:  info.Image,
 		HostID: h.ID,
-		Cpus:   info.Config.CpuShares, // FIXME: not the right place, this is cpuset
+		Cpus:   utils.CpusetTOI(info.Config.Cpuset),
+	}
+
+	// if cpuset is not specified then the container has all the cpus on the host
+	if c.Cpus == 0 {
+		c.Cpus = h.Cpus
 	}
 
 	if info.Config.Memory > 0 {
