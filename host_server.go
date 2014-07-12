@@ -22,9 +22,8 @@ func NewServer(h *Host) http.Handler {
 
 	s.r.HandleFunc("/stop", s.stopHandler).Methods("POST")
 	s.r.HandleFunc("/run", s.runHandler).Methods("POST")
-
-	s.r.HandleFunc("/list", s.listHandler).Methods("GET")
 	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
+	s.r.HandleFunc("/", s.listHandler).Methods("GET")
 
 	return s
 }
@@ -100,6 +99,6 @@ func (s *Server) marshal(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		// TODO: log error
+		s.host.logger.WithField("error", err).Error("encode json")
 	}
 }
