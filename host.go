@@ -55,6 +55,7 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			h.logger.WithField("error", err).Error("fetch dead container information")
 			return
 		}
+		h.mux.Lock()
 
 		// only restart it if it's a managed container
 		if _, exists := h.managedContainers[container.ID]; exists {
@@ -62,6 +63,8 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 				h.logger.WithField("error", err).Error("restarting dead container")
 			}
 		}
+
+		h.mux.Unlock()
 	}
 }
 
@@ -154,7 +157,7 @@ func (h *Host) StopContainer(c *Container) error {
 	}
 	c.State = current.State
 
-	h.managedContainers[c.ID] = c
+	delete(h.managedContainers, c.ID)
 
 	return nil
 }
