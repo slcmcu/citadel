@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/citadel/citadel"
-	"github.com/citadel/citadel/utils"
 	"github.com/codegangsta/cli"
 	"github.com/samalba/dockerclient"
 )
@@ -29,7 +28,7 @@ var hostCommand = cli.Command{
 func hostAction(context *cli.Context) {
 	validateContext(context)
 
-	host, err := citadel.NewHost(getHostId(), context.StringSlice("labels"), getClient(context), logger)
+	host, err := citadel.NewHost(context.StringSlice("labels"), getClient(context), logger)
 	if err != nil {
 		logger.WithField("error", err).Fatal("create host")
 	}
@@ -52,14 +51,6 @@ func waitForInterrupt(s *citadel.Server) {
 		}
 		os.Exit(0)
 	}
-}
-
-func getHostId() string {
-	id, err := utils.GetMachineID()
-	if err != nil {
-		logger.WithField("error", err).Fatal("unable to read machine id")
-	}
-	return id
 }
 
 func getClient(context *cli.Context) *dockerclient.DockerClient {

@@ -4,11 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -39,18 +36,6 @@ func GetUUID() (string, error) {
 		}
 	}
 	return "", ErrUnableToGenerateUUID
-}
-
-// Return the value in /etc/hostname
-func GetMachineID() (string, error) {
-	data, err := ioutil.ReadFile("/etc/machine-id")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", fmt.Errorf("host does not support /etc/machine-id")
-		}
-		return "", err
-	}
-	return strings.Trim(string(data), "\n"), nil
 }
 
 func checkTag(name string) (bool, int) {
