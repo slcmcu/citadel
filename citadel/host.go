@@ -29,7 +29,7 @@ var hostCommand = cli.Command{
 func hostAction(context *cli.Context) {
 	validateContext(context)
 
-	host, err := citadel.NewHost(getHostId(), context.Int("cpus"), context.Int("memory"), context.StringSlice("labels"), getClient(context))
+	host, err := citadel.NewHost(getHostId(), context.Int("cpus"), context.Int("memory"), context.StringSlice("labels"), getClient(context), logger)
 	if err != nil {
 		logger.WithField("error", err).Fatal("create host")
 	}

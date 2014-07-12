@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/samalba/dockerclient"
 )
 
@@ -25,15 +26,17 @@ type Host struct {
 
 	// containers that were started with citadel
 	managedContainers map[string]*Container
+	logger            *logrus.Logger
 }
 
-func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient) (*Host, error) {
+func NewHost(id string, cpus, memory int, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
 	h := &Host{
 		ID:                id,
 		Cpus:              cpus,
 		Memory:            memory,
 		Labels:            labels,
 		docker:            docker,
+		logger:            logger,
 		managedContainers: make(map[string]*Container),
 	}
 
@@ -48,15 +51,14 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	case "die":
 		container, err := h.inspect(event.Id)
 		if err != nil {
-			// TODO: handle errors here
-			panic(err)
+			h.logger.WithField("error", err).Error("fetch dead container information")
+			return
 		}
 
 		// only restart it if it's a managed container
 		if _, exists := h.managedContainers[container.ID]; exists {
 			if err := h.startContainer(container); err != nil {
-				// TODO: handle errors here
-				panic(err)
+				h.logger.WithField("error", err).Error("restarting dead container")
 			}
 		}
 	}
