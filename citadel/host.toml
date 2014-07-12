@@ -1,0 +1,6 @@
+id = "boot2docker"
+cpus = 4
+memory = 2048
+addr = "127.0.0.1:3333"
+docker = "http://docker:2375"
+labels = ["local"]
