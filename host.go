@@ -28,13 +28,15 @@ type Host struct {
 	Memory int `json:"memory,omitempty"`
 	// Label is specific attributes of a host
 	Labels []string `json:"labels,omitempty"`
+	// Address where the host's api can be reached
+	Addr string `json:"addr,omitempty"`
 
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
 	registry *etcd.Client
 }
 
-func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+func NewHost(addr string, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
 	mem := sigar.Mem{}
 	if err := mem.Get(); err != nil {
 		return nil, err
@@ -55,6 +57,7 @@ func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.
 		Cpus:     len(cpus.List),
 		Memory:   int(mem.Total / 1024 / 1024),
 		Labels:   labels,
+		Addr:     addr,
 		docker:   docker,
 		logger:   logger,
 		registry: etcd.NewClient([]string{"http://127.0.0.1:4001"}),
