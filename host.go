@@ -1,17 +1,14 @@
 package citadel
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/citadel/citadel/utils"
 	"github.com/cloudfoundry/gosigar"
-	"github.com/coreos/go-etcd/etcd"
 	"github.com/samalba/dockerclient"
 )
 
@@ -33,7 +30,7 @@ type Host struct {
 
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
-	registry *etcd.Client
+	registry *Registry
 }
 
 func NewHost(addr string, labels []string, etcdMachines []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
@@ -60,7 +57,7 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 		Addr:     addr,
 		docker:   docker,
 		logger:   logger,
-		registry: etcd.NewClient(etcdMachines),
+		registry: NewRegistry(etcdMachines),
 	}
 
 	if err := h.verifyState(); err != nil {
@@ -87,45 +84,17 @@ func (h *Host) Close() error {
 }
 
 func (h *Host) Containers() ([]*Container, error) {
-	out := []*Container{}
-
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
-	resp, err := h.registry.Get(filepath.Join("/citadel", h.ID, "containers"), true, true)
-	if err != nil {
-		return nil, err
-	}
-
-	h.mux.Unlock()
-
-	for _, node := range resp.Node.Nodes {
-		var container *Container
-		if err := json.Unmarshal([]byte(node.Value), &container); err != nil {
-			return nil, err
-		}
-
-		out = append(out, container)
-	}
-
-	return out, nil
+	return h.registry.FetchContainers(h)
 }
 
 func (h *Host) Container(id string) (*Container, error) {
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
-	resp, err := h.registry.Get(filepath.Join("/citadel", h.ID, "containers", id), false, false)
-	if err != nil {
-		return nil, err
-	}
-
-	h.mux.Unlock()
-
-	var container *Container
-	if err := json.Unmarshal([]byte(resp.Node.Value), &container); err != nil {
-		return nil, err
-	}
-
-	return container, nil
+	return h.registry.FetchContainer(h, id)
 }
 
 func (h *Host) RunContainer(c *Container) error {
@@ -146,16 +115,7 @@ func (h *Host) RunContainer(c *Container) error {
 		return err
 	}
 
-	data, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
-
-	if _, err := h.registry.Set(filepath.Join("/citadel", h.ID, "containers", c.ID), string(data), 0); err != nil {
-		return err
-	}
-
-	return nil
+	return h.registry.SaveContainer(h, c)
 }
 
 func (h *Host) startContainer(c *Container) error {
@@ -214,7 +174,7 @@ func (h *Host) StopContainer(c *Container) error {
 	c.State = current.State
 	c.State.ExitedAt = time.Now()
 
-	_, err = h.registry.Delete(filepath.Join("/citadel", h.ID, "containers", c.ID), false)
+	err = h.registry.DeleteContainer(h, c)
 
 	if nerr := h.docker.RemoveContainer(c.ID); err == nil {
 		err = nerr
@@ -244,7 +204,7 @@ func (h *Host) verifyState() error {
 			if err == dockerclient.ErrNotFound {
 				h.logger.WithField("id", c.ID).Warn("container no longer exists in docker")
 
-				if _, derr := h.registry.Delete(filepath.Join("/citadel", h.ID, "containers", c.ID), false); derr != nil {
+				if derr := h.registry.DeleteContainer(h, c); derr != nil {
 					h.logger.WithField("error", derr).Warn("error deleting non-existant container")
 				}
 
@@ -258,6 +218,7 @@ func (h *Host) verifyState() error {
 			h.logger.WithField("id", c.ID).Warn("state mismatch")
 
 			c.State.Status = Stopped
+			// TODO: make it run again
 		}
 	}
 
@@ -301,19 +262,9 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 }
 
 func (h *Host) registerHost() error {
-	data, err := json.Marshal(h)
-	if err != nil {
-		return err
-	}
-
-	if _, err := h.registry.Set(filepath.Join("/citadel/hosts", h.ID), string(data), 0); err != nil {
-		return err
-	}
-
-	return nil
+	return h.registry.SaveHost(h)
 }
 
 func (h *Host) deregisterHost() error {
-	_, err := h.registry.Delete(filepath.Join("/citadel/hosts", h.ID), false)
-	return err
+	return h.registry.DeleteHost(h)
 }
