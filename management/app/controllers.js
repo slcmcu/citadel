@@ -25,23 +25,7 @@ function HeaderController($scope, Hosts, Containers) {
 
 // Dashboard includes overall information with graphs and services 
 // for the cluster
-function DashboardController($scope, Hosts) {
-    /*
-    Host.metrics({
-        name: "b8f6b1166755"
-    }, function (data) {
-        var mem = function (d) {
-            return (d.memory.used / d.memory.total) * 100;
-        };
-        var cpu = function (d) {
-            return d.load_1;
-        };
-
-        newAreaChart(data, mem, '#chart-memory', 'mem %');
-        newAreaChart(data, cpu, '#chart-cpu', 'load 1');
-    });
-    */
-}
+function DashboardController($scope, Hosts) { }
 
 function HostsController($scope, $routeParams, Hosts) {
     $scope.template = 'partials/hosts.html';
@@ -83,7 +67,7 @@ function ContainersController($scope, Containers) {
             var memory = 0;
 
             angular.forEach(v, function (c) {
-                cpus += c.cpus;
+                cpus += c.cpus.length;
                 memory += c.memory;
             });
 
