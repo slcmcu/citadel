@@ -3,6 +3,7 @@ package citadel
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"github.com/coreos/go-etcd/etcd"
 )
@@ -18,12 +19,16 @@ func NewRegistry(machines []string) *Registry {
 }
 
 func (r *Registry) FetchContainers(h *Host) ([]*Container, error) {
+	out := []*Container{}
+
 	resp, err := r.client.Get(filepath.Join("/citadel", h.ID, "containers"), true, true)
 	if err != nil {
+		if isNotFound(err) {
+			return out, nil
+		}
 		return nil, err
 	}
 
-	out := []*Container{}
 	for _, node := range resp.Node.Nodes {
 		var container *Container
 		if err := json.Unmarshal([]byte(node.Value), &container); err != nil {
@@ -86,6 +91,9 @@ func (r *Registry) FetchHosts() ([]*Host, error) {
 
 	resp, err := r.client.Get("/citadel/hosts", true, true)
 	if err != nil {
+		if isNotFound(err) {
+			return hosts, nil
+		}
 		return nil, err
 	}
 
@@ -104,4 +112,8 @@ func (r *Registry) FetchHosts() ([]*Host, error) {
 func (r *Registry) DeleteHost(h *Host) error {
 	_, err := r.client.Delete(filepath.Join("/citadel/hosts", h.ID), false)
 	return err
+}
+
+func isNotFound(err error) bool {
+	return strings.Contains(err.Error(), "Key not found")
 }
