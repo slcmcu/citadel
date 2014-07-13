@@ -36,7 +36,7 @@ type Host struct {
 	registry *etcd.Client
 }
 
-func NewHost(addr string, labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+func NewHost(addr string, labels []string, etcdMachines []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
 	mem := sigar.Mem{}
 	if err := mem.Get(); err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func NewHost(addr string, labels []string, docker *dockerclient.DockerClient, lo
 		Addr:     addr,
 		docker:   docker,
 		logger:   logger,
-		registry: etcd.NewClient([]string{"http://127.0.0.1:4001"}),
+		registry: etcd.NewClient(etcdMachines),
 	}
 
 	if err := h.verifyState(); err != nil {
