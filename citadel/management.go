@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	registry *citadel.Registry
+	registry citadel.Registry
 )
 
 var managementCommand = cli.Command{

@@ -8,17 +8,28 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 )
 
-type Registry struct {
+type Registry interface {
+	SaveHost(*Host) error
+	FetchHosts() ([]*Host, error)
+	DeleteHost(*Host) error
+
+	SaveContainer(*Host, *Container) error
+	DeleteContainer(*Host, *Container) error
+	FetchContainer(*Host, string) (*Container, error)
+	FetchContainers(*Host) ([]*Container, error)
+}
+
+type registry struct {
 	client *etcd.Client
 }
 
-func NewRegistry(machines []string) *Registry {
-	return &Registry{
+func NewRegistry(machines []string) Registry {
+	return &registry{
 		client: etcd.NewClient(machines),
 	}
 }
 
-func (r *Registry) FetchContainers(h *Host) ([]*Container, error) {
+func (r *registry) FetchContainers(h *Host) ([]*Container, error) {
 	out := []*Container{}
 
 	resp, err := r.client.Get(filepath.Join("/citadel", h.ID, "containers"), true, true)
@@ -41,7 +52,7 @@ func (r *Registry) FetchContainers(h *Host) ([]*Container, error) {
 	return out, nil
 }
 
-func (r *Registry) FetchContainer(h *Host, id string) (*Container, error) {
+func (r *registry) FetchContainer(h *Host, id string) (*Container, error) {
 	resp, err := r.client.Get(filepath.Join("/citadel", h.ID, "containers", id), false, false)
 	if err != nil {
 		return nil, err
@@ -55,7 +66,7 @@ func (r *Registry) FetchContainer(h *Host, id string) (*Container, error) {
 	return container, nil
 }
 
-func (r *Registry) SaveContainer(h *Host, c *Container) error {
+func (r *registry) SaveContainer(h *Host, c *Container) error {
 	data, err := json.Marshal(c)
 	if err != nil {
 		return err
@@ -68,12 +79,12 @@ func (r *Registry) SaveContainer(h *Host, c *Container) error {
 	return nil
 }
 
-func (r *Registry) DeleteContainer(h *Host, c *Container) error {
+func (r *registry) DeleteContainer(h *Host, c *Container) error {
 	_, err := r.client.Delete(filepath.Join("/citadel", h.ID, "containers", c.ID), false)
 	return err
 }
 
-func (r *Registry) SaveHost(h *Host) error {
+func (r *registry) SaveHost(h *Host) error {
 	data, err := json.Marshal(h)
 	if err != nil {
 		return err
@@ -86,7 +97,7 @@ func (r *Registry) SaveHost(h *Host) error {
 	return nil
 }
 
-func (r *Registry) FetchHosts() ([]*Host, error) {
+func (r *registry) FetchHosts() ([]*Host, error) {
 	hosts := []*Host{}
 
 	resp, err := r.client.Get("/citadel/hosts", true, true)
@@ -109,7 +120,7 @@ func (r *Registry) FetchHosts() ([]*Host, error) {
 	return hosts, nil
 }
 
-func (r *Registry) DeleteHost(h *Host) error {
+func (r *registry) DeleteHost(h *Host) error {
 	_, err := r.client.Delete(filepath.Join("/citadel/hosts", h.ID), false)
 	return err
 }

@@ -30,7 +30,7 @@ type Host struct {
 
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
-	registry *Registry
+	registry Registry
 }
 
 func NewHost(addr string, labels []string, etcdMachines []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
