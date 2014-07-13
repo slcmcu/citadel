@@ -196,13 +196,19 @@ func (h *Host) StopContainer(id string) *Transaction {
 			return tran.Error(err)
 		}
 
-		err := h.registry.DeleteContainer(h.ID, c.ID)
-
-		if nerr := h.docker.RemoveContainer(c.ID); err == nil {
-			err = nerr
+		info, err := h.docker.InspectContainer(c.ID)
+		if err != nil {
+			return tran.Error(err)
 		}
 
-		if err != nil {
+		state := h.getState(info)
+		c.State.ExitCode = state.ExitCode
+		c.State.ExitedAt = time.Now()
+		c.State.Status = Stopped
+
+		h.registry.DeleteContainer(h.ID, c.ID)
+
+		if err := h.docker.RemoveContainer(c.ID); err != nil {
 			return tran.Error(err)
 		}
 	}
