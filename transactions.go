@@ -7,6 +7,7 @@ import (
 type TransactionType string
 
 const (
+	RunTransaction  TransactionType = "run"
 	StopTransaction TransactionType = "stop"
 )
 

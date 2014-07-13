@@ -34,4 +34,6 @@ type Container struct {
 	HostID string `json:"host_id,omitempty"`
 	// State is the current state of the container
 	State State `json:"state,omitempty"`
+	// Ports is a collection of port mappings for an application
+	Ports []*Port `json:"ports,omitempty"`
 }

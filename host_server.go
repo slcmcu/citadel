@@ -44,11 +44,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
 	id := getId(r)
 
-	// TODO: this needs to return some basic information
-	if err := s.host.RunContainer(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	tran := s.host.RunContainer(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
+
+	s.marshal(w, tran)
 }
 
 func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {

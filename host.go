@@ -86,13 +86,15 @@ func (h *Host) Close() error {
 // RunContainer takes an application ID to lookup how a container is supposed to be run.
 // A container is created with a unique ID and run on the host with the container saved back
 // to the central registry
-func (h *Host) RunContainer(applicationID string) error {
+func (h *Host) RunContainer(applicationID string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
+	tran := NewTransaction(RunTransaction)
+
 	app, err := h.registry.FetchApplication(applicationID)
 	if err != nil {
-		return err
+		return tran.Error(err)
 	}
 
 	for i := 0; i < app.Instances; i++ {
@@ -105,7 +107,7 @@ func (h *Host) RunContainer(applicationID string) error {
 
 		id, err := h.docker.CreateContainer(config, "")
 		if err != nil {
-			return err
+			return tran.Error(err)
 		}
 
 		c := &Container{
@@ -115,15 +117,17 @@ func (h *Host) RunContainer(applicationID string) error {
 		}
 
 		if err := h.startContainer(app, c); err != nil {
-			return err
+			return tran.Error(err)
 		}
 
 		if err := h.registry.SaveContainer(h.ID, c); err != nil {
-			return err
+			return tran.Error(err)
 		}
+
+		tran.Containers = append(tran.Containers, c)
 	}
 
-	return nil
+	return tran
 }
 
 func (h *Host) startContainer(app *Application, c *Container) error {
@@ -152,11 +156,19 @@ func (h *Host) startContainer(app *Application, c *Container) error {
 		return err
 	}
 
-	state, err := h.getState(c.ID)
+	info, err := h.docker.InspectContainer(c.ID)
 	if err != nil {
 		return err
 	}
 
+	ports, err := createPorts(info)
+	if err != nil {
+		return err
+	}
+
+	c.Ports = ports
+
+	state := h.getState(info)
 	c.State = state
 	c.State.StartedAt = time.Now()
 	c.State.ExitedAt = time.Time{}
@@ -209,13 +221,8 @@ func (h *Host) Register(id string) error {
 }
 
 // getState inspects the container's state in docker and returns the updated information
-func (h *Host) getState(id string) (State, error) {
+func (h *Host) getState(info *dockerclient.ContainerInfo) State {
 	state := State{}
-
-	info, err := h.docker.InspectContainer(id)
-	if err != nil {
-		return state, err
-	}
 
 	state.ExitCode = info.State.ExitCode
 
@@ -225,7 +232,7 @@ func (h *Host) getState(id string) (State, error) {
 		state.Status = Stopped
 	}
 
-	return state, nil
+	return state
 }
 
 func (h *Host) verifyState() error {
@@ -265,6 +272,7 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
 	case "die":
 		h.mux.Lock()
+		defer h.mux.Unlock()
 
 		// only restart it if it's a managed container
 		container, err := h.registry.FetchContainer(h.ID, event.Id)
@@ -289,7 +297,6 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			}
 		}
 
-		h.mux.Unlock()
 	default:
 		h.logger.WithFields(logrus.Fields{
 			"type": event.Status,
