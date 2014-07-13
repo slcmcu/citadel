@@ -79,7 +79,7 @@ func fetchContainers() ([]interface{}, error) {
 	out := []interface{}{}
 
 	for _, h := range hosts {
-		containers, err := registry.FetchContainers(h)
+		containers, err := registry.FetchContainers(h.ID)
 		if err != nil {
 			return nil, err
 		}

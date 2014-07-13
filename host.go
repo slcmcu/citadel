@@ -83,51 +83,52 @@ func (h *Host) Close() error {
 	return h.deregisterHost()
 }
 
-func (h *Host) Containers() ([]*Container, error) {
+// RunContainer takes an application ID to lookup how a container is supposed to be run.
+// A container is created with a unique ID and run on the host with the container saved back
+// to the central registry
+func (h *Host) RunContainer(applicationID string) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	return h.registry.FetchContainers(h)
-}
-
-func (h *Host) Container(id string) (*Container, error) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-
-	return h.registry.FetchContainer(h, id)
-}
-
-func (h *Host) RunContainer(c *Container) error {
-	h.mux.Lock()
-	defer h.mux.Unlock()
+	app, err := h.registry.FetchApplication(applicationID)
+	if err != nil {
+		return err
+	}
 
 	config := &dockerclient.ContainerConfig{
-		Image:  c.Image,
-		Cmd:    c.Args,
-		Memory: c.Memory * 1024 * 1024,
-		Cpuset: utils.IToCpuset(c.Cpus),
+		Image:  app.Image,
+		Cmd:    app.Args,
+		Memory: app.Memory * 1024 * 1024,
+		Cpuset: utils.IToCpuset(app.Cpus),
 	}
 
-	if _, err := h.docker.CreateContainer(config, c.ID); err != nil {
+	id, err := h.docker.CreateContainer(config, "")
+	if err != nil {
 		return err
 	}
 
-	if err := h.startContainer(c); err != nil {
+	c := &Container{
+		ID:            id,
+		ApplicationID: app.ID,
+		HostID:        h.ID,
+	}
+
+	if err := h.startContainer(app, c); err != nil {
 		return err
 	}
 
-	return h.registry.SaveContainer(h, c)
+	return h.registry.SaveContainer(h.ID, c)
 }
 
-func (h *Host) startContainer(c *Container) error {
+func (h *Host) startContainer(app *Application, c *Container) error {
 	var hostConfig *dockerclient.HostConfig
 
-	if c.Ports != nil {
+	if app.Ports != nil {
 		hostConfig = &dockerclient.HostConfig{
 			PortBindings: make(map[string][]dockerclient.PortBinding),
 		}
 
-		for _, p := range c.Ports {
+		for _, p := range app.Ports {
 			proto := "tcp"
 			if p.Proto != "" {
 				proto = p.Proto
@@ -145,56 +146,59 @@ func (h *Host) startContainer(c *Container) error {
 		return err
 	}
 
-	current, err := h.inspect(c.ID)
+	state, err := h.getState(c.ID)
 	if err != nil {
 		return err
 	}
 
-	c.State = current.State
+	c.State = state
 	c.State.StartedAt = time.Now()
 	c.State.ExitedAt = time.Time{}
 
 	return nil
 }
 
-func (h *Host) StopContainer(c *Container) error {
+// StopContainer will stop the running container, remove it from the hosts registry
+// and delete the container from docker
+func (h *Host) StopContainer(id string) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if err := h.docker.StopContainer(c.ID, 10); err != nil {
+	if err := h.docker.StopContainer(id, 10); err != nil {
 		return err
 	}
 
-	// update the state on the original container so that when it is
-	// returned it has the latest information
-	current, err := h.inspect(c.ID)
-	if err != nil {
-		return err
-	}
+	err := h.registry.DeleteContainer(h.ID, id)
 
-	c.State = current.State
-	c.State.ExitedAt = time.Now()
-
-	err = h.registry.DeleteContainer(h, c)
-
-	if nerr := h.docker.RemoveContainer(c.ID); err == nil {
+	if nerr := h.docker.RemoveContainer(id); err == nil {
 		err = nerr
 	}
 
 	return err
 }
 
-func (h *Host) inspect(id string) (*Container, error) {
+// getState inspects the container's state in docker and returns the updated information
+func (h *Host) getState(id string) (State, error) {
+	state := State{}
+
 	info, err := h.docker.InspectContainer(id)
 	if err != nil {
-		return nil, err
+		return state, err
 	}
 
-	return containerFromDocker(h, info)
+	state.ExitCode = info.State.ExitCode
+
+	if info.State.Running {
+		state.Status = Running
+	} else {
+		state.Status = Stopped
+	}
+
+	return state, nil
 }
 
 func (h *Host) verifyState() error {
-	containers, err := h.Containers()
+	containers, err := h.registry.FetchContainers(h.ID)
 	if err != nil {
 		return err
 	}
@@ -205,7 +209,7 @@ func (h *Host) verifyState() error {
 			if err == dockerclient.ErrNotFound {
 				h.logger.WithField("id", c.ID).Warn("container no longer exists in docker")
 
-				if derr := h.registry.DeleteContainer(h, c); derr != nil {
+				if derr := h.registry.DeleteContainer(h.ID, c.ID); derr != nil {
 					h.logger.WithField("error", derr).Warn("error deleting non-existant container")
 				}
 
@@ -229,25 +233,27 @@ func (h *Host) verifyState() error {
 func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
 	case "die":
-		fromDocker, err := h.inspect(event.Id)
-		if err != nil {
-			h.logger.WithField("error", err).Error("fetch dead container information")
-			return
-		}
-
 		h.mux.Lock()
 
 		// only restart it if it's a managed container
-		container, err := h.Container(fromDocker.ID)
+		container, err := h.registry.FetchContainer(h.ID, event.Id)
 		if err != nil {
 			h.logger.WithField("error", err).Error("fetch container from registry")
+
 			return
 		}
 
-		if container.Type == Service {
+		app, err := h.registry.FetchApplication(container.ApplicationID)
+		if err != nil {
+			h.logger.WithField("error", err).Error("fetch container's application from registry")
+
+			return
+		}
+
+		if app.Type == Service {
 			container.State.ExitedAt = time.Now()
 
-			if err := h.startContainer(container); err != nil {
+			if err := h.startContainer(app, container); err != nil {
 				h.logger.WithField("error", err).Error("restarting dead container")
 			}
 		}
@@ -267,5 +273,5 @@ func (h *Host) registerHost() error {
 }
 
 func (h *Host) deregisterHost() error {
-	return h.registry.DeleteHost(h)
+	return h.registry.DeleteHost(h.ID)
 }

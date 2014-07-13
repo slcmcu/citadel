@@ -20,11 +20,11 @@ func NewServer(h *Host) *Server {
 		r:    mux.NewRouter(),
 	}
 
-	s.r.HandleFunc("/stop", s.stopHandler).Methods("POST")
-	s.r.HandleFunc("/run", s.runHandler).Methods("POST")
+	// host information endpoints
 	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
-	s.r.HandleFunc("/containers/{id:.*}", s.getContainer).Methods("GET")
-	s.r.HandleFunc("/containers", s.listHandler).Methods("GET")
+
+	s.r.HandleFunc("/stop/{id:.*}", s.stopHandler).Methods("POST")
+	s.r.HandleFunc("/run/{id:.*}", s.runHandler).Methods("POST")
 
 	return s
 }
@@ -41,60 +41,27 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
 	s.marshal(w, s.host)
 }
 
-func (s *Server) listHandler(w http.ResponseWriter, r *http.Request) {
-	containers, err := s.host.Containers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, containers)
-}
-
-func (s *Server) getContainer(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	c, err := s.host.Container(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	s.marshal(w, c)
-}
-
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
-	var container *Container
-	if err := s.unmarshal(r, &container); err != nil {
-		// TODO: this could be a bad content type error
-		// need to pick between the two
+	id := getId(r)
+
+	// TODO: this needs to return some basic information
+	if err := s.host.RunContainer(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	if err := s.host.RunContainer(container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, container)
 }
 
 func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
-	var container *Container
-	if err := s.unmarshal(r, &container); err != nil {
-		// TODO: this could be a bad content type error
-		// need to pick between the two
+	id := getId(r)
+
+	if err := s.host.StopContainer(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
 
-	if err := s.host.StopContainer(container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+func (s *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
 
-	s.marshal(w, container)
 }
 
 func (s *Server) unmarshal(r *http.Request, v interface{}) error {
@@ -118,4 +85,8 @@ func (s *Server) marshal(w http.ResponseWriter, v interface{}) {
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		s.host.logger.WithField("error", err).Error("encode json")
 	}
+}
+
+func getId(r *http.Request) string {
+	return mux.Vars(r)["id"]
 }
