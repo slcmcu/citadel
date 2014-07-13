@@ -18,6 +18,7 @@ var hostCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{"addr", "", "external ip address for the host"},
 		cli.StringFlag{"docker", "unix:///var/run/docker.sock", "docker remote ip address"},
+		cli.StringSliceFlag{"etcd-machines", &cli.StringSlice{"http://127.0.0.1:4001"}, "etcd hosts"},
 		cli.StringFlag{"listen", ":8787", "listen address"},
 		cli.StringFlag{"ssl-cert", "", "SSL certificate"},
 		cli.StringFlag{"ssl-key", "", "SSL key"},
@@ -28,7 +29,7 @@ var hostCommand = cli.Command{
 func hostAction(context *cli.Context) {
 	validateContext(context)
 
-	host, err := citadel.NewHost(context.String("addr"), context.StringSlice("labels"), getClient(context), logger)
+	host, err := citadel.NewHost(context.String("addr"), context.StringSlice("labels"), context.StringSlice("etcd-machines"), getClient(context), logger)
 	if err != nil {
 		logger.WithField("error", err).Fatal("create host")
 	}
