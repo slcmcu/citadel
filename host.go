@@ -295,6 +295,10 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			if err := h.startContainer(app, container); err != nil {
 				h.logger.WithField("error", err).Error("restarting dead container")
 			}
+
+			if err := h.registry.SaveContainer(h.ID, container); err != nil {
+				h.logger.WithField("error", err).Error("saving after restart of dead container")
+			}
 		}
 
 	default:
