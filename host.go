@@ -90,7 +90,10 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	tran := NewTransaction(RunTransaction)
+	var (
+		tran     = NewTransaction(RunTransaction)
+		instance = 0
+	)
 
 	app, err := h.registry.FetchApplication(applicationID)
 	if err != nil {
@@ -104,7 +107,9 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 		Cpuset: utils.IToCpuset(app.Cpus),
 	}
 
-	id, err := h.docker.CreateContainer(config, "")
+	name := fmt.Sprintf("citadel-%s-%d", app.ID, instance)
+
+	id, err := h.docker.CreateContainer(config, name)
 	if err != nil {
 		return tran.Error(err)
 	}
@@ -113,6 +118,7 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 		ID:            id,
 		ApplicationID: app.ID,
 		HostID:        h.ID,
+		Name:          name,
 	}
 
 	if err := h.startContainer(app, c); err != nil {

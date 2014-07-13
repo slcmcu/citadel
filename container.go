@@ -28,6 +28,8 @@ type State struct {
 type Container struct {
 	// ID is a unique identifier for a container
 	ID string `json:"id,omitempty"`
+	// Name is automatically generated based on the application and container
+	Name string `json:"name,omitempty"`
 	// ApplicationID is the id of the application that this container is based off of
 	ApplicationID string `json:"app_id,omitempty"`
 	// HostID is the host where the container is running
