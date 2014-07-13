@@ -177,6 +177,16 @@ func (h *Host) StopContainer(id string) error {
 	return err
 }
 
+// Register ensures that the host can run the given application based on the requirements
+func (h *Host) Register(id string) error {
+	app, err := h.registry.FetchApplication(id)
+	if err != nil {
+		return err
+	}
+
+	return h.docker.PullImage(app.Image, "latest")
+}
+
 // getState inspects the container's state in docker and returns the updated information
 func (h *Host) getState(id string) (State, error) {
 	state := State{}

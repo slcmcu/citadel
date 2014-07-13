@@ -20,11 +20,15 @@ func NewServer(h *Host) *Server {
 		r:    mux.NewRouter(),
 	}
 
-	// host information endpoints
-	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
+	// /register ensures that the host is able to run the givin application provided
+	// by the id
+	s.r.HandleFunc("/register/{id:.*}", s.registerHandler).Methods("POST")
 
-	s.r.HandleFunc("/stop/{id:.*}", s.stopHandler).Methods("POST")
+	// /run runs the givin application's containers on the host
 	s.r.HandleFunc("/run/{id:.*}", s.runHandler).Methods("POST")
+
+	// /stop stops the givin application's containers running on the host
+	s.r.HandleFunc("/stop/{id:.*}", s.stopHandler).Methods("POST")
 
 	return s
 }
@@ -35,10 +39,6 @@ func (s *Server) Close() error {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.r.ServeHTTP(w, r)
-}
-
-func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
-	s.marshal(w, s.host)
 }
 
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +61,12 @@ func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
+	id := getId(r)
 
+	if err := s.host.Register(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) unmarshal(r *http.Request, v interface{}) error {
