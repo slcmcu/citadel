@@ -18,7 +18,7 @@ var managementCommand = cli.Command{
 	Usage:  "run the management ui for the cluster",
 	Action: managementAction,
 	Flags: []cli.Flag{
-		cli.StringFlag{"assets", "management", "assests for the web ui"},
+		cli.StringFlag{"assets", "assets", "assests for the web ui"},
 		cli.StringFlag{"addr", ":3002", "address for the web ui to listen on"},
 		cli.StringSliceFlag{"etcd-machines", &cli.StringSlice{"http://127.0.0.1:4001"}, "etcd hosts"},
 	},

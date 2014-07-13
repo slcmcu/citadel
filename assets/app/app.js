@@ -11,7 +11,7 @@ angular.module('citadel', ['ngRoute', 'citadel.services', 'citadel.filters', 'ci
                 templateUrl: 'partials/dashboard.html',
                 controller: 'DashboardController'
             });
-            $routeProvider.when('/containers/:name', {
+            $routeProvider.when('/containers/:name*', {
                 templateUrl: 'partials/container.html',
                 controller: 'ContainerController'
             });
