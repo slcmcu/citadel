@@ -81,6 +81,26 @@ func (r *Registry) SaveHost(h *Host) error {
 	return nil
 }
 
+func (r *Registry) FetchHosts() ([]*Host, error) {
+	hosts := []*Host{}
+
+	resp, err := r.client.Get("/citadel/hosts", true, true)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, n := range resp.Node.Nodes {
+		var host *Host
+		if err := json.Unmarshal([]byte(n.Value), &host); err != nil {
+			return nil, err
+		}
+
+		hosts = append(hosts, host)
+	}
+
+	return hosts, nil
+}
+
 func (r *Registry) DeleteHost(h *Host) error {
 	_, err := r.client.Delete(filepath.Join("/citadel/hosts", h.ID), false)
 	return err

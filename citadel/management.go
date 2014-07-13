@@ -3,16 +3,14 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 
 	"github.com/citadel/citadel"
 	"github.com/codegangsta/cli"
-	"github.com/coreos/go-etcd/etcd"
 	"github.com/gorilla/mux"
 )
 
 var (
-	registry *etcd.Client
+	registry *citadel.Registry
 )
 
 var managementCommand = cli.Command{
@@ -34,7 +32,7 @@ func managementAction(context *cli.Context) {
 		apiRouter = mux.NewRouter()
 	)
 
-	registry = etcd.NewClient(context.StringSlice("etcd-machines"))
+	registry = citadel.NewRegistry(context.StringSlice("etcd-machines"))
 
 	apiRouter.HandleFunc("/api/hosts", getHosts)
 	apiRouter.HandleFunc("/api/containers", getContainers).Methods("GET")
@@ -53,7 +51,7 @@ func httpError(w http.ResponseWriter, err error) {
 }
 
 func getHosts(w http.ResponseWriter, r *http.Request) {
-	hosts, err := fetchHosts()
+	hosts, err := registry.FetchHosts()
 	if err != nil {
 		httpError(w, err)
 		return
@@ -72,46 +70,21 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 	marshal(w, containers)
 }
 
-func fetchHosts() ([]*citadel.Host, error) {
-	hosts := []*citadel.Host{}
-
-	resp, err := registry.Get("/citadel/hosts", true, true)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, n := range resp.Node.Nodes {
-		var host *citadel.Host
-		if err := json.Unmarshal([]byte(n.Value), &host); err != nil {
-			return nil, err
-		}
-
-		hosts = append(hosts, host)
-	}
-
-	return hosts, nil
-}
-
 func fetchContainers() ([]*citadel.Container, error) {
-	hosts, err := fetchHosts()
+	hosts, err := registry.FetchHosts()
 	if err != nil {
 		return nil, err
 	}
 
 	out := []*citadel.Container{}
 	for _, h := range hosts {
-		resp, err := registry.Get(filepath.Join("/citadel", h.ID, "containers"), true, true)
+		containers, err := registry.FetchContainers(h)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, node := range resp.Node.Nodes {
-			var container *citadel.Container
-			if err := json.Unmarshal([]byte(node.Value), &container); err != nil {
-				return nil, err
-			}
-
-			out = append(out, container)
+		for _, c := range containers {
+			out = append(out, c)
 		}
 	}
 
