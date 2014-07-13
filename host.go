@@ -95,29 +95,35 @@ func (h *Host) RunContainer(applicationID string) error {
 		return err
 	}
 
-	config := &dockerclient.ContainerConfig{
-		Image:  app.Image,
-		Cmd:    app.Args,
-		Memory: app.Memory * 1024 * 1024,
-		Cpuset: utils.IToCpuset(app.Cpus),
+	for i := 0; i < app.Instances; i++ {
+		config := &dockerclient.ContainerConfig{
+			Image:  app.Image,
+			Cmd:    app.Args,
+			Memory: app.Memory * 1024 * 1024,
+			Cpuset: utils.IToCpuset(app.Cpus),
+		}
+
+		id, err := h.docker.CreateContainer(config, "")
+		if err != nil {
+			return err
+		}
+
+		c := &Container{
+			ID:            id,
+			ApplicationID: app.ID,
+			HostID:        h.ID,
+		}
+
+		if err := h.startContainer(app, c); err != nil {
+			return err
+		}
+
+		if err := h.registry.SaveContainer(h.ID, c); err != nil {
+			return err
+		}
 	}
 
-	id, err := h.docker.CreateContainer(config, "")
-	if err != nil {
-		return err
-	}
-
-	c := &Container{
-		ID:            id,
-		ApplicationID: app.ID,
-		HostID:        h.ID,
-	}
-
-	if err := h.startContainer(app, c); err != nil {
-		return err
-	}
-
-	return h.registry.SaveContainer(h.ID, c)
+	return nil
 }
 
 func (h *Host) startContainer(app *Application, c *Container) error {

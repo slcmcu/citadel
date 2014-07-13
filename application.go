@@ -22,6 +22,8 @@ type Application struct {
 	Image string `json:"image,omitempty"`
 	// Type is the type of application, batch, service, etc
 	Type ApplicationType `json:"type,omitempty"`
+	// Instances is the number of instances of the application that you want to run
+	Instances int `json:"instances,omitempty"`
 	// Cpus is the number of cpus that the application has reserved
 	Cpus []int `json:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the application has reserved

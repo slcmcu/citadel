@@ -4,10 +4,10 @@
     "cpus": [0],
     "memory": 512,
     "type": "service",
+    "instances": 4,
     "ports": [
         {
             "proto": "tcp",
-            "host": 6379,
             "container": 6379
         }
     ]
