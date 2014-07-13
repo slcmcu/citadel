@@ -184,32 +184,39 @@ func (h *Host) StopContainer(id string) *Transaction {
 
 	tran := NewTransaction(StopTransaction)
 
+	app, err := h.registry.FetchApplication(id)
+	if err != nil {
+		return tran.Error(err)
+	}
+
 	containers, err := h.registry.FetchContainers(h.ID)
 	if err != nil {
 		return tran.Error(err)
 	}
 
 	for _, c := range containers {
-		tran.Containers = append(tran.Containers, c)
+		if c.ApplicationID == app.ID {
+			tran.Containers = append(tran.Containers, c)
 
-		if err := h.docker.StopContainer(c.ID, 10); err != nil {
-			return tran.Error(err)
-		}
+			if err := h.docker.StopContainer(c.ID, 10); err != nil {
+				return tran.Error(err)
+			}
 
-		info, err := h.docker.InspectContainer(c.ID)
-		if err != nil {
-			return tran.Error(err)
-		}
+			info, err := h.docker.InspectContainer(c.ID)
+			if err != nil {
+				return tran.Error(err)
+			}
 
-		state := h.getState(info)
-		c.State.ExitCode = state.ExitCode
-		c.State.ExitedAt = time.Now()
-		c.State.Status = Stopped
+			state := h.getState(info)
+			c.State.ExitCode = state.ExitCode
+			c.State.ExitedAt = time.Now()
+			c.State.Status = Stopped
 
-		h.registry.DeleteContainer(h.ID, c.ID)
+			h.registry.DeleteContainer(h.ID, c.ID)
 
-		if err := h.docker.RemoveContainer(c.ID); err != nil {
-			return tran.Error(err)
+			if err := h.docker.RemoveContainer(c.ID); err != nil {
+				return tran.Error(err)
+			}
 		}
 	}
 
