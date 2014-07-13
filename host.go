@@ -103,6 +103,7 @@ func (h *Host) RunContainer(c *Container) error {
 
 	config := &dockerclient.ContainerConfig{
 		Image:  c.Image,
+		Cmd:    c.Args,
 		Memory: c.Memory * 1024 * 1024,
 		Cpuset: utils.IToCpuset(c.Cpus),
 	}

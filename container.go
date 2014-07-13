@@ -54,4 +54,6 @@ type Container struct {
 	Type ContainerType `json:"type,omitempty"`
 	// Ports is a collection of port mappings for a container
 	Ports []*Port `json:"ports,omitempty"`
+	// Args are additional arguments passed to the entrypoint of the container
+	Args []string `json:"args,omitempty"`
 }
