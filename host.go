@@ -1,7 +1,6 @@
 package citadel
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -26,15 +25,15 @@ type Host struct {
 	Memory int `json:"memory,omitempty"`
 	// Label is specific attributes of a host
 	Labels []string `json:"labels,omitempty"`
+	// Address where the host's api can be reached
+	Addr string `json:"addr,omitempty"`
 
-	// containers that were started with citadel
-	managedContainers map[string]*Container
-
-	logger *logrus.Logger
-	docker *dockerclient.DockerClient
+	logger   *logrus.Logger
+	docker   *dockerclient.DockerClient
+	registry Registry
 }
 
-func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
+func NewHost(addr string, labels []string, etcdMachines []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
 	mem := sigar.Mem{}
 	if err := mem.Get(); err != nil {
 		return nil, err
@@ -51,20 +50,21 @@ func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.
 	}
 
 	h := &Host{
-		ID:                id,
-		Cpus:              len(cpus.List),
-		Memory:            int(mem.Total / 1024 / 1024),
-		Labels:            labels,
-		docker:            docker,
-		logger:            logger,
-		managedContainers: make(map[string]*Container),
-	}
-
-	if err := h.loadState(); err != nil {
-		return nil, err
+		ID:       id,
+		Cpus:     len(cpus.List),
+		Memory:   int(mem.Total / 1024 / 1024),
+		Labels:   labels,
+		Addr:     addr,
+		docker:   docker,
+		logger:   logger,
+		registry: NewRegistry(etcdMachines),
 	}
 
 	if err := h.verifyState(); err != nil {
+		return nil, err
+	}
+
+	if err := h.registerHost(); err != nil {
 		return nil, err
 	}
 
@@ -73,55 +73,33 @@ func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.
 	return h, nil
 }
 
-// Close stops the events monitor and saves the host's state to disk
+// Close stops the events monitor
 func (h *Host) Close() error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
 	h.docker.StopAllMonitorEvents()
 
-	if err := h.saveState(); err != nil {
-		return err
-	}
-
-	return nil
+	return h.deregisterHost()
 }
 
-func (h *Host) Containers() []*Container {
-	out := []*Container{}
-
+func (h *Host) Containers() ([]*Container, error) {
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
-	for _, c := range h.managedContainers {
-		out = append(out, c)
-	}
-
-	h.mux.Unlock()
-
-	return out
+	return h.registry.FetchContainers(h)
 }
 
 func (h *Host) Container(id string) (*Container, error) {
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
-	c, exists := h.managedContainers[id]
-
-	h.mux.Unlock()
-
-	if !exists {
-		return nil, fmt.Errorf("container %s does not exist", id)
-	}
-
-	return c, nil
+	return h.registry.FetchContainer(h, id)
 }
 
 func (h *Host) RunContainer(c *Container) error {
 	h.mux.Lock()
 	defer h.mux.Unlock()
-
-	if _, exists := h.managedContainers[c.ID]; exists {
-		return fmt.Errorf("container %s is already managed", c.ID)
-	}
 
 	config := &dockerclient.ContainerConfig{
 		Image:  c.Image,
@@ -137,9 +115,7 @@ func (h *Host) RunContainer(c *Container) error {
 		return err
 	}
 
-	h.managedContainers[c.ID] = c
-
-	return nil
+	return h.registry.SaveContainer(h, c)
 }
 
 func (h *Host) startContainer(c *Container) error {
@@ -198,9 +174,13 @@ func (h *Host) StopContainer(c *Container) error {
 	c.State = current.State
 	c.State.ExitedAt = time.Now()
 
-	delete(h.managedContainers, c.ID)
+	err = h.registry.DeleteContainer(h, c)
 
-	return h.docker.RemoveContainer(c.ID)
+	if nerr := h.docker.RemoveContainer(c.ID); err == nil {
+		err = nerr
+	}
+
+	return err
 }
 
 func (h *Host) inspect(id string) (*Container, error) {
@@ -212,52 +192,21 @@ func (h *Host) inspect(id string) (*Container, error) {
 	return containerFromDocker(h, info)
 }
 
-func (h *Host) saveState() error {
-	h.logger.Debug("saving host state")
-
-	f, err := os.OpenFile("host-state.json", os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	if err := json.NewEncoder(f).Encode(h.managedContainers); err != nil {
-		return err
-	}
-
-	h.logger.Debug("host state saved")
-
-	return nil
-}
-
-func (h *Host) loadState() error {
-	f, err := os.Open("host-state.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-
-		return err
-	}
-	defer f.Close()
-
-	h.logger.Debug("loading host state from disk")
-
-	if err := json.NewDecoder(f).Decode(&h.managedContainers); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (h *Host) verifyState() error {
-	for id, c := range h.managedContainers {
-		info, err := h.docker.InspectContainer(id)
+	containers, err := h.Containers()
+	if err != nil {
+		return err
+	}
+
+	for _, c := range containers {
+		info, err := h.docker.InspectContainer(c.ID)
 		if err != nil {
 			if err == dockerclient.ErrNotFound {
-				h.logger.WithField("id", id).Warn("container no longer exists in docker")
+				h.logger.WithField("id", c.ID).Warn("container no longer exists in docker")
 
-				delete(h.managedContainers, id)
+				if derr := h.registry.DeleteContainer(h, c); derr != nil {
+					h.logger.WithField("error", derr).Warn("error deleting non-existant container")
+				}
 
 				continue
 			}
@@ -266,9 +215,10 @@ func (h *Host) verifyState() error {
 		}
 
 		if c.State.Status == Running && !info.State.Running {
-			h.logger.WithField("id", id).Warn("state mismatch")
+			h.logger.WithField("id", c.ID).Warn("state mismatch")
 
 			c.State.Status = Stopped
+			// TODO: make it run again
 		}
 	}
 
@@ -278,15 +228,22 @@ func (h *Host) verifyState() error {
 func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
 	case "die":
-		container, err := h.inspect(event.Id)
+		fromDocker, err := h.inspect(event.Id)
 		if err != nil {
 			h.logger.WithField("error", err).Error("fetch dead container information")
 			return
 		}
+
 		h.mux.Lock()
 
 		// only restart it if it's a managed container
-		if c, exists := h.managedContainers[container.ID]; exists && c.Type == Service {
+		container, err := h.Container(fromDocker.ID)
+		if err != nil {
+			h.logger.WithField("error", err).Error("fetch container from registry")
+			return
+		}
+
+		if container.Type == Service {
 			container.State.ExitedAt = time.Now()
 
 			if err := h.startContainer(container); err != nil {
@@ -302,4 +259,12 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			"from": event.From,
 		}).Debug("docker event")
 	}
+}
+
+func (h *Host) registerHost() error {
+	return h.registry.SaveHost(h)
+}
+
+func (h *Host) deregisterHost() error {
+	return h.registry.DeleteHost(h)
 }
