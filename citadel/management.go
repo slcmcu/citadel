@@ -70,13 +70,14 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 	marshal(w, containers)
 }
 
-func fetchContainers() ([]*citadel.Container, error) {
+func fetchContainers() ([]interface{}, error) {
 	hosts, err := registry.FetchHosts()
 	if err != nil {
 		return nil, err
 	}
 
-	out := []*citadel.Container{}
+	out := []interface{}{}
+
 	for _, h := range hosts {
 		containers, err := registry.FetchContainers(h)
 		if err != nil {
@@ -84,7 +85,13 @@ func fetchContainers() ([]*citadel.Container, error) {
 		}
 
 		for _, c := range containers {
-			out = append(out, c)
+			out = append(out, struct {
+				*citadel.Container
+				Host string `json:"host,omitempty"`
+			}{
+				Container: c,
+				Host:      h.ID,
+			})
 		}
 	}
 
