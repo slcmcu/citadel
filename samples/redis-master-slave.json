@@ -1,0 +1,24 @@
+{
+    "id": "redis",
+    "image": "crosbymichael/redis",
+    "cpus": [0],
+    "memory": 512,
+    "type": "service",
+    "ports": [
+        {
+            "proto": "tcp",
+            "container": 6379
+        }
+    ],
+    "link_name": "redis-master",
+    "children": [
+         {
+            "id": "redis",
+            "image": "crosbymichael/redis",
+            "cpus": [1],
+            "memory": 512,
+            "type": "service",
+            "args": ["slaveof", "redis-master"]
+         }
+    ]
+}
