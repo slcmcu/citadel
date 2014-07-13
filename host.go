@@ -64,6 +64,10 @@ func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.
 		return nil, err
 	}
 
+	if err := h.registerHost(); err != nil {
+		return nil, err
+	}
+
 	docker.StartMonitorEvents(h.eventHandler, nil)
 
 	return h, nil
@@ -72,12 +76,11 @@ func NewHost(labels []string, docker *dockerclient.DockerClient, logger *logrus.
 // Close stops the events monitor
 func (h *Host) Close() error {
 	h.mux.Lock()
+	defer h.mux.Unlock()
 
 	h.docker.StopAllMonitorEvents()
 
-	h.mux.Unlock()
-
-	return nil
+	return h.deregisterHost()
 }
 
 func (h *Host) Containers() ([]*Container, error) {
@@ -292,4 +295,22 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			"from": event.From,
 		}).Debug("docker event")
 	}
+}
+
+func (h *Host) registerHost() error {
+	data, err := json.Marshal(h)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.registry.Set(filepath.Join("/citadel/hosts", h.ID), string(data), 0); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Host) deregisterHost() error {
+	_, err := h.registry.Delete(filepath.Join("/citadel/hosts", h.ID), false)
+	return err
 }
