@@ -54,10 +54,12 @@ func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
 	id := getId(r)
 
-	if err := s.host.StopContainer(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	tran := s.host.StopContainer(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
+
+	s.marshal(w, tran)
 }
 
 func (s *Server) registerHandler(w http.ResponseWriter, r *http.Request) {

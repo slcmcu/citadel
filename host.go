@@ -166,21 +166,36 @@ func (h *Host) startContainer(app *Application, c *Container) error {
 
 // StopContainer will stop the running container, remove it from the hosts registry
 // and delete the container from docker
-func (h *Host) StopContainer(id string) error {
+func (h *Host) StopContainer(id string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if err := h.docker.StopContainer(id, 10); err != nil {
-		return err
+	tran := NewTransaction(StopTransaction)
+
+	containers, err := h.registry.FetchContainers(h.ID)
+	if err != nil {
+		return tran.Error(err)
 	}
 
-	err := h.registry.DeleteContainer(h.ID, id)
+	for _, c := range containers {
+		tran.Containers = append(tran.Containers, c)
 
-	if nerr := h.docker.RemoveContainer(id); err == nil {
-		err = nerr
+		if err := h.docker.StopContainer(c.ID, 10); err != nil {
+			return tran.Error(err)
+		}
+
+		err := h.registry.DeleteContainer(h.ID, c.ID)
+
+		if nerr := h.docker.RemoveContainer(c.ID); err == nil {
+			err = nerr
+		}
+
+		if err != nil {
+			return tran.Error(err)
+		}
 	}
 
-	return err
+	return tran
 }
 
 // Register ensures that the host can run the given application based on the requirements
