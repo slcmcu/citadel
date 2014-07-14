@@ -23,6 +23,7 @@ func main() {
 
 	app.Commands = []cli.Command{
 		appCommand,
+		containerCommand,
 		hostCommand,
 		hostsCommand,
 		managementCommand,
