@@ -16,8 +16,6 @@ var containerCommand = cli.Command{
 }
 
 func containerAction(context *cli.Context) {
-	registry = citadel.NewRegistry(context.GlobalStringSlice("etcd-machines"))
-
 	hosts, err := registry.FetchHosts()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

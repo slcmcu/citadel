@@ -9,10 +9,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var (
-	registry citadel.Registry
-)
-
 var managementCommand = cli.Command{
 	Name:   "management",
 	Usage:  "run the management ui for the cluster",

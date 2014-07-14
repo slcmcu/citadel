@@ -6,7 +6,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/citadel/citadel"
 	"github.com/codegangsta/cli"
 )
 
@@ -17,8 +16,6 @@ var hostsCommand = cli.Command{
 }
 
 func hostsAction(context *cli.Context) {
-	registry = citadel.NewRegistry(context.GlobalStringSlice("etcd-machines"))
-
 	hosts, err := registry.FetchHosts()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

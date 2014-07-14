@@ -5,7 +5,6 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/citadel/citadel"
 	"github.com/codegangsta/cli"
 )
 
@@ -16,8 +15,6 @@ var appCommand = cli.Command{
 }
 
 func appAction(context *cli.Context) {
-	registry = citadel.NewRegistry(context.GlobalStringSlice("etcd-machines"))
-
 	apps, err := registry.FetchApplications()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
