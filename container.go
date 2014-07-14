@@ -38,4 +38,6 @@ type Container struct {
 	State State `json:"state,omitempty"`
 	// Ports is a collection of port mappings for an application
 	Ports []*Port `json:"ports,omitempty"`
+	// Config is the container information specified in the applications
+	Config *Config `json:"config,omitempty"`
 }

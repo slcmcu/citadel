@@ -27,6 +27,8 @@ type Host struct {
 	Labels []string `json:"labels,omitempty"`
 	// Address where the host's api can be reached
 	Addr string `json:"addr,omitempty"`
+	// GroupImage is used as a grouping container to connect groups on a single namespace
+	GroupImage string `json:"group_image,omitempty"`
 
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
@@ -50,14 +52,15 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 	}
 
 	h := &Host{
-		ID:       id,
-		Cpus:     len(cpus.List),
-		Memory:   int(mem.Total / 1024 / 1024),
-		Labels:   labels,
-		Addr:     addr,
-		docker:   docker,
-		logger:   logger,
-		registry: NewRegistry(etcdMachines),
+		ID:         id,
+		Cpus:       len(cpus.List),
+		Memory:     int(mem.Total / 1024 / 1024),
+		Labels:     labels,
+		Addr:       addr,
+		GroupImage: "crosbymichael/live",
+		docker:     docker,
+		logger:     logger,
+		registry:   NewRegistry(etcdMachines),
 	}
 
 	if err := h.verifyState(); err != nil {
@@ -100,60 +103,68 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 		return tran.Error(err)
 	}
 
-	config := &dockerclient.ContainerConfig{
-		Image:  app.Image,
-		Cmd:    app.Args,
-		Memory: app.Memory * 1024 * 1024,
-		Cpuset: utils.IToCpuset(app.Cpus),
+	for _, config := range app.Containers {
+		dockerConfig := &dockerclient.ContainerConfig{
+			Image:  config.Image,
+			Cmd:    config.Args,
+			Memory: config.Memory * 1024 * 1024,
+			Cpuset: utils.IToCpuset(config.Cpus),
+		}
+
+		name := fmt.Sprintf("%s.group.%d", app.ID, instance)
+
+		id, err := h.docker.CreateContainer(dockerConfig, name)
+		if err != nil {
+			return tran.Error(err)
+		}
+
+		c := &Container{
+			ID:            id,
+			ApplicationID: app.ID,
+			HostID:        h.ID,
+			Name:          name,
+			Config:        config,
+		}
+
+		if err := h.startContainer(app, c); err != nil {
+			return tran.Error(err)
+		}
+
+		if err := h.registry.SaveContainer(h.ID, c); err != nil {
+			return tran.Error(err)
+		}
+
+		tran.Containers = append(tran.Containers, c)
+
+		instance++
 	}
-
-	name := fmt.Sprintf("citadel-%s-%d", app.ID, instance)
-
-	id, err := h.docker.CreateContainer(config, name)
-	if err != nil {
-		return tran.Error(err)
-	}
-
-	c := &Container{
-		ID:            id,
-		ApplicationID: app.ID,
-		HostID:        h.ID,
-		Name:          name,
-	}
-
-	if err := h.startContainer(app, c); err != nil {
-		return tran.Error(err)
-	}
-
-	if err := h.registry.SaveContainer(h.ID, c); err != nil {
-		return tran.Error(err)
-	}
-
-	tran.Containers = append(tran.Containers, c)
 
 	return tran
 }
 
 func (h *Host) startContainer(app *Application, c *Container) error {
-	var hostConfig *dockerclient.HostConfig
+	hostConfig := &dockerclient.HostConfig{}
 
-	if app.Ports != nil {
-		hostConfig = &dockerclient.HostConfig{
-			PortBindings: make(map[string][]dockerclient.PortBinding),
-		}
+	switch c.Config.Type {
+	case Group:
+		if app.Ports != nil {
+			hostConfig.PortBindings = make(map[string][]dockerclient.PortBinding)
 
-		for _, p := range app.Ports {
-			proto := "tcp"
-			if p.Proto != "" {
-				proto = p.Proto
+			for _, p := range app.Ports {
+				proto := "tcp"
+				if p.Proto != "" {
+					proto = p.Proto
+				}
+
+				hostConfig.PortBindings[fmt.Sprintf("%d/%s", p.Container, proto)] = []dockerclient.PortBinding{
+					{
+						HostPort: fmt.Sprint(p.Host),
+					},
+				}
 			}
-
-			hostConfig.PortBindings[fmt.Sprintf("%d/%s", p.Container, proto)] = []dockerclient.PortBinding{
-				{
-					HostPort: fmt.Sprint(p.Host),
-				},
-			}
 		}
+	default:
+		hostConfig.NetworkMode = fmt.Sprintf("container:%s.group", app.ID)
 	}
 
 	if err := h.docker.StartContainer(c.ID, hostConfig); err != nil {
@@ -199,7 +210,8 @@ func (h *Host) StopContainer(id string) *Transaction {
 	}
 
 	for _, c := range containers {
-		if c.ApplicationID == app.ID {
+		// dont' stop the group containers here, they should last the lifetime of the app
+		if c.Config.Type != Group && c.ApplicationID == app.ID {
 			tran.Containers = append(tran.Containers, c)
 
 			if err := h.docker.StopContainer(c.ID, 10); err != nil {
@@ -234,7 +246,66 @@ func (h *Host) Register(id string) error {
 		return err
 	}
 
-	return h.docker.PullImage(app.Image, "latest")
+	for _, container := range app.Containers {
+		if err := h.docker.PullImage(container.Image, "latest"); err != nil {
+			return err
+		}
+	}
+
+	// create and launch the group container for this application
+	// TODO: create only if it does not exist
+	c, err := h.createGroupContainer(app)
+	if err != nil {
+		return err
+	}
+
+	if err := h.startContainer(app, c); err != nil {
+		return err
+	}
+
+	if err := h.registry.SaveContainer(h.ID, c); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Host) createGroupContainer(app *Application) (*Container, error) {
+	config := &Config{
+		Type:  Group,
+		Image: h.GroupImage,
+	}
+
+	dockerConfig := &dockerclient.ContainerConfig{
+		Image:  config.Image,
+		Cmd:    config.Args,
+		Memory: config.Memory * 1024 * 1024,
+		Cpuset: utils.IToCpuset(config.Cpus),
+	}
+
+	if app.Ports != nil {
+		dockerConfig.ExposedPorts = make(map[string]struct{})
+		for _, p := range app.Ports {
+			dockerConfig.ExposedPorts[fmt.Sprintf("%d/%s", p.Container, p.Proto)] = struct{}{}
+		}
+	}
+
+	name := fmt.Sprintf("%s.group", app.ID)
+
+	id, err := h.docker.CreateContainer(dockerConfig, name)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &Container{
+		ID:            id,
+		ApplicationID: app.ID,
+		HostID:        h.ID,
+		Name:          name,
+		Config:        config,
+	}
+
+	return c, nil
 }
 
 // getState inspects the container's state in docker and returns the updated information
@@ -306,7 +377,8 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 			return
 		}
 
-		if app.Type == Service {
+		// TODO: need special handling if the group container dies, everyone else should be restarted
+		if container.Config.Type == Service || container.Config.Type == Group {
 			container.State.ExitedAt = time.Now()
 
 			if err := h.startContainer(app, container); err != nil {

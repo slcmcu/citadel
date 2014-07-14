@@ -1,11 +1,12 @@
 package citadel
 
-type ApplicationType string
+type RunType string
 
 const (
-	Undefined ApplicationType = ""        // Undefined type, will be treated like a batch task
-	Service   ApplicationType = "service" // Long running task
-	Batch     ApplicationType = "batch"   // One time short lived task
+	Undefined RunType = ""        // Undefined type, will be treated like a batch task
+	Service   RunType = "service" // Long running task
+	Batch     RunType = "batch"   // One time short lived task
+	Group     RunType = "group"
 )
 
 // Port represents a port mapping
@@ -15,19 +16,28 @@ type Port struct {
 	Host      int    `json:"host,omitempty"`
 }
 
-type Application struct {
-	// ID is the unique id for a specific application
-	ID string `json:"id,omitempty"`
+type Config struct {
 	// Image is the base image name that the containers are created from
 	Image string `json:"image,omitempty"`
-	// Type is the type of application, batch, service, etc
-	Type ApplicationType `json:"type,omitempty"`
+	// Type is the type of run strategy, batch, service, etc
+	Type RunType `json:"type,omitempty"`
 	// Cpus is the number of cpus that the application has reserved
 	Cpus []int `json:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the application has reserved
 	Memory int `json:"memory,omitempty"`
-	// Ports is a collection of port mappings for an application
-	Ports []*Port `json:"ports,omitempty"`
 	// Args are additional arguments passed to the entrypoint of the containers
 	Args []string `json:"args,omitempty"`
+}
+
+type Application struct {
+	// ID is the unique id for a specific application
+	ID string `json:"id,omitempty"`
+	// Ports is a collection of port mappings for an application
+	Ports []*Port `json:"ports,omitempty"`
+	// Containers specifies the exact container requirements for the application
+	Containers []*Config `json:"containers,omitempty"`
+}
+
+func (a *Application) isGroup() bool {
+	return len(a.Containers) > 1
 }
