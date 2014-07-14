@@ -49,22 +49,27 @@ var (
 )
 
 func deleteAction(context *cli.Context) {
+	app := runTrans(context, "DELETE", "app")
 
+	if err := registry.DeleteApplication(app.ID); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
 func loadAction(context *cli.Context) {
-
+	runTrans(context, "POST", "app")
 }
 
 func startAction(context *cli.Context) {
-	runTrans(context, "run")
+	runTrans(context, "POST", "run")
 }
 
 func stopAction(context *cli.Context) {
-	runTrans(context, "stop")
+	runTrans(context, "POST", "stop")
 }
 
-func runTrans(context *cli.Context, endpoint string) {
+func runTrans(context *cli.Context, method, endpoint string) *citadel.Application {
 	var (
 		appFile  = context.Args().Get(0)
 		hostName = context.Args().Get(1)
@@ -87,7 +92,9 @@ func runTrans(context *cli.Context, endpoint string) {
 		os.Exit(1)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("https://%s/%s/%s", host.Addr, endpoint, app.ID), nil)
+	url := fmt.Sprintf("https://%s/%s/%s", host.Addr, endpoint, app.ID)
+
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -115,6 +122,8 @@ func runTrans(context *cli.Context, endpoint string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
+	return app
 }
 
 func loadApp(p string) (*citadel.Application, error) {

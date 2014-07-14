@@ -7,8 +7,10 @@ import (
 type TransactionType string
 
 const (
-	RunTransaction  TransactionType = "run"
-	StopTransaction TransactionType = "stop"
+	RunTransaction    TransactionType = "run"
+	StopTransaction   TransactionType = "stop"
+	LoadTransaction   TransactionType = "load"
+	DeleteTransaction TransactionType = "delete"
 )
 
 type Transaction struct {
@@ -20,6 +22,8 @@ type Transaction struct {
 	Containers []*Container `json:"containers,omitempty"`
 	// Error is the encountered if any
 	Err error `json:"error,omitempty"`
+	// Children are transactions run to complete this parent
+	Children []*Transaction `json:"children,omitempty"`
 }
 
 func NewTransaction(t TransactionType) *Transaction {

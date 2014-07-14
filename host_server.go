@@ -20,9 +20,8 @@ func NewServer(h *Host) *Server {
 		r:    mux.NewRouter(),
 	}
 
-	// /register ensures that the host is able to run the givin application provided
-	// by the id
-	s.r.HandleFunc("/register/{id:.*}", s.registerHandler).Methods("POST")
+	s.r.HandleFunc("/app/{id:.*}", s.loadHandler).Methods("POST")
+	s.r.HandleFunc("/app/{id:.*}", s.deleteHandler).Methods("DELETE")
 
 	// /run runs the givin application's containers on the host
 	s.r.HandleFunc("/run/{id:.*}", s.runHandler).Methods("POST")
@@ -63,13 +62,26 @@ func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
 	s.marshal(w, tran)
 }
 
-func (s *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) loadHandler(w http.ResponseWriter, r *http.Request) {
 	id := getId(r)
 
-	if err := s.host.Register(id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	tran := s.host.Load(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
+
+	s.marshal(w, tran)
+}
+
+func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
+	id := getId(r)
+
+	tran := s.host.Delete(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
+	}
+
+	s.marshal(w, tran)
 }
 
 func (s *Server) unmarshal(r *http.Request, v interface{}) error {
