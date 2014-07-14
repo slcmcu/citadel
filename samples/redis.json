@@ -6,6 +6,13 @@
             "container": 6379
         }
     ],
+    "volumes": [
+        {
+            "path": "/redis" ,
+            "uid": 1,
+            "gid": 1
+        }
+    ],
     "containers": [
         {
             "image": "crosbymichael/redis",

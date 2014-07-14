@@ -57,16 +57,23 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 		Memory:     int(mem.Total / 1024 / 1024),
 		Labels:     labels,
 		Addr:       addr,
-		GroupImage: "crosbymichael/live",
+		GroupImage: "crosbymichael/citadel",
 		docker:     docker,
 		logger:     logger,
 		registry:   NewRegistry(etcdMachines),
 	}
 
+	h.logger.Info("verify state")
 	if err := h.verifyState(); err != nil {
 		return nil, err
 	}
 
+	h.logger.Info("pulling group image")
+	if err := h.docker.PullImage(h.GroupImage, "latest"); err != nil {
+		return nil, err
+	}
+
+	h.logger.Info("register host")
 	if err := h.registerHost(); err != nil {
 		return nil, err
 	}
@@ -94,7 +101,7 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 	defer h.mux.Unlock()
 
 	var (
-		tran     = NewTransaction(RunTransaction)
+		tran     = NewTransaction(RunTransaction, h)
 		instance = 0
 	)
 
@@ -165,6 +172,12 @@ func (h *Host) startContainer(app *Application, c *Container) error {
 		}
 	default:
 		hostConfig.NetworkMode = fmt.Sprintf("container:%s.group", app.ID)
+
+		if app.Volumes != nil {
+			hostConfig.VolumesFrom = []string{
+				fmt.Sprintf("%s.group", app.ID),
+			}
+		}
 	}
 
 	if err := h.docker.StartContainer(c.ID, hostConfig); err != nil {
@@ -197,7 +210,7 @@ func (h *Host) StopContainer(id string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	tran := NewTransaction(StopTransaction)
+	tran := NewTransaction(StopTransaction, h)
 
 	app, err := h.registry.FetchApplication(id)
 	if err != nil {
@@ -239,16 +252,18 @@ func (h *Host) StopContainer(id string) *Transaction {
 	return tran
 }
 
-// Register ensures that the host can run the given application based on the requirements
-func (h *Host) Register(id string) error {
+// Load ensures that the host can run the given application based on the requirements
+func (h *Host) Load(id string) *Transaction {
+	tran := NewTransaction(LoadTransaction, h)
+
 	app, err := h.registry.FetchApplication(id)
 	if err != nil {
-		return err
+		return tran.Error(err)
 	}
 
 	for _, container := range app.Containers {
 		if err := h.docker.PullImage(container.Image, "latest"); err != nil {
-			return err
+			return tran.Error(err)
 		}
 	}
 
@@ -256,24 +271,71 @@ func (h *Host) Register(id string) error {
 	// TODO: create only if it does not exist
 	c, err := h.createGroupContainer(app)
 	if err != nil {
-		return err
+		return tran.Error(err)
 	}
 
+	tran.Containers = append(tran.Containers, c)
+
 	if err := h.startContainer(app, c); err != nil {
-		return err
+		return tran.Error(err)
 	}
 
 	if err := h.registry.SaveContainer(h.ID, c); err != nil {
-		return err
+		return tran.Error(err)
 	}
 
-	return nil
+	return tran
+}
+
+// Delete removes the application from the host
+func (h *Host) Delete(id string) *Transaction {
+	tran := NewTransaction(DeleteTransaction, h)
+
+	stopTran := h.StopContainer(id)
+	tran.Children = append(tran.Children, stopTran)
+
+	containers, err := h.registry.FetchContainers(h.ID)
+	if err != nil {
+		return tran.Error(err)
+	}
+
+	var group *Container
+	for _, c := range containers {
+		if c.ApplicationID == id && c.Config.Type == Group {
+			group = c
+			break
+		}
+	}
+
+	// if we don't have the group container then the application is not running on this host
+	if group == nil {
+		return tran
+	}
+
+	tran.Containers = append(tran.Containers, group)
+
+	if err := h.docker.KillContainer(group.ID); err != nil {
+		return tran.Error(err)
+	}
+
+	if err := h.docker.RemoveContainer(group.ID); err != nil {
+		return tran.Error(err)
+	}
+
+	if err := h.registry.DeleteContainer(h.ID, group.ID); err != nil {
+		return tran.Error(err)
+	}
+
+	return tran
 }
 
 func (h *Host) createGroupContainer(app *Application) (*Container, error) {
 	config := &Config{
 		Type:  Group,
 		Image: h.GroupImage,
+		Args: []string{
+			"live",
+		},
 	}
 
 	dockerConfig := &dockerclient.ContainerConfig{
@@ -287,6 +349,15 @@ func (h *Host) createGroupContainer(app *Application) (*Container, error) {
 		dockerConfig.ExposedPorts = make(map[string]struct{})
 		for _, p := range app.Ports {
 			dockerConfig.ExposedPorts[fmt.Sprintf("%d/%s", p.Container, p.Proto)] = struct{}{}
+		}
+	}
+
+	if app.Volumes != nil {
+		dockerConfig.Volumes = make(map[string]struct{})
+
+		for _, v := range app.Volumes {
+			dockerConfig.Volumes[v.Path] = struct{}{}
+			dockerConfig.Cmd = append(dockerConfig.Cmd, "--volumes", fmt.Sprintf("%s:%d:%d", v.Path, v.UID, v.GID))
 		}
 	}
 

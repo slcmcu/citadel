@@ -9,10 +9,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var (
-	registry citadel.Registry
-)
-
 var managementCommand = cli.Command{
 	Name:   "management",
 	Usage:  "run the management ui for the cluster",
@@ -20,7 +16,6 @@ var managementCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{"assets", "assets", "assests for the web ui"},
 		cli.StringFlag{"addr", ":3002", "address for the web ui to listen on"},
-		cli.StringSliceFlag{"etcd-machines", &cli.StringSlice{"http://127.0.0.1:4001"}, "etcd hosts"},
 	},
 }
 
@@ -32,7 +27,7 @@ func managementAction(context *cli.Context) {
 		apiRouter = mux.NewRouter()
 	)
 
-	registry = citadel.NewRegistry(context.StringSlice("etcd-machines"))
+	registry = citadel.NewRegistry(context.GlobalStringSlice("etcd-machines"))
 
 	apiRouter.HandleFunc("/api/hosts", getHosts)
 	apiRouter.HandleFunc("/api/containers", getContainers).Methods("GET")

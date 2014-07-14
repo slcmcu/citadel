@@ -10,6 +10,7 @@ import (
 
 type Registry interface {
 	SaveHost(*Host) error
+	FetchHost(string) (*Host, error)
 	FetchHosts() ([]*Host, error)
 	DeleteHost(string) error
 
@@ -176,6 +177,20 @@ func (r *registry) FetchHosts() ([]*Host, error) {
 	}
 
 	return hosts, nil
+}
+
+func (r *registry) FetchHost(id string) (*Host, error) {
+	resp, err := r.client.Get(filepath.Join("/citadel/hosts", id), false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var host *Host
+	if err := json.Unmarshal([]byte(resp.Node.Value), &host); err != nil {
+		return nil, err
+	}
+
+	return host, nil
 }
 
 func (r *registry) DeleteHost(id string) error {

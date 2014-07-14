@@ -7,25 +7,31 @@ import (
 type TransactionType string
 
 const (
-	RunTransaction  TransactionType = "run"
-	StopTransaction TransactionType = "stop"
+	RunTransaction    TransactionType = "run"
+	StopTransaction   TransactionType = "stop"
+	LoadTransaction   TransactionType = "load"
+	DeleteTransaction TransactionType = "delete"
 )
 
 type Transaction struct {
 	// ID is the uuid of a specific transaction
-	ID string `json:"id,omitempty"`
+	ID     string `json:"id,omitempty"`
+	HostID string `json:"host_id,omitempty"`
 	// Type is the transaction type, run, stop, register
 	Type TransactionType `json:"type,omitempty"`
 	// Containers is a list of containers affected for the given trasnaction
 	Containers []*Container `json:"containers,omitempty"`
 	// Error is the encountered if any
 	Err error `json:"error,omitempty"`
+	// Children are transactions run to complete this parent
+	Children []*Transaction `json:"children,omitempty"`
 }
 
-func NewTransaction(t TransactionType) *Transaction {
+func NewTransaction(t TransactionType, h *Host) *Transaction {
 	return &Transaction{
-		ID:   utils.GenerateUUID(32),
-		Type: t,
+		ID:     utils.GenerateUUID(32),
+		HostID: h.ID,
+		Type:   t,
 	}
 }
 

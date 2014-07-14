@@ -16,6 +16,12 @@ type Port struct {
 	Host      int    `json:"host,omitempty"`
 }
 
+type Volume struct {
+	Path string `json:"path,omitempty"`
+	UID  int    `json:"uid,omitempty"`
+	GID  int    `json:"gid,omitempty"`
+}
+
 type Config struct {
 	// Image is the base image name that the containers are created from
 	Image string `json:"image,omitempty"`
@@ -32,12 +38,10 @@ type Config struct {
 type Application struct {
 	// ID is the unique id for a specific application
 	ID string `json:"id,omitempty"`
-	// Ports is a collection of port mappings for an application
+	// Ports is a collection of port mappings for the application
 	Ports []*Port `json:"ports,omitempty"`
+	// Volumes to be shared across all containers for the application
+	Volumes []*Volume `json:"volumes,omitempty"`
 	// Containers specifies the exact container requirements for the application
 	Containers []*Config `json:"containers,omitempty"`
-}
-
-func (a *Application) isGroup() bool {
-	return len(a.Containers) > 1
 }
