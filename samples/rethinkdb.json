@@ -1,0 +1,25 @@
+{
+    "id": "rethinkdb_master",
+    "image": "crosbymichael/rethinkdb",
+    "cpus": [0,1],
+    "memory": 768,
+    "type": "service",
+    "args": ["--bind", "all"],
+    "ports": [
+        {
+            "proto": "tcp",
+            "host": 27015,
+            "container": 27015
+        },
+        {
+            "proto": "tcp",
+            "host": 28015,
+            "container": 28015
+        },
+        {
+            "proto": "tcp",
+            "host": 8080,
+            "container": 8080
+        }
+    ]
+}

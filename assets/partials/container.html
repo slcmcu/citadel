@@ -28,7 +28,7 @@
                 <a href="/#/containers/{{image}}/{{container.id}}">{{container.id|truncate}}</a>
             </td>
 
-            <td>{{container.host_id|truncate}}</td>
+            <td>{{container.host|truncate}}</td>
             <td>{{container.cpus}}</td>
             <td>{{container.memory}} mb</td>
             <td class="{{container.state|servicestatus}}">{{container.state.status}}</td>

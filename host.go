@@ -27,6 +27,8 @@ type Host struct {
 	Labels []string `json:"labels,omitempty"`
 	// Address where the host's api can be reached
 	Addr string `json:"addr,omitempty"`
+	// GroupImage is used as a grouping container to connect groups on a single namespace
+	GroupImage string `json:"group_image,omitempty"`
 
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
@@ -50,14 +52,15 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 	}
 
 	h := &Host{
-		ID:       id,
-		Cpus:     len(cpus.List),
-		Memory:   int(mem.Total / 1024 / 1024),
-		Labels:   labels,
-		Addr:     addr,
-		docker:   docker,
-		logger:   logger,
-		registry: NewRegistry(etcdMachines),
+		ID:         id,
+		Cpus:       len(cpus.List),
+		Memory:     int(mem.Total / 1024 / 1024),
+		Labels:     labels,
+		Addr:       addr,
+		GroupImage: "crosbymichael/live",
+		docker:     docker,
+		logger:     logger,
+		registry:   NewRegistry(etcdMachines),
 	}
 
 	if err := h.verifyState(); err != nil {
@@ -83,117 +86,245 @@ func (h *Host) Close() error {
 	return h.deregisterHost()
 }
 
-func (h *Host) Containers() ([]*Container, error) {
+// RunContainer takes an application ID to lookup how a container is supposed to be run.
+// A container is created with a unique ID and run on the host with the container saved back
+// to the central registry
+func (h *Host) RunContainer(applicationID string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	return h.registry.FetchContainers(h)
-}
+	var (
+		tran     = NewTransaction(RunTransaction)
+		instance = 0
+	)
 
-func (h *Host) Container(id string) (*Container, error) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-
-	return h.registry.FetchContainer(h, id)
-}
-
-func (h *Host) RunContainer(c *Container) error {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-
-	config := &dockerclient.ContainerConfig{
-		Image:  c.Image,
-		Memory: c.Memory * 1024 * 1024,
-		Cpuset: utils.IToCpuset(c.Cpus),
+	app, err := h.registry.FetchApplication(applicationID)
+	if err != nil {
+		return tran.Error(err)
 	}
 
-	if _, err := h.docker.CreateContainer(config, c.ID); err != nil {
-		return err
-	}
-
-	if err := h.startContainer(c); err != nil {
-		return err
-	}
-
-	return h.registry.SaveContainer(h, c)
-}
-
-func (h *Host) startContainer(c *Container) error {
-	var hostConfig *dockerclient.HostConfig
-
-	if c.Ports != nil {
-		hostConfig = &dockerclient.HostConfig{
-			PortBindings: make(map[string][]dockerclient.PortBinding),
+	for _, config := range app.Containers {
+		dockerConfig := &dockerclient.ContainerConfig{
+			Image:  config.Image,
+			Cmd:    config.Args,
+			Memory: config.Memory * 1024 * 1024,
+			Cpuset: utils.IToCpuset(config.Cpus),
 		}
 
-		for _, p := range c.Ports {
-			proto := "tcp"
-			if p.Proto != "" {
-				proto = p.Proto
-			}
+		name := fmt.Sprintf("%s.group.%d", app.ID, instance)
 
-			hostConfig.PortBindings[fmt.Sprintf("%d/%s", p.Container, proto)] = []dockerclient.PortBinding{
-				{
-					HostPort: fmt.Sprint(p.Host),
-				},
+		id, err := h.docker.CreateContainer(dockerConfig, name)
+		if err != nil {
+			return tran.Error(err)
+		}
+
+		c := &Container{
+			ID:            id,
+			ApplicationID: app.ID,
+			HostID:        h.ID,
+			Name:          name,
+			Config:        config,
+		}
+
+		if err := h.startContainer(app, c); err != nil {
+			return tran.Error(err)
+		}
+
+		if err := h.registry.SaveContainer(h.ID, c); err != nil {
+			return tran.Error(err)
+		}
+
+		tran.Containers = append(tran.Containers, c)
+
+		instance++
+	}
+
+	return tran
+}
+
+func (h *Host) startContainer(app *Application, c *Container) error {
+	hostConfig := &dockerclient.HostConfig{}
+
+	switch c.Config.Type {
+	case Group:
+		if app.Ports != nil {
+			hostConfig.PortBindings = make(map[string][]dockerclient.PortBinding)
+
+			for _, p := range app.Ports {
+				proto := "tcp"
+				if p.Proto != "" {
+					proto = p.Proto
+				}
+
+				hostConfig.PortBindings[fmt.Sprintf("%d/%s", p.Container, proto)] = []dockerclient.PortBinding{
+					{
+						HostPort: fmt.Sprint(p.Host),
+					},
+				}
 			}
 		}
+	default:
+		hostConfig.NetworkMode = fmt.Sprintf("container:%s.group", app.ID)
 	}
 
 	if err := h.docker.StartContainer(c.ID, hostConfig); err != nil {
 		return err
 	}
 
-	current, err := h.inspect(c.ID)
+	info, err := h.docker.InspectContainer(c.ID)
 	if err != nil {
 		return err
 	}
 
-	c.State = current.State
+	ports, err := createPorts(info)
+	if err != nil {
+		return err
+	}
+
+	c.Ports = ports
+
+	state := h.getState(info)
+	c.State = state
 	c.State.StartedAt = time.Now()
 	c.State.ExitedAt = time.Time{}
 
 	return nil
 }
 
-func (h *Host) StopContainer(c *Container) error {
+// StopContainer will stop the running container, remove it from the hosts registry
+// and delete the container from docker
+func (h *Host) StopContainer(id string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	if err := h.docker.StopContainer(c.ID, 10); err != nil {
-		return err
+	tran := NewTransaction(StopTransaction)
+
+	app, err := h.registry.FetchApplication(id)
+	if err != nil {
+		return tran.Error(err)
 	}
 
-	// update the state on the original container so that when it is
-	// returned it has the latest information
-	current, err := h.inspect(c.ID)
+	containers, err := h.registry.FetchContainers(h.ID)
+	if err != nil {
+		return tran.Error(err)
+	}
+
+	for _, c := range containers {
+		// dont' stop the group containers here, they should last the lifetime of the app
+		if c.Config.Type != Group && c.ApplicationID == app.ID {
+			tran.Containers = append(tran.Containers, c)
+
+			if err := h.docker.StopContainer(c.ID, 10); err != nil {
+				return tran.Error(err)
+			}
+
+			info, err := h.docker.InspectContainer(c.ID)
+			if err != nil {
+				return tran.Error(err)
+			}
+
+			state := h.getState(info)
+			c.State.ExitCode = state.ExitCode
+			c.State.ExitedAt = time.Now()
+			c.State.Status = Stopped
+
+			h.registry.DeleteContainer(h.ID, c.ID)
+
+			if err := h.docker.RemoveContainer(c.ID); err != nil {
+				return tran.Error(err)
+			}
+		}
+	}
+
+	return tran
+}
+
+// Register ensures that the host can run the given application based on the requirements
+func (h *Host) Register(id string) error {
+	app, err := h.registry.FetchApplication(id)
 	if err != nil {
 		return err
 	}
 
-	c.State = current.State
-	c.State.ExitedAt = time.Now()
-
-	err = h.registry.DeleteContainer(h, c)
-
-	if nerr := h.docker.RemoveContainer(c.ID); err == nil {
-		err = nerr
+	for _, container := range app.Containers {
+		if err := h.docker.PullImage(container.Image, "latest"); err != nil {
+			return err
+		}
 	}
 
-	return err
+	// create and launch the group container for this application
+	// TODO: create only if it does not exist
+	c, err := h.createGroupContainer(app)
+	if err != nil {
+		return err
+	}
+
+	if err := h.startContainer(app, c); err != nil {
+		return err
+	}
+
+	if err := h.registry.SaveContainer(h.ID, c); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (h *Host) inspect(id string) (*Container, error) {
-	info, err := h.docker.InspectContainer(id)
+func (h *Host) createGroupContainer(app *Application) (*Container, error) {
+	config := &Config{
+		Type:  Group,
+		Image: h.GroupImage,
+	}
+
+	dockerConfig := &dockerclient.ContainerConfig{
+		Image:  config.Image,
+		Cmd:    config.Args,
+		Memory: config.Memory * 1024 * 1024,
+		Cpuset: utils.IToCpuset(config.Cpus),
+	}
+
+	if app.Ports != nil {
+		dockerConfig.ExposedPorts = make(map[string]struct{})
+		for _, p := range app.Ports {
+			dockerConfig.ExposedPorts[fmt.Sprintf("%d/%s", p.Container, p.Proto)] = struct{}{}
+		}
+	}
+
+	name := fmt.Sprintf("%s.group", app.ID)
+
+	id, err := h.docker.CreateContainer(dockerConfig, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerFromDocker(h, info)
+	c := &Container{
+		ID:            id,
+		ApplicationID: app.ID,
+		HostID:        h.ID,
+		Name:          name,
+		Config:        config,
+	}
+
+	return c, nil
+}
+
+// getState inspects the container's state in docker and returns the updated information
+func (h *Host) getState(info *dockerclient.ContainerInfo) State {
+	state := State{}
+
+	state.ExitCode = info.State.ExitCode
+
+	if info.State.Running {
+		state.Status = Running
+	} else {
+		state.Status = Stopped
+	}
+
+	return state
 }
 
 func (h *Host) verifyState() error {
-	containers, err := h.Containers()
+	containers, err := h.registry.FetchContainers(h.ID)
 	if err != nil {
 		return err
 	}
@@ -204,7 +335,7 @@ func (h *Host) verifyState() error {
 			if err == dockerclient.ErrNotFound {
 				h.logger.WithField("id", c.ID).Warn("container no longer exists in docker")
 
-				if derr := h.registry.DeleteContainer(h, c); derr != nil {
+				if derr := h.registry.DeleteContainer(h.ID, c.ID); derr != nil {
 					h.logger.WithField("error", derr).Warn("error deleting non-existant container")
 				}
 
@@ -228,30 +359,37 @@ func (h *Host) verifyState() error {
 func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 	switch event.Status {
 	case "die":
-		fromDocker, err := h.inspect(event.Id)
-		if err != nil {
-			h.logger.WithField("error", err).Error("fetch dead container information")
-			return
-		}
-
 		h.mux.Lock()
+		defer h.mux.Unlock()
 
 		// only restart it if it's a managed container
-		container, err := h.Container(fromDocker.ID)
+		container, err := h.registry.FetchContainer(h.ID, event.Id)
 		if err != nil {
 			h.logger.WithField("error", err).Error("fetch container from registry")
+
 			return
 		}
 
-		if container.Type == Service {
+		app, err := h.registry.FetchApplication(container.ApplicationID)
+		if err != nil {
+			h.logger.WithField("error", err).Error("fetch container's application from registry")
+
+			return
+		}
+
+		// TODO: need special handling if the group container dies, everyone else should be restarted
+		if container.Config.Type == Service || container.Config.Type == Group {
 			container.State.ExitedAt = time.Now()
 
-			if err := h.startContainer(container); err != nil {
+			if err := h.startContainer(app, container); err != nil {
 				h.logger.WithField("error", err).Error("restarting dead container")
+			}
+
+			if err := h.registry.SaveContainer(h.ID, container); err != nil {
+				h.logger.WithField("error", err).Error("saving after restart of dead container")
 			}
 		}
 
-		h.mux.Unlock()
 	default:
 		h.logger.WithFields(logrus.Fields{
 			"type": event.Status,
@@ -266,5 +404,5 @@ func (h *Host) registerHost() error {
 }
 
 func (h *Host) deregisterHost() error {
-	return h.registry.DeleteHost(h)
+	return h.registry.DeleteHost(h.ID)
 }

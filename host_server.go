@@ -20,11 +20,15 @@ func NewServer(h *Host) *Server {
 		r:    mux.NewRouter(),
 	}
 
-	s.r.HandleFunc("/stop", s.stopHandler).Methods("POST")
-	s.r.HandleFunc("/run", s.runHandler).Methods("POST")
-	s.r.HandleFunc("/host", s.hostHandler).Methods("GET")
-	s.r.HandleFunc("/containers/{id:.*}", s.getContainer).Methods("GET")
-	s.r.HandleFunc("/containers", s.listHandler).Methods("GET")
+	// /register ensures that the host is able to run the givin application provided
+	// by the id
+	s.r.HandleFunc("/register/{id:.*}", s.registerHandler).Methods("POST")
+
+	// /run runs the givin application's containers on the host
+	s.r.HandleFunc("/run/{id:.*}", s.runHandler).Methods("POST")
+
+	// /stop stops the givin application's containers running on the host
+	s.r.HandleFunc("/stop/{id:.*}", s.stopHandler).Methods("POST")
 
 	return s
 }
@@ -37,64 +41,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.r.ServeHTTP(w, r)
 }
 
-func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) {
-	s.marshal(w, s.host)
-}
-
-func (s *Server) listHandler(w http.ResponseWriter, r *http.Request) {
-	containers, err := s.host.Containers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, containers)
-}
-
-func (s *Server) getContainer(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	c, err := s.host.Container(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	s.marshal(w, c)
-}
-
 func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
-	var container *Container
-	if err := s.unmarshal(r, &container); err != nil {
-		// TODO: this could be a bad content type error
-		// need to pick between the two
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	id := getId(r)
+
+	tran := s.host.RunContainer(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
 
-	if err := s.host.RunContainer(container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, container)
+	s.marshal(w, tran)
 }
 
 func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
-	var container *Container
-	if err := s.unmarshal(r, &container); err != nil {
-		// TODO: this could be a bad content type error
-		// need to pick between the two
+	id := getId(r)
+
+	tran := s.host.StopContainer(id)
+	if tran.Err != nil {
+		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
+	}
+
+	s.marshal(w, tran)
+}
+
+func (s *Server) registerHandler(w http.ResponseWriter, r *http.Request) {
+	id := getId(r)
+
+	if err := s.host.Register(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	if err := s.host.StopContainer(container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	s.marshal(w, container)
 }
 
 func (s *Server) unmarshal(r *http.Request, v interface{}) error {
@@ -118,4 +93,8 @@ func (s *Server) marshal(w http.ResponseWriter, v interface{}) {
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		s.host.logger.WithField("error", err).Error("encode json")
 	}
+}
+
+func getId(r *http.Request) string {
+	return mux.Vars(r)["id"]
 }

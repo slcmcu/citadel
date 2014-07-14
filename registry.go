@@ -11,12 +11,17 @@ import (
 type Registry interface {
 	SaveHost(*Host) error
 	FetchHosts() ([]*Host, error)
-	DeleteHost(*Host) error
+	DeleteHost(string) error
 
-	SaveContainer(*Host, *Container) error
-	DeleteContainer(*Host, *Container) error
-	FetchContainer(*Host, string) (*Container, error)
-	FetchContainers(*Host) ([]*Container, error)
+	SaveApplication(*Application) error
+	FetchApplication(string) (*Application, error)
+	FetchApplications() ([]*Application, error)
+	DeleteApplication(string) error
+
+	SaveContainer(string, *Container) error
+	DeleteContainer(string, string) error
+	FetchContainer(string, string) (*Container, error)
+	FetchContainers(string) ([]*Container, error)
 }
 
 type registry struct {
@@ -29,10 +34,63 @@ func NewRegistry(machines []string) Registry {
 	}
 }
 
-func (r *registry) FetchContainers(h *Host) ([]*Container, error) {
+func (r *registry) SaveApplication(a *Application) error {
+	data, err := json.Marshal(a)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.client.Set(filepath.Join("/citadel/applications", a.ID), string(data), 0)
+	return err
+}
+
+func (r *registry) DeleteApplication(id string) error {
+	_, err := r.client.Delete(filepath.Join("/citadel/applications", id), false)
+	return err
+}
+
+func (r *registry) FetchApplications() ([]*Application, error) {
+	out := []*Application{}
+
+	resp, err := r.client.Get("/citadel/applications", true, true)
+	if err != nil {
+		if isNotFound(err) {
+			return out, nil
+		}
+
+		return nil, err
+	}
+
+	for _, node := range resp.Node.Nodes {
+		var app *Application
+		if err := json.Unmarshal([]byte(node.Value), &app); err != nil {
+			return nil, err
+		}
+
+		out = append(out, app)
+	}
+
+	return out, nil
+}
+
+func (r *registry) FetchApplication(id string) (*Application, error) {
+	resp, err := r.client.Get(filepath.Join("/citadel/applications", id), false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var app *Application
+	if err := json.Unmarshal([]byte(resp.Node.Value), &app); err != nil {
+		return nil, err
+	}
+
+	return app, nil
+}
+
+func (r *registry) FetchContainers(id string) ([]*Container, error) {
 	out := []*Container{}
 
-	resp, err := r.client.Get(filepath.Join("/citadel", h.ID, "containers"), true, true)
+	resp, err := r.client.Get(filepath.Join("/citadel", id, "containers"), true, true)
 	if err != nil {
 		if isNotFound(err) {
 			return out, nil
@@ -52,8 +110,8 @@ func (r *registry) FetchContainers(h *Host) ([]*Container, error) {
 	return out, nil
 }
 
-func (r *registry) FetchContainer(h *Host, id string) (*Container, error) {
-	resp, err := r.client.Get(filepath.Join("/citadel", h.ID, "containers", id), false, false)
+func (r *registry) FetchContainer(hostID, id string) (*Container, error) {
+	resp, err := r.client.Get(filepath.Join("/citadel", hostID, "containers", id), false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -66,21 +124,21 @@ func (r *registry) FetchContainer(h *Host, id string) (*Container, error) {
 	return container, nil
 }
 
-func (r *registry) SaveContainer(h *Host, c *Container) error {
+func (r *registry) SaveContainer(hostID string, c *Container) error {
 	data, err := json.Marshal(c)
 	if err != nil {
 		return err
 	}
 
-	if _, err := r.client.Set(filepath.Join("/citadel", h.ID, "containers", c.ID), string(data), 0); err != nil {
+	if _, err := r.client.Set(filepath.Join("/citadel", hostID, "containers", c.ID), string(data), 0); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *registry) DeleteContainer(h *Host, c *Container) error {
-	_, err := r.client.Delete(filepath.Join("/citadel", h.ID, "containers", c.ID), false)
+func (r *registry) DeleteContainer(hostID, id string) error {
+	_, err := r.client.Delete(filepath.Join("/citadel", hostID, "containers", id), false)
 	return err
 }
 
@@ -120,8 +178,8 @@ func (r *registry) FetchHosts() ([]*Host, error) {
 	return hosts, nil
 }
 
-func (r *registry) DeleteHost(h *Host) error {
-	_, err := r.client.Delete(filepath.Join("/citadel/hosts", h.ID), false)
+func (r *registry) DeleteHost(id string) error {
+	_, err := r.client.Delete(filepath.Join("/citadel/hosts", id), false)
 	return err
 }
 
