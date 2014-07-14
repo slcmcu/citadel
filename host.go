@@ -305,6 +305,10 @@ func (h *Host) Delete(id string) *Transaction {
 		return tran.Error(err)
 	}
 
+	if err := h.docker.RemoveContainer(group.ID); err != nil {
+		return tran.Error(err)
+	}
+
 	if err := h.registry.DeleteContainer(h.ID, group.ID); err != nil {
 		return tran.Error(err)
 	}

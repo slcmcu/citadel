@@ -31,8 +31,11 @@ var (
 
 	loadCommand = cli.Command{
 		Name:   "load",
-		Usage:  "load an application",
+		Usage:  "load an application but does not load on hosts",
 		Action: loadAction,
+		Flags: []cli.Flag{
+			cli.StringSliceFlag{"hosts", &cli.StringSlice{}, "hosts to load the app on"},
+		},
 	}
 
 	startCommand = cli.Command{
@@ -49,7 +52,12 @@ var (
 )
 
 func deleteAction(context *cli.Context) {
-	app := runTrans(context, "DELETE", "app")
+	var (
+		appFile  = context.Args().Get(0)
+		hostName = context.Args().Get(1)
+	)
+
+	app := runTrans(appFile, hostName, "DELETE", "app")
 
 	if err := registry.DeleteApplication(app.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -58,22 +66,47 @@ func deleteAction(context *cli.Context) {
 }
 
 func loadAction(context *cli.Context) {
-	runTrans(context, "POST", "app")
+	var (
+		appFile = context.Args().Get(0)
+	)
+
+	app, err := loadApp(appFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if err := registry.SaveApplication(app); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	for _, hn := range context.StringSlice("hosts") {
+		runTrans(appFile, hn, "POST", "app")
+	}
 }
 
 func startAction(context *cli.Context) {
-	runTrans(context, "POST", "run")
-}
-
-func stopAction(context *cli.Context) {
-	runTrans(context, "POST", "stop")
-}
-
-func runTrans(context *cli.Context, method, endpoint string) *citadel.Application {
 	var (
 		appFile  = context.Args().Get(0)
 		hostName = context.Args().Get(1)
-		c        = http.Client{
+	)
+
+	runTrans(appFile, hostName, "POST", "run")
+}
+
+func stopAction(context *cli.Context) {
+	var (
+		appFile  = context.Args().Get(0)
+		hostName = context.Args().Get(1)
+	)
+
+	runTrans(appFile, hostName, "POST", "stop")
+}
+
+func runTrans(appFile, hostName, method, endpoint string) *citadel.Application {
+	var (
+		c = http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
