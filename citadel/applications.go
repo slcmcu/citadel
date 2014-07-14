@@ -33,7 +33,7 @@ func appAction(context *cli.Context) {
 
 		for _, p := range a.Ports {
 			if p.Host != 0 {
-				ports += fmt.Sprint(p.Host)
+				ports += fmt.Sprintf("%d ", p.Host)
 			}
 		}
 
