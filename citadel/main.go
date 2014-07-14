@@ -17,6 +17,10 @@ func main() {
 	app.Version = "0.1"
 	app.Author = "citadel team"
 
+	app.Flags = []cli.Flag{
+		cli.StringSliceFlag{"etcd-machines", &cli.StringSlice{"http://127.0.0.1:4001"}, "etcd hosts"},
+	}
+
 	app.Commands = []cli.Command{
 		hostCommand,
 		managementCommand,
