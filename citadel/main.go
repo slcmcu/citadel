@@ -36,6 +36,7 @@ func main() {
 		startCommand,
 		stopCommand,
 		loadCommand,
+		liveCommand,
 		containerCommand,
 		hostCommand,
 		hostsCommand,

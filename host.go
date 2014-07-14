@@ -57,7 +57,7 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 		Memory:     int(mem.Total / 1024 / 1024),
 		Labels:     labels,
 		Addr:       addr,
-		GroupImage: "crosbymichael/live",
+		GroupImage: "crosbymichael/citadel",
 		docker:     docker,
 		logger:     logger,
 		registry:   NewRegistry(etcdMachines),
@@ -172,6 +172,12 @@ func (h *Host) startContainer(app *Application, c *Container) error {
 		}
 	default:
 		hostConfig.NetworkMode = fmt.Sprintf("container:%s.group", app.ID)
+
+		if app.Volumes != nil {
+			hostConfig.VolumesFrom = []string{
+				fmt.Sprintf("%s.group", app.ID),
+			}
+		}
 	}
 
 	if err := h.docker.StartContainer(c.ID, hostConfig); err != nil {
@@ -327,6 +333,9 @@ func (h *Host) createGroupContainer(app *Application) (*Container, error) {
 	config := &Config{
 		Type:  Group,
 		Image: h.GroupImage,
+		Args: []string{
+			"live",
+		},
 	}
 
 	dockerConfig := &dockerclient.ContainerConfig{
@@ -340,6 +349,15 @@ func (h *Host) createGroupContainer(app *Application) (*Container, error) {
 		dockerConfig.ExposedPorts = make(map[string]struct{})
 		for _, p := range app.Ports {
 			dockerConfig.ExposedPorts[fmt.Sprintf("%d/%s", p.Container, p.Proto)] = struct{}{}
+		}
+	}
+
+	if app.Volumes != nil {
+		dockerConfig.Volumes = make(map[string]struct{})
+
+		for _, v := range app.Volumes {
+			dockerConfig.Volumes[v.Path] = struct{}{}
+			dockerConfig.Cmd = append(dockerConfig.Cmd, "--volumes", fmt.Sprintf("%s:%d:%d", v.Path, v.UID, v.GID))
 		}
 	}
 
