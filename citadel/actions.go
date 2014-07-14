@@ -15,6 +15,7 @@ import (
 const tranactionTemplate = `
 TRANSACTION: {{.ID}}
 TYPE: {{.Type}}
+HOST: {{.HostID}}
 CONTAINERS:
 {{range $container := .Containers}}
     ID: {{$container.ID}} 
@@ -161,8 +162,18 @@ func runTrans(app *citadel.Application, hostName, method, endpoint string) error
 		return err
 	}
 
-	if err := compiled.Execute(os.Stdout, tran); err != nil {
+	return printTransaction(tran, compiled)
+}
+
+func printTransaction(t *citadel.Transaction, compile *template.Template) error {
+	if err := compile.Execute(os.Stdout, t); err != nil {
 		return err
+	}
+
+	for _, c := range t.Children {
+		if err := printTransaction(c, compile); err != nil {
+			return err
+		}
 	}
 
 	return nil
