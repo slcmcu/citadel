@@ -22,6 +22,7 @@ func hostsAction(context *cli.Context) {
 	hosts, err := registry.FetchHosts()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 20, 1, 3, ' ', 0)
