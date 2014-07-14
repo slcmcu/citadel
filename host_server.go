@@ -45,6 +45,7 @@ func (s *Server) runHandler(w http.ResponseWriter, r *http.Request) {
 
 	tran := s.host.RunContainer(id)
 	if tran.Err != nil {
+		s.host.logger.WithField("error", tran.Err).Error("run transaction")
 		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
 
@@ -56,6 +57,7 @@ func (s *Server) stopHandler(w http.ResponseWriter, r *http.Request) {
 
 	tran := s.host.StopContainer(id)
 	if tran.Err != nil {
+		s.host.logger.WithField("error", tran.Err).Error("stop transaction")
 		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
 
@@ -67,6 +69,7 @@ func (s *Server) loadHandler(w http.ResponseWriter, r *http.Request) {
 
 	tran := s.host.Load(id)
 	if tran.Err != nil {
+		s.host.logger.WithField("error", tran.Err).Error("load transaction")
 		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
 
@@ -78,6 +81,7 @@ func (s *Server) deleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	tran := s.host.Delete(id)
 	if tran.Err != nil {
+		s.host.logger.WithField("error", tran.Err).Error("delete transaction")
 		w.Header().Set("Status", fmt.Sprint(http.StatusInternalServerError))
 	}
 

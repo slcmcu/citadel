@@ -63,10 +63,17 @@ func NewHost(addr string, labels []string, etcdMachines []string, docker *docker
 		registry:   NewRegistry(etcdMachines),
 	}
 
+	h.logger.Info("verify state")
 	if err := h.verifyState(); err != nil {
 		return nil, err
 	}
 
+	h.logger.Info("pulling group image")
+	if err := h.docker.PullImage(h.GroupImage, "latest"); err != nil {
+		return nil, err
+	}
+
+	h.logger.Info("register host")
 	if err := h.registerHost(); err != nil {
 		return nil, err
 	}
@@ -94,7 +101,7 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 	defer h.mux.Unlock()
 
 	var (
-		tran     = NewTransaction(RunTransaction)
+		tran     = NewTransaction(RunTransaction, h)
 		instance = 0
 	)
 
@@ -197,7 +204,7 @@ func (h *Host) StopContainer(id string) *Transaction {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
-	tran := NewTransaction(StopTransaction)
+	tran := NewTransaction(StopTransaction, h)
 
 	app, err := h.registry.FetchApplication(id)
 	if err != nil {
@@ -241,7 +248,7 @@ func (h *Host) StopContainer(id string) *Transaction {
 
 // Load ensures that the host can run the given application based on the requirements
 func (h *Host) Load(id string) *Transaction {
-	tran := NewTransaction(LoadTransaction)
+	tran := NewTransaction(LoadTransaction, h)
 
 	app, err := h.registry.FetchApplication(id)
 	if err != nil {
@@ -276,7 +283,7 @@ func (h *Host) Load(id string) *Transaction {
 
 // Delete removes the application from the host
 func (h *Host) Delete(id string) *Transaction {
-	tran := NewTransaction(DeleteTransaction)
+	tran := NewTransaction(DeleteTransaction, h)
 
 	stopTran := h.StopContainer(id)
 	tran.Children = append(tran.Children, stopTran)

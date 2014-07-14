@@ -15,7 +15,8 @@ const (
 
 type Transaction struct {
 	// ID is the uuid of a specific transaction
-	ID string `json:"id,omitempty"`
+	ID     string `json:"id,omitempty"`
+	HostID string `json:"host_id,omitempty"`
 	// Type is the transaction type, run, stop, register
 	Type TransactionType `json:"type,omitempty"`
 	// Containers is a list of containers affected for the given trasnaction
@@ -26,10 +27,11 @@ type Transaction struct {
 	Children []*Transaction `json:"children,omitempty"`
 }
 
-func NewTransaction(t TransactionType) *Transaction {
+func NewTransaction(t TransactionType, h *Host) *Transaction {
 	return &Transaction{
-		ID:   utils.GenerateUUID(32),
-		Type: t,
+		ID:     utils.GenerateUUID(32),
+		HostID: h.ID,
+		Type:   t,
 	}
 }
 
