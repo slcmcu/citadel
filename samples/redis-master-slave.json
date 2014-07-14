@@ -19,7 +19,7 @@
             "cpus": [1],
             "memory": 512,
             "type": "service",
-            "args": ["slaveof", "127.0.0.1", "6379", "--port", "6378"]
+            "args": ["--slaveof", "127.0.0.1", "6379", "--port", "6378"]
          }
     ]
 }
