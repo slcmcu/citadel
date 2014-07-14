@@ -15,6 +15,7 @@ var (
 
 func main() {
 	app := cli.NewApp()
+	app.Usage = "mangage your docker containers across hosts"
 	app.Name = "citadel"
 	app.Version = "0.1"
 	app.Author = "citadel team"
