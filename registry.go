@@ -9,7 +9,8 @@ import (
 )
 
 type Registry interface {
-	SaveHost(*Host) error
+	SaveHost(*Host, uint64) error
+	UpdateHost(*Host, uint64) error
 	FetchHost(string) (*Host, error)
 	FetchHosts() ([]*Host, error)
 	DeleteHost(string) error
@@ -143,13 +144,26 @@ func (r *registry) DeleteContainer(hostID, id string) error {
 	return err
 }
 
-func (r *registry) SaveHost(h *Host) error {
+func (r *registry) SaveHost(h *Host, ttl uint64) error {
 	data, err := json.Marshal(h)
 	if err != nil {
 		return err
 	}
 
-	if _, err := r.client.Set(filepath.Join("/citadel/hosts", h.ID), string(data), 0); err != nil {
+	if _, err := r.client.Set(filepath.Join("/citadel/hosts", h.ID), string(data), ttl); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *registry) UpdateHost(h *Host, ttl uint64) error {
+	data, err := json.Marshal(h)
+	if err != nil {
+		return err
+	}
+
+	if _, err := r.client.Update(filepath.Join("/citadel/hosts", h.ID), string(data), ttl); err != nil {
 		return err
 	}
 

@@ -33,6 +33,7 @@ type Host struct {
 	logger   *logrus.Logger
 	docker   *dockerclient.DockerClient
 	registry Registry
+	closed   bool
 }
 
 func NewHost(addr string, labels []string, etcdMachines []string, docker *dockerclient.DockerClient, logger *logrus.Logger) (*Host, error) {
@@ -471,9 +472,30 @@ func (h *Host) eventHandler(event *dockerclient.Event, _ ...interface{}) {
 }
 
 func (h *Host) registerHost() error {
-	return h.registry.SaveHost(h)
+	if err := h.registry.SaveHost(h, 45); err != nil {
+		return err
+	}
+
+	go h.heartbeat()
+
+	return nil
+}
+
+func (h *Host) heartbeat() {
+	for _ = range time.Tick(30 * time.Second) {
+		if h.closed {
+			return
+		}
+
+		if err := h.registry.UpdateHost(h, 45); err != nil {
+			h.logger.WithField("error", err).Error("update host ttl")
+		}
+
+		h.logger.Debug("host ttl updated")
+	}
 }
 
 func (h *Host) deregisterHost() error {
+	h.closed = true
 	return h.registry.DeleteHost(h.ID)
 }
