@@ -44,4 +44,6 @@ type Application struct {
 	Volumes []*Volume `json:"volumes,omitempty"`
 	// Containers specifies the exact container requirements for the application
 	Containers []*Config `json:"containers,omitempty"`
+	// Constraints match with the labels on select hosts to place applications
+	Constraints []string `json:"constraints,omitempty"`
 }
