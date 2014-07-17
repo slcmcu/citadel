@@ -47,3 +47,21 @@ type Application struct {
 	// Constraints match with the labels on select hosts to place applications
 	Constraints []string `json:"constraints,omitempty"`
 }
+
+func (a *Application) totalMemory() int {
+	total := 0
+	for _, c := range a.Containers {
+		total += c.Memory
+	}
+
+	return total
+}
+
+func (a *Application) totalCpus() int {
+	total := 0
+	for _, c := range a.Containers {
+		total += len(c.Cpus)
+	}
+
+	return total
+}

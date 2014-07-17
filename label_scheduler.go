@@ -10,12 +10,7 @@ func NewLabelScheduler(r Registry) Scheduler {
 	}
 }
 
-func (l *LabelScheduler) Schedule(app *Application) ([]*Host, error) {
-	hosts, err := l.registry.FetchHosts()
-	if err != nil {
-		return nil, err
-	}
-
+func (l *LabelScheduler) Schedule(app *Application, hosts []*Host) ([]*Host, error) {
 	if len(app.Constraints) == 0 {
 		return hosts, nil
 	}
