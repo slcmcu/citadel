@@ -22,12 +22,16 @@ func main() {
 
 	app.Before = func(context *cli.Context) error {
 		registry = citadel.NewRegistry(context.GlobalStringSlice("etcd-machines"))
+		if context.GlobalBool("debug") {
+			logger.Level = logrus.Debug
+		}
 
 		return nil
 	}
 
 	app.Flags = []cli.Flag{
 		cli.StringSliceFlag{"etcd-machines", &cli.StringSlice{"http://127.0.0.1:4001"}, "etcd hosts"},
+		cli.BoolFlag{"debug", "run the logger at the debug level"},
 	}
 
 	app.Commands = []cli.Command{
