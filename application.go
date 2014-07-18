@@ -27,8 +27,8 @@ type Config struct {
 	Image string `json:"image,omitempty"`
 	// Type is the type of run strategy, batch, service, etc
 	Type RunType `json:"type,omitempty"`
-	// Cpus is the number of cpus that the application has reserved
-	Cpus []int `json:"cpus,omitempty"`
+	// Cpus shares
+	Cpus float64 `json:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the application has reserved
 	Memory int `json:"memory,omitempty"`
 	// Args are additional arguments passed to the entrypoint of the containers
@@ -44,4 +44,24 @@ type Application struct {
 	Volumes []*Volume `json:"volumes,omitempty"`
 	// Containers specifies the exact container requirements for the application
 	Containers []*Config `json:"containers,omitempty"`
+	// Constraints match with the labels on select hosts to place applications
+	Constraints []string `json:"constraints,omitempty"`
+}
+
+func (a *Application) totalMemory() int {
+	total := 0
+	for _, c := range a.Containers {
+		total += c.Memory
+	}
+
+	return total
+}
+
+func (a *Application) totalCpus() float64 {
+	total := 0.0
+	for _, c := range a.Containers {
+		total += c.Cpus
+	}
+
+	return total
 }

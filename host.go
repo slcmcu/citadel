@@ -112,11 +112,18 @@ func (h *Host) RunContainer(applicationID string) *Transaction {
 	}
 
 	for _, config := range app.Containers {
+		cpus := []int{}
+
+		for i := 0.0; i < config.Cpus; i++ {
+			cpus = append(cpus, int(i))
+		}
+
 		dockerConfig := &dockerclient.ContainerConfig{
-			Image:  config.Image,
-			Cmd:    config.Args,
-			Memory: config.Memory * 1024 * 1024,
-			Cpuset: utils.IToCpuset(config.Cpus),
+			Image:     config.Image,
+			Cmd:       config.Args,
+			Memory:    config.Memory * 1024 * 1024,
+			CpuShares: int(config.Cpus * 1000.0),
+			Cpuset:    utils.IToCpuset(cpus),
 		}
 
 		name := fmt.Sprintf("%s.group.%d", app.ID, instance)
@@ -340,10 +347,10 @@ func (h *Host) createGroupContainer(app *Application) (*Container, error) {
 	}
 
 	dockerConfig := &dockerclient.ContainerConfig{
-		Image:  config.Image,
-		Cmd:    config.Args,
-		Memory: config.Memory * 1024 * 1024,
-		Cpuset: utils.IToCpuset(config.Cpus),
+		Image:     config.Image,
+		Cmd:       config.Args,
+		Memory:    32 * 1024 * 1024,
+		CpuShares: 100,
 	}
 
 	if app.Ports != nil {
