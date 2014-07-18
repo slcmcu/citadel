@@ -27,7 +27,7 @@ func appAction(context *cli.Context) {
 	for _, a := range apps {
 		var (
 			ports  = ""
-			cpus   int
+			cpus   float64
 			memory int
 		)
 
@@ -38,11 +38,11 @@ func appAction(context *cli.Context) {
 		}
 
 		for _, c := range a.Containers {
-			cpus += len(c.Cpus)
+			cpus += c.Cpus
 			memory += c.Memory
 		}
 
-		fmt.Fprintf(w, "%s\t%d\t%s\t%d\t%d\n", a.ID, len(a.Containers), ports, cpus, memory)
+		fmt.Fprintf(w, "%s\t%d\t%s\t%f\t%d\n", a.ID, len(a.Containers), ports, cpus, memory)
 	}
 
 	w.Flush()

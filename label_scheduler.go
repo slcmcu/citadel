@@ -10,19 +10,24 @@ func NewLabelScheduler(r Registry) Scheduler {
 	}
 }
 
-func (l *LabelScheduler) Schedule(app *Application, hosts []*Host) ([]*Host, error) {
+func (l *LabelScheduler) Schedule(app *Application, hosts []*Host) (*Host, error) {
 	if len(app.Constraints) == 0 {
-		return hosts, nil
+		return hosts[0], nil
 	}
 
 	accepted := []*Host{}
+
 	for _, h := range hosts {
 		if l.contains(h, app.Constraints) {
 			accepted = append(accepted, h)
 		}
 	}
 
-	return accepted, nil
+	if len(accepted) == 0 {
+		return nil, ErrNoValidHost
+	}
+
+	return accepted[0], nil
 }
 
 func (l *LabelScheduler) contains(h *Host, constraints []string) bool {

@@ -10,42 +10,57 @@ func NewResourceScheduler(r Registry) Scheduler {
 	}
 }
 
-func (m *ResourceScheduler) Schedule(app *Application, hosts []*Host) ([]*Host, error) {
+func (m *ResourceScheduler) Schedule(app *Application, hosts []*Host) (*Host, error) {
 	var (
-		accepted = []*Host{}
-		cpus     = app.totalCpus()
-		memory   = app.totalMemory()
+		scores = []*score{}
+		cpus   = app.totalCpus()
+		memory = app.totalMemory()
 	)
 
 	for _, h := range hosts {
 		// fast path is to make sure that the host can run this
 		// if that passes then we need to make sure that it has
 		// enough capacity with it's current load of containers
-		if h.Memory >= memory && h.Cpus >= cpus {
+		if h.Memory >= memory && float64(h.Cpus) >= cpus {
 			reservedCpus, reservedMemory, err := m.getTotalReservation(h)
 			if err != nil {
 				return nil, err
 			}
 
-			if (h.Cpus-reservedCpus) >= cpus && (h.Memory-reservedMemory) >= memory {
-				accepted = append(accepted, h)
+			var (
+				cpuScore    = (float64(reservedCpus) / float64(h.Cpus)) * 100.0
+				memoryScore = (float64(reservedMemory) / float64(h.Memory)) * 100.0
+				totalScore  = ((cpuScore + memoryScore) / 200.0) * 100.0
+			)
+
+			if totalScore <= 100.0 {
+				scores = append(scores, &score{h: h, score: totalScore})
 			}
 		}
 	}
 
-	return accepted, nil
+	if len(scores) == 0 {
+		return nil, ErrNoValidHost
+	}
+
+	sortScores(scores)
+
+	return scores[0].h, nil
 }
 
-func (m *ResourceScheduler) getTotalReservation(h *Host) (int, int, error) {
+func (m *ResourceScheduler) getTotalReservation(h *Host) (float64, int, error) {
 	containers, err := m.registry.FetchContainers(h.ID)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	var cpus, memory int
+	var (
+		cpus   float64
+		memory int
+	)
 
 	for _, c := range containers {
-		cpus += len(c.Config.Cpus)
+		cpus += c.Config.Cpus
 		memory += c.Config.Memory
 	}
 

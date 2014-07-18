@@ -27,8 +27,8 @@ type Config struct {
 	Image string `json:"image,omitempty"`
 	// Type is the type of run strategy, batch, service, etc
 	Type RunType `json:"type,omitempty"`
-	// Cpus is the number of cpus that the application has reserved
-	Cpus []int `json:"cpus,omitempty"`
+	// Cpus shares
+	Cpus float64 `json:"cpus,omitempty"`
 	// Memory is the amount of memory in mb that the application has reserved
 	Memory int `json:"memory,omitempty"`
 	// Args are additional arguments passed to the entrypoint of the containers
@@ -57,10 +57,10 @@ func (a *Application) totalMemory() int {
 	return total
 }
 
-func (a *Application) totalCpus() int {
-	total := 0
+func (a *Application) totalCpus() float64 {
+	total := 0.0
 	for _, c := range a.Containers {
-		total += len(c.Cpus)
+		total += c.Cpus
 	}
 
 	return total
