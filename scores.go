@@ -3,7 +3,7 @@ package citadel
 import "sort"
 
 type score struct {
-	h     *Host
+	r     *Resource
 	score float64
 }
 
