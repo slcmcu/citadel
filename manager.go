@@ -1,6 +1,16 @@
 package citadel
 
-import "log"
+import (
+	"errors"
+	"log"
+	"sync"
+)
+
+var (
+	ErrNoSchedulerForType = errors.New("no scheduler installed for container type")
+	ErrUnableToSchedule   = errors.New("unable to schedule container")
+	ErrSchedulerExists    = errors.New("scheduler exists for type")
+)
 
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
@@ -10,6 +20,7 @@ type ClusterManager struct {
 	schedulers map[string]Scheduler
 
 	logger *log.Logger
+	mux    sync.Mutex
 }
 
 // NewClusterManager returns a new cluster manager initialized with the registry
@@ -28,8 +39,30 @@ func NewClusterManager(registry Registry, executor Executor, logger *log.Logger)
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) ScheduleContainer(c *Container) error {
-	switch c.Type {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	scheduler := m.schedulers[c.Type]
+
+	if scheduler == nil {
+		return ErrNoSchedulerForType
 	}
+
+	return nil
+}
+
+// RegisterScheduler registers the scheduler for a specific container type within the
+// cluster.  An ErrSchedulerExists error is returned if the cluster already has a
+// scheduler registered for that specific type.
+func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	if _, exists := m.schedulers[tpe]; exists {
+		return ErrSchedulerExists
+	}
+
+	m.schedulers[tpe] = s
 
 	return nil
 }
