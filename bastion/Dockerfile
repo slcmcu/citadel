@@ -1,3 +1,4 @@
+# this is an example image.  DO NOT USE THE CERTS IN PRODUCTION
 FROM debian:jessie
 ADD ./certs /certs
 ADD bastion /usr/local/bin/bastion
