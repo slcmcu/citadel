@@ -7,7 +7,7 @@ In order to use Bastion, you must setup your Docker remote hosts using TLS.  You
 ## Start Docker with TLS enabled
 Place the sample certs in `/certs`.  Add the following to your Docker config and restart the daemon:
 
-`--tls --tlscert --tlskey --tlscacert=/certs/ca.pem --tlscert=/certs/server-cert.pem --tlskey=/certs/server-key.pem -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375`
+`--tls --tlscert --tlskey --tlscacert=/certs/ca.pem --tlscert=/certs/server-cert.pem --tlskey=/certs/server-key.pem -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 --tlsverify`
 
 ## Run Bastion:
 There is a pre-built Docker image available for testing.  It comes bundled with the example certs.
