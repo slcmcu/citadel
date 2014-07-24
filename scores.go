@@ -3,7 +3,7 @@ package citadel
 import "sort"
 
 type score struct {
-	h     *Host
+	r     *Resource
 	score float64
 }
 
@@ -22,8 +22,10 @@ func (s scores) Swap(i, j int) {
 }
 
 func (s scores) Less(i, j int) bool {
-	ip := s[i]
-	jp := s[j]
+	var (
+		ip = s[i]
+		jp = s[j]
+	)
 
-	return ip.score < jp.score
+	return ip.score > jp.score
 }
