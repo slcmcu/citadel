@@ -17,13 +17,10 @@ func (t *testScheduler) setRegistry(r Registry) {
 
 }
 
-type testExecutor struct {
-}
-
 var defaultLogger = log.New(ioutil.Discard, "[citadel.tests] ", log.LstdFlags)
 
 func TestNewManager(t *testing.T) {
-	m := NewClusterManager(nil, nil, defaultLogger)
+	m := NewClusterManager(nil, defaultLogger)
 
 	if m == nil {
 		t.Fatal("NewClusterManager should not return a nil manager")
@@ -31,9 +28,9 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestNoSchedulerForType(t *testing.T) {
-	m := NewClusterManager(nil, nil, defaultLogger)
+	m := NewClusterManager(nil, defaultLogger)
 
-	err := m.ScheduleContainer(&Container{
+	_, err := m.ScheduleContainer(&Container{
 		Type: "service",
 	})
 
@@ -48,7 +45,7 @@ func TestNoSchedulerForType(t *testing.T) {
 
 func TestSchedulerRegister(t *testing.T) {
 	var (
-		m = NewClusterManager(nil, nil, defaultLogger)
+		m = NewClusterManager(nil, defaultLogger)
 		s = &testScheduler{}
 	)
 
@@ -59,7 +56,7 @@ func TestSchedulerRegister(t *testing.T) {
 
 func TestSchedulerRegisterWithConflict(t *testing.T) {
 	var (
-		m = NewClusterManager(nil, nil, defaultLogger)
+		m = NewClusterManager(nil, defaultLogger)
 		s = &testScheduler{}
 	)
 

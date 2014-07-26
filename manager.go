@@ -15,7 +15,6 @@ var (
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
 	registry        Registry
-	executor        Executor
 	resourceManager *ResourceManager
 
 	schedulers map[string]Scheduler
@@ -26,10 +25,9 @@ type ClusterManager struct {
 
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
-func NewClusterManager(registry Registry, executor Executor, logger *log.Logger) *ClusterManager {
+func NewClusterManager(registry Registry, logger *log.Logger) *ClusterManager {
 	return &ClusterManager{
 		registry:        registry,
-		executor:        executor,
 		schedulers:      make(map[string]Scheduler),
 		resourceManager: newResourceManger(registry),
 		logger:          logger,
@@ -40,7 +38,7 @@ func NewClusterManager(registry Registry, executor Executor, logger *log.Logger)
 // a resource that is able to run the container.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) error {
+func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -50,14 +48,14 @@ func (m *ClusterManager) ScheduleContainer(c *Container) error {
 	scheduler := m.schedulers[c.Type]
 
 	if scheduler == nil {
-		return ErrNoSchedulerForType
+		return nil, ErrNoSchedulerForType
 	}
 
 	// let the scheduler make a decision about the hosts that it would like the container to
 	// be executed on
 	resources, err := scheduler.Schedule(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(resources))
 
@@ -66,22 +64,17 @@ func (m *ClusterManager) ScheduleContainer(c *Container) error {
 	// score to maximize effenciency
 	placement, err := m.resourceManager.PlaceContainer(resources, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
 
 	// for the selected resource make sure that the resources are reserved for the container
 	// and not allocated to anything else
 	if err := m.registry.PlaceReservation(placement.ID, c); err != nil {
-		return err
+		return nil, err
 	}
 
-	// run the container with the executor on the selected resource
-	if err := m.executor.Run(placement, c); err != nil {
-		return err
-	}
-
-	return nil
+	return placement, nil
 }
 
 // RegisterScheduler registers the scheduler for a specific container type within the
