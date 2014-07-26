@@ -16,10 +16,6 @@ func (l *LabelScheduler) Schedule(resources []*Resource, c *Container) ([]*Resou
 		}
 	}
 
-	if len(out) == 0 {
-		return nil, ErrUnableToSchedule
-	}
-
 	return out, nil
 }
 
