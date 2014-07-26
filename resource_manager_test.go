@@ -36,6 +36,18 @@ func (r *mockRegistry) GetTotalReservations(id string) (float64, float64, error)
 	return rs.cpus, rs.memory, nil
 }
 
+func (r *mockRegistry) PlaceReservation(id string, c *Container) error {
+	re := r.resources[id]
+	if re == nil {
+		return fmt.Errorf("no resource for id %s", id)
+	}
+
+	re.cpus += c.Cpus
+	re.memory += c.Memory
+
+	return nil
+}
+
 func TestScheduleHighMemory(t *testing.T) {
 	resources := []*Resource{
 		{
