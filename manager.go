@@ -61,9 +61,9 @@ func (m *ClusterManager) ScheduleContainer(c *Container) error {
 	if err != nil {
 		return err
 	}
-	m.logger.Printf("task=%q image=%q placement=%q score=%f\n", "schedule", c.Image, placement.r.Addr, placement.Score)
+	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
 
-	if err := m.executor.Run(placement.r, c); err != nil {
+	if err := m.executor.Run(placement, c); err != nil {
 		return err
 	}
 
@@ -81,6 +81,8 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	if _, exists := m.schedulers[tpe]; exists {
 		return ErrSchedulerExists
 	}
+
+	s.setRegistry(m.registry)
 
 	m.schedulers[tpe] = s
 

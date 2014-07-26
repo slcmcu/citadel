@@ -13,6 +13,10 @@ func (t *testScheduler) Schedule(c *Container) ([]*Resource, error) {
 	return nil, nil
 }
 
+func (t *testScheduler) setRegistry(r Registry) {
+
+}
+
 type testExecutor struct {
 }
 
