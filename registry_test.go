@@ -66,3 +66,19 @@ func (r *mockRegistry) ReleaseReservation(id string, c *Container) error {
 
 	return nil
 }
+
+func (r *mockRegistry) DeleteResource(id string) error {
+	delete(r.resources, id)
+
+	return nil
+}
+
+func (r *mockRegistry) SaveResource(rs *Resource) error {
+	r.resources[rs.ID] = &reservation{r: rs}
+
+	return nil
+}
+
+func (r *mockRegistry) Close() error {
+	return nil
+}
