@@ -9,12 +9,8 @@ import (
 type testScheduler struct {
 }
 
-func (t *testScheduler) Schedule(c *Container) ([]*Resource, error) {
-	return nil, nil
-}
-
-func (t *testScheduler) setRegistry(r Registry) {
-
+func (t *testScheduler) Schedule(rs []*Resource, c *Container) ([]*Resource, error) {
+	return rs, nil
 }
 
 var defaultLogger = log.New(ioutil.Discard, "[citadel.tests] ", log.LstdFlags)

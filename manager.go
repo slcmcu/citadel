@@ -51,10 +51,15 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
+	resources, err := m.registry.FetchResources()
+	if err != nil {
+		return nil, err
+	}
+	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(resources))
+
 	// let the scheduler make a decision about the hosts that it would like the container to
 	// be executed on
-	resources, err := scheduler.Schedule(c)
-	if err != nil {
+	if resources, err = scheduler.Schedule(resources, c); err != nil {
 		return nil, err
 	}
 	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(resources))
@@ -89,8 +94,6 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	if _, exists := m.schedulers[tpe]; exists {
 		return ErrSchedulerExists
 	}
-
-	s.setRegistry(m.registry)
 
 	m.schedulers[tpe] = s
 
