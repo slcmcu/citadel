@@ -56,15 +56,45 @@ func main() {
 	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
 }
 
+func getTLSConfig() (*tls.Config, error) {
+	// TLS config
+	var tlsConfig tls.Config
+	tlsConfig.InsecureSkipVerify = true
+	certPool := x509.NewCertPool()
+	file, err := ioutil.ReadFile(CA_CERT)
+	if err != nil {
+		log.Printf("error reading ca cert %s: %s", CA_CERT, err)
+		return nil, err
+	}
+	certPool.AppendCertsFromPEM(file)
+	tlsConfig.RootCAs = certPool
+	_, errCert := os.Stat(SSL_CERT)
+	_, errKey := os.Stat(SSL_KEY)
+	if errCert == nil && errKey == nil {
+		cert, err := tls.LoadX509KeyPair(SSL_CERT, SSL_KEY)
+		if err != nil {
+			log.Printf("error loading X509 key: %s", err)
+			return &tlsConfig, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+	return &tlsConfig, nil
+}
+
 func receive(w http.ResponseWriter, r *http.Request) {
 	var container Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := runContainer(&container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	switch r.Method {
+	case "POST":
+		if err := runContainer(&container); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	default:
+		fmt.Fprintf(w, "bastion")
 	}
 	w.WriteHeader(http.StatusCreated)
 }
@@ -79,37 +109,29 @@ func getHost() (string, error) {
 	return host, nil
 }
 
-func runContainer(container *Container) error {
-	// TLS config
-	var tlsConfig tls.Config
-	tlsConfig.InsecureSkipVerify = true
-	certPool := x509.NewCertPool()
-	file, err := ioutil.ReadFile(CA_CERT)
+func getDockerClient(host string) (*dockerclient.DockerClient, error) {
+	tlsConfig, err := getTLSConfig()
 	if err != nil {
-		log.Printf("error reading ca cert %s: %s", CA_CERT, err)
-		return err
+		log.Printf("unable to get TLS config: %s", err)
+		return nil, err
 	}
-	certPool.AppendCertsFromPEM(file)
-	tlsConfig.RootCAs = certPool
-	_, errCert := os.Stat(SSL_CERT)
-	_, errKey := os.Stat(SSL_KEY)
-	if errCert == nil && errKey == nil {
-		cert, err := tls.LoadX509KeyPair(SSL_CERT, SSL_KEY)
-		if err != nil {
-			log.Printf("error loading X509 key: %s", err)
-			return err
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-	host, err := getHost()
 	if err != nil {
 		log.Printf("error getting a host for container: %s", err)
-		return err
+		return nil, err
 	}
-	log.Printf("using host %s\n", host)
-	docker, err := dockerclient.NewDockerClient(host, &tlsConfig)
+	docker, err := dockerclient.NewDockerClient(host, tlsConfig)
 	if err != nil {
 		log.Printf("unable to connect to docker daemon: %s", err)
+		return nil, err
+	}
+	return docker, nil
+}
+
+func runContainer(container *Container) error {
+	host, err := getHost()
+	log.Printf("using host %s\n", host)
+	docker, err := getDockerClient(host)
+	if err != nil {
 		return err
 	}
 	// TODO: error check on run instead of pulling every time?
