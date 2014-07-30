@@ -69,8 +69,6 @@ func (r *RedisRegistry) FetchResources() ([]*citadel.Resource, error) {
 func (r *RedisRegistry) GetTotalReservations(id string) (float64, float64, error) {
 	key := r.getKey(id)
 
-	// TODO: clean this up.  i'm not sure now to test for a nil returned
-	// instead of a non-nil returned error
 	cpus, err := redis.Float64(r.do("GET", fmt.Sprintf("%s:reserved_cpus", key)))
 	if err != nil && err != redis.ErrNil {
 		return 0, 0, err
