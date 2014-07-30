@@ -95,19 +95,20 @@ func getTLSConfig() (*tls.Config, error) {
 }
 
 func receive(w http.ResponseWriter, r *http.Request) {
-	var container citadel.Container
-	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	switch r.Method {
 	case "POST":
+		var container citadel.Container
+		if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		if err := runContainer(&container); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	default:
 		fmt.Fprintf(w, "bastion")
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
 }
