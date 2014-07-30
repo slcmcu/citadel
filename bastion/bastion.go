@@ -4,56 +4,66 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/citadel/citadel"
+	"github.com/citadel/citadel/redis"
 	"github.com/samalba/dockerclient"
 )
 
 var (
-	SSL_CERT    string
-	SSL_KEY     string
-	CA_CERT     string
-	LISTEN_ADDR string
-	HOSTS_STR   string
-	HOSTS       []string
+	CONFIG_FILE    string
+	config         *Config
+	logger         = logrus.New()
+	clusterManager *citadel.ClusterManager
 )
 
 type (
-	Container struct {
-		Name        string            `json:"name"`
-		Image       string            `json:"image"`
-		Cpus        float64           `json:"cpus,string"`
-		Memory      int               `json:"memory"`
-		Type        string            `json:"type"`
-		Environment map[string]string `json:"environment"`
-		Hostname    string            `json:"hostname"`
-		Domainname  string            `json:"domain"`
+	Config struct {
+		SSLCertificate string             `json:"ssl-cert,omitempty"`
+		SSLKey         string             `json:"ssl-key,omitempty"`
+		CACertificate  string             `json:"ca-cert,omitempty"`
+		RedisAddr      string             `json:"redis-addr,omitempty"`
+		RedisPass      string             `json:"redis-pass,omitempty"`
+		ListenAddr     string             `json:"listen-addr,omitempty"`
+		Hosts          []citadel.Resource `json:"hosts,omitempty"`
 	}
 )
 
 func init() {
-	flag.StringVar(&HOSTS_STR, "hosts", "", "Docker hosts - comma separated (i.e. https://1.2.3.4:2375)")
-	flag.StringVar(&SSL_CERT, "ssl-cert", "", "SSL Certificate for Docker Hosts")
-	flag.StringVar(&SSL_KEY, "ssl-key", "", "SSL Certificate Key for Docker Hosts")
-	flag.StringVar(&CA_CERT, "ca-cert", "", "SSL CA Certificate Key for Docker Hosts")
-	flag.StringVar(&LISTEN_ADDR, "listen", ":8080", "Listen address")
+	flag.StringVar(&CONFIG_FILE, "conf", "", "config file")
 	flag.Parse()
-	if HOSTS_STR != "" {
-		HOSTS = strings.Split(HOSTS_STR, ",")
+	// load config
+	data, err := ioutil.ReadFile(CONFIG_FILE)
+	if err != nil {
+		logger.Fatalf("unable to open config: %s", err)
 	}
+	var cfg Config
+	if err := json.Unmarshal([]byte(data), &cfg); err != nil {
+		logger.Fatalf("unable to parse config: %s", err)
+	}
+	config = &cfg
 }
 
 func main() {
+	registry := redis.NewRedisRegistry(config.RedisAddr, config.RedisPass)
+	// load host resources
+	for _, host := range config.Hosts {
+		registry.SaveResource(&host)
+	}
+	defaultLogger := log.New(ioutil.Discard, "[bastion] ", log.LstdFlags)
+	clusterManager = citadel.NewClusterManager(registry, defaultLogger)
+	labelScheduler := citadel.LabelScheduler{}
+	clusterManager.RegisterScheduler("service", &labelScheduler)
+
 	http.HandleFunc("/", receive)
-	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
+	logger.Fatal(http.ListenAndServe(config.ListenAddr, nil))
 }
 
 func getTLSConfig() (*tls.Config, error) {
@@ -61,19 +71,19 @@ func getTLSConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 	tlsConfig.InsecureSkipVerify = true
 	certPool := x509.NewCertPool()
-	file, err := ioutil.ReadFile(CA_CERT)
+	file, err := ioutil.ReadFile(config.CACertificate)
 	if err != nil {
-		log.Printf("error reading ca cert %s: %s", CA_CERT, err)
+		logger.Errorf("error reading ca cert %s: %s", config.CACertificate, err)
 		return nil, err
 	}
 	certPool.AppendCertsFromPEM(file)
 	tlsConfig.RootCAs = certPool
-	_, errCert := os.Stat(SSL_CERT)
-	_, errKey := os.Stat(SSL_KEY)
+	_, errCert := os.Stat(config.SSLCertificate)
+	_, errKey := os.Stat(config.SSLKey)
 	if errCert == nil && errKey == nil {
-		cert, err := tls.LoadX509KeyPair(SSL_CERT, SSL_KEY)
+		cert, err := tls.LoadX509KeyPair(config.SSLCertificate, config.SSLKey)
 		if err != nil {
-			log.Printf("error loading X509 key: %s", err)
+			logger.Errorf("error loading X509 key: %s", err)
 			return &tlsConfig, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
@@ -82,7 +92,7 @@ func getTLSConfig() (*tls.Config, error) {
 }
 
 func receive(w http.ResponseWriter, r *http.Request) {
-	var container Container
+	var container citadel.Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -99,44 +109,40 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func getHost() (string, error) {
-	// TODO: use citadel for selection
-	// check for available hosts
-	if len(HOSTS) == 0 {
-		return "", errors.New("no hosts available for execution")
-	}
-	host := HOSTS[rand.Intn(len(HOSTS))]
-	return host, nil
-}
-
 func getDockerClient(host string) (*dockerclient.DockerClient, error) {
 	tlsConfig, err := getTLSConfig()
 	if err != nil {
-		log.Printf("unable to get TLS config: %s", err)
+		logger.Errorf("unable to get TLS config: %s", err)
 		return nil, err
 	}
 	if err != nil {
-		log.Printf("error getting a host for container: %s", err)
+		logger.Errorf("error getting a host for container: %s", err)
 		return nil, err
 	}
 	docker, err := dockerclient.NewDockerClient(host, tlsConfig)
 	if err != nil {
-		log.Printf("unable to connect to docker daemon: %s", err)
+		logger.Errorf("unable to connect to docker daemon: %s", err)
 		return nil, err
 	}
 	return docker, nil
 }
 
-func runContainer(container *Container) error {
-	host, err := getHost()
-	log.Printf("using host %s\n", host)
-	docker, err := getDockerClient(host)
+func runContainer(container *citadel.Container) error {
+	// schedule
+	resource, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
+		logger.Errorf("error scheduling container: %s", err)
+		return err
+	}
+	logger.Errorf("using host %s (%s)\n", resource.ID, resource.Addr)
+	docker, err := getDockerClient(resource.Addr)
+	if err != nil {
+		logger.Errorf("error getting docker client: %s", err)
 		return err
 	}
 	// TODO: error check on run instead of pulling every time?
 	if err := docker.PullImage(container.Image, ""); err != nil {
-		log.Printf("unable to pull image: %s", err)
+		logger.Errorf("unable to pull image: %s", err)
 		return err
 	}
 	// format env
@@ -148,7 +154,7 @@ func runContainer(container *Container) error {
 		Hostname:   container.Hostname,
 		Domainname: container.Domainname,
 		Image:      container.Image,
-		Memory:     container.Memory * 1048576,
+		Memory:     int(container.Memory) * 1048576,
 		Env:        env,
 	}
 	// TODO: allow to be customized?
@@ -157,13 +163,13 @@ func runContainer(container *Container) error {
 	}
 	containerId, err := docker.CreateContainer(containerConfig, container.Name)
 	if err != nil {
-		log.Printf("error creating container: %s", err)
+		logger.Errorf("error creating container: %s", err)
 		return err
 	}
 	if err := docker.StartContainer(containerId, hostConfig); err != nil {
-		log.Printf("error starting container: %s", err)
+		logger.Errorf("error starting container: %s", err)
 		return err
 	}
-	log.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], host)
+	logger.Errorf("launched %s (%s) on %s\n", container.Name, containerId[:5], resource.ID)
 	return nil
 }

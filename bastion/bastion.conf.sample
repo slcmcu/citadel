@@ -1,0 +1,20 @@
+{
+    "ssl-cert": "./certs/client-cert.pem",
+    "ssl-key": "./certs/client-key.pem",
+    "ca-cert": "./certs/ca.pem",
+    "redis-addr": "127.0.0.1:6379",
+    "redis-pass": "",
+    "listen-addr": ":8080",
+    "hosts": [
+        {
+            "id": "local",
+            "addr": "https://127.0.0.1:2375",
+            "cpus": "4",
+            "memory": "32000",
+            "labels": [
+                "local"
+            ]
+        }
+    ]
+}
+
