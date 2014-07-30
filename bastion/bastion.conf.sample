@@ -2,6 +2,7 @@
     "ssl-cert": "./certs/client-cert.pem",
     "ssl-key": "./certs/client-key.pem",
     "ca-cert": "./certs/ca.pem",
+    "use-tls": true,
     "redis-addr": "127.0.0.1:6379",
     "redis-pass": "",
     "listen-addr": ":8080",

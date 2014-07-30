@@ -29,6 +29,7 @@ type (
 		SSLCertificate string             `json:"ssl-cert,omitempty"`
 		SSLKey         string             `json:"ssl-key,omitempty"`
 		CACertificate  string             `json:"ca-cert,omitempty"`
+		UseTLS         bool               `json:"use-tls,omitempty"`
 		RedisAddr      string             `json:"redis-addr,omitempty"`
 		RedisPass      string             `json:"redis-pass,omitempty"`
 		ListenAddr     string             `json:"listen-addr,omitempty"`
@@ -111,14 +112,14 @@ func receive(w http.ResponseWriter, r *http.Request) {
 }
 
 func getDockerClient(host string) (*dockerclient.DockerClient, error) {
-	tlsConfig, err := getTLSConfig()
-	if err != nil {
-		logger.Errorf("unable to get TLS config: %s", err)
-		return nil, err
-	}
-	if err != nil {
-		logger.Errorf("error getting a host for container: %s", err)
-		return nil, err
+	var tlsConfig *tls.Config
+	if config.UseTLS {
+		tlsCfg, err := getTLSConfig()
+		if err != nil {
+			logger.Errorf("unable to get TLS config: %s", err)
+			return nil, err
+		}
+		tlsConfig = tlsCfg
 	}
 	docker, err := dockerclient.NewDockerClient(host, tlsConfig)
 	if err != nil {
