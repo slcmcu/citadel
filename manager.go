@@ -2,7 +2,6 @@ package citadel
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 )
@@ -74,7 +73,6 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
 	}
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
 
-	fmt.Println("CHECK")
 	// for the selected resource make sure that the resources are reserved for the container
 	// and not allocated to anything else
 	if err := m.registry.PlaceReservation(placement.ID, c); err != nil {
