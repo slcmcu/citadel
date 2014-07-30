@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/Sirupsen/logrus"
@@ -111,9 +112,14 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func getDockerClient(host string) (*dockerclient.DockerClient, error) {
+func getDockerClient(resource *citadel.Resource) (*dockerclient.DockerClient, error) {
 	var tlsConfig *tls.Config
-	if config.UseTLS {
+	u, err := url.Parse(resource.Addr)
+	if err != nil {
+		logger.Fatalf("erroring parsing host address: %s", err)
+	}
+	// only load tls config if using https
+	if u.Scheme == "https" {
 		tlsCfg, err := getTLSConfig()
 		if err != nil {
 			logger.Errorf("unable to get TLS config: %s", err)
@@ -121,7 +127,7 @@ func getDockerClient(host string) (*dockerclient.DockerClient, error) {
 		}
 		tlsConfig = tlsCfg
 	}
-	docker, err := dockerclient.NewDockerClient(host, tlsConfig)
+	docker, err := dockerclient.NewDockerClient(resource.Addr, tlsConfig)
 	if err != nil {
 		logger.Errorf("unable to connect to docker daemon: %s", err)
 		return nil, err
@@ -137,7 +143,7 @@ func runContainer(container *citadel.Container) error {
 		return err
 	}
 	logger.Errorf("using host %s (%s)\n", resource.ID, resource.Addr)
-	docker, err := getDockerClient(resource.Addr)
+	docker, err := getDockerClient(resource)
 	if err != nil {
 		logger.Errorf("error getting docker client: %s", err)
 		return err
