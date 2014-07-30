@@ -10,13 +10,9 @@ Place the sample certs in `/certs`.  Add the following to your Docker config and
 `--tls --tlscert --tlskey --tlscacert=/certs/ca.pem --tlscert=/certs/server-cert.pem --tlskey=/certs/server-key.pem -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 --tlsverify`
 
 ## Run Bastion:
-There is a pre-built Docker image available for testing.  It comes bundled with the example certs.
+There is a pre-built Docker image available for testing.  It comes bundled with the example certs.  This example shows bind mounting an external config file into the container.
 
-`docker run -it -p 8080:8080 --rm ehazlett/bastion -ca-cert /certs/ca.pem -ssl-cert /certs/client-cert.pem -ssl-key /certs/client-key.pem -hosts <your-hosts>`
-
-For example:
-
-`docker run -it -p 8080:8080 --rm ehazlett/bastion -ca-cert /certs/ca.pem -ssl-cert /certs/client-cert.pem -ssl-key /certs/client-key.pem -hosts https://1.2.3.4:2375`
+`docker run -it -p 8080:8080 -v bastion.conf:/etc/bastion.conf ehazlett/bastion -conf /etc/bastion.conf`
 
 Create the following `go-demo.json`:
 
@@ -24,9 +20,16 @@ Create the following `go-demo.json`:
 {
     "name": "bastion-demo",
     "image": "ehazlett/go-demo",
+    "hostname": "bastion-demo.example.com",
+    "domain": "example.com",
     "cpus": "0.2",
     "memory": 256,
-    "type": "service"
+    "type": "service",
+    "labels": ["us-east-1"],
+    "environment": {
+        "FOO": "bar"
+    }
+
 }
 ```
 

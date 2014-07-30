@@ -62,6 +62,7 @@ func main() {
 	labelScheduler := citadel.LabelScheduler{}
 	clusterManager.RegisterScheduler("service", &labelScheduler)
 
+	logger.Infof("bastion listening on %s", config.ListenAddr)
 	http.HandleFunc("/", receive)
 	logger.Fatal(http.ListenAndServe(config.ListenAddr, nil))
 }
