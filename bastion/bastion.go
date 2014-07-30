@@ -142,7 +142,7 @@ func runContainer(container *citadel.Container) error {
 		logger.Errorf("error scheduling container: %s", err)
 		return err
 	}
-	logger.Infof("using host %s (%s)\n", resource.ID, resource.Addr)
+	logger.Infof("using host %s (%s)", resource.ID, resource.Addr)
 	docker, err := getDockerClient(resource)
 	if err != nil {
 		logger.Errorf("error getting docker client: %s", err)
@@ -178,6 +178,6 @@ func runContainer(container *citadel.Container) error {
 		logger.Errorf("error starting container: %s", err)
 		return err
 	}
-	logger.Infof("launched %s (%s) on %s\n", container.Name, containerId[:5], resource.ID)
+	logger.Infof("launched %s (%s) on %s", container.Name, containerId[:5], resource.ID)
 	return nil
 }
