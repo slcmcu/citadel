@@ -10,7 +10,7 @@ func NewMultiScheduler(s ...Scheduler) Scheduler {
 	}
 }
 
-func (m *MultiScheduler) Schedule(resources []*Resource, c *Container) ([]*Resource, error) {
+func (m *MultiScheduler) Schedule(resources []*Docker, c *Container) ([]*Docker, error) {
 	var (
 		err  error
 		prev = resources

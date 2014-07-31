@@ -9,7 +9,7 @@ import (
 type testScheduler struct {
 }
 
-func (t *testScheduler) Schedule(rs []*Resource, c *Container) ([]*Resource, error) {
+func (t *testScheduler) Schedule(rs []*Docker, c *Container) ([]*Docker, error) {
 	return rs, nil
 }
 

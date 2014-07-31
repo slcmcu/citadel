@@ -3,12 +3,12 @@ package citadel
 type LabelScheduler struct {
 }
 
-func (l *LabelScheduler) Schedule(resources []*Resource, c *Container) ([]*Resource, error) {
+func (l *LabelScheduler) Schedule(resources []*Docker, c *Container) ([]*Docker, error) {
 	if len(c.Labels) == 0 {
 		return resources, nil
 	}
 
-	out := []*Resource{}
+	out := []*Docker{}
 
 	for _, r := range resources {
 		if l.contains(r, c.Labels) {
@@ -19,7 +19,7 @@ func (l *LabelScheduler) Schedule(resources []*Resource, c *Container) ([]*Resou
 	return out, nil
 }
 
-func (l *LabelScheduler) contains(r *Resource, constraints []string) bool {
+func (l *LabelScheduler) contains(r *Docker, constraints []string) bool {
 	for _, c := range constraints {
 		if !l.resourceContains(r, c) {
 			return false
@@ -29,7 +29,7 @@ func (l *LabelScheduler) contains(r *Resource, constraints []string) bool {
 	return true
 }
 
-func (l *LabelScheduler) resourceContains(r *Resource, c string) bool {
+func (l *LabelScheduler) resourceContains(r *Docker, c string) bool {
 	for _, l := range r.Labels {
 		if l == c {
 			return true
