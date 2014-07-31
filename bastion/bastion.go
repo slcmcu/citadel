@@ -13,7 +13,7 @@ import (
 	"os"
 
 	"github.com/citadel/citadel"
-	"github.com/citadel/citadel/redis"
+	"github.com/citadel/citadel/docker"
 	"github.com/samalba/dockerclient"
 )
 
@@ -169,14 +169,16 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	registry := redis.NewRedisRegistry(config.RedisAddr, config.RedisPass)
-	defer registry.Close()
-
-	for _, host := range config.Hosts {
-		if err := registry.SaveResource(host); err != nil {
-			logger.Fatal(err)
-		}
+	tlsConfig, err := getTLSConfig()
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	registry, err := docker.New(config.Hosts, tlsConfig)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer registry.Close()
 
 	clusterManager = citadel.NewClusterManager(registry, logger)
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})

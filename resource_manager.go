@@ -4,14 +4,12 @@ import "log"
 
 // ResourceManager is responsible for managing the resources of the cluster
 type ResourceManager struct {
-	registry Registry
-	logger   *log.Logger
+	logger *log.Logger
 }
 
-func newResourceManger(registry Registry, logger *log.Logger) *ResourceManager {
+func newResourceManger(logger *log.Logger) *ResourceManager {
 	return &ResourceManager{
-		logger:   logger,
-		registry: registry,
+		logger: logger,
 	}
 }
 
@@ -27,10 +25,7 @@ func (r *ResourceManager) PlaceContainer(resources []*Resource, c *Container) (*
 			continue
 		}
 
-		cpus, memory, err := r.registry.GetTotalReservations(re.ID)
-		if err != nil {
-			return nil, err
-		}
+		cpus, memory := re.ReservedCpus, re.ReservedMemory
 
 		var (
 			cpuScore    = ((cpus + c.Cpus) / re.Cpus) * 100.0

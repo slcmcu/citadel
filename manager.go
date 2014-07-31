@@ -29,7 +29,7 @@ func NewClusterManager(registry Registry, logger *log.Logger) *ClusterManager {
 	return &ClusterManager{
 		registry:        registry,
 		schedulers:      make(map[string]Scheduler),
-		resourceManager: newResourceManger(registry, logger),
+		resourceManager: newResourceManger(logger),
 		logger:          logger,
 	}
 }
@@ -72,12 +72,6 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
 		return nil, err
 	}
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
-
-	// for the selected resource make sure that the resources are reserved for the container
-	// and not allocated to anything else
-	if err := m.registry.PlaceReservation(placement.ID, c); err != nil {
-		return nil, err
-	}
 
 	return placement, nil
 }
