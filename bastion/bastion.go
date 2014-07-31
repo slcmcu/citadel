@@ -12,61 +12,42 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/citadel/citadel"
 	"github.com/citadel/citadel/redis"
 	"github.com/samalba/dockerclient"
 )
 
 var (
-	CONFIG_FILE    string
+	configPath     string
 	config         *Config
-	logger         = logrus.New()
 	clusterManager *citadel.ClusterManager
+
+	logger = log.New(os.Stderr, "[bastion] ", log.LstdFlags)
 )
 
-type (
-	Config struct {
-		SSLCertificate string             `json:"ssl-cert,omitempty"`
-		SSLKey         string             `json:"ssl-key,omitempty"`
-		CACertificate  string             `json:"ca-cert,omitempty"`
-		UseTLS         bool               `json:"use-tls,omitempty"`
-		RedisAddr      string             `json:"redis-addr,omitempty"`
-		RedisPass      string             `json:"redis-pass,omitempty"`
-		ListenAddr     string             `json:"listen-addr,omitempty"`
-		Hosts          []citadel.Resource `json:"hosts,omitempty"`
-	}
-)
-
-func init() {
-	flag.StringVar(&CONFIG_FILE, "conf", "", "config file")
-	flag.Parse()
-	// load config
-	data, err := ioutil.ReadFile(CONFIG_FILE)
-	if err != nil {
-		logger.Fatalf("unable to open config: %s", err)
-	}
-	var cfg Config
-	if err := json.Unmarshal([]byte(data), &cfg); err != nil {
-		logger.Fatalf("unable to parse config: %s", err)
-	}
-	config = &cfg
+type Config struct {
+	SSLCertificate string              `json:"ssl-cert,omitempty"`
+	SSLKey         string              `json:"ssl-key,omitempty"`
+	CACertificate  string              `json:"ca-cert,omitempty"`
+	RedisAddr      string              `json:"redis-addr,omitempty"`
+	RedisPass      string              `json:"redis-pass,omitempty"`
+	ListenAddr     string              `json:"listen-addr,omitempty"`
+	Hosts          []*citadel.Resource `json:"hosts,omitempty"`
 }
 
-func main() {
-	registry := redis.NewRedisRegistry(config.RedisAddr, config.RedisPass)
-	// load host resources
-	for _, host := range config.Hosts {
-		registry.SaveResource(&host)
-	}
-	defaultLogger := log.New(ioutil.Discard, "[bastion] ", log.LstdFlags)
-	clusterManager = citadel.NewClusterManager(registry, defaultLogger)
-	labelScheduler := citadel.LabelScheduler{}
-	clusterManager.RegisterScheduler("service", &labelScheduler)
+func init() {
+	flag.StringVar(&configPath, "conf", "", "config file")
+	flag.Parse()
+}
 
-	logger.Infof("bastion listening on %s", config.ListenAddr)
-	http.HandleFunc("/", receive)
-	logger.Fatal(http.ListenAndServe(config.ListenAddr, nil))
+func loadConfig() error {
+	f, err := os.Open(configPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return json.NewDecoder(f).Decode(&config)
 }
 
 func getTLSConfig() (*tls.Config, error) {
@@ -74,11 +55,12 @@ func getTLSConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 	tlsConfig.InsecureSkipVerify = true
 	certPool := x509.NewCertPool()
+
 	file, err := ioutil.ReadFile(config.CACertificate)
 	if err != nil {
-		logger.Errorf("error reading ca cert %s: %s", config.CACertificate, err)
 		return nil, err
 	}
+
 	certPool.AppendCertsFromPEM(file)
 	tlsConfig.RootCAs = certPool
 	_, errCert := os.Stat(config.SSLCertificate)
@@ -86,11 +68,11 @@ func getTLSConfig() (*tls.Config, error) {
 	if errCert == nil && errKey == nil {
 		cert, err := tls.LoadX509KeyPair(config.SSLCertificate, config.SSLKey)
 		if err != nil {
-			logger.Errorf("error loading X509 key: %s", err)
 			return &tlsConfig, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
+
 	return &tlsConfig, nil
 }
 
@@ -106,59 +88,55 @@ func receive(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.WriteHeader(http.StatusCreated)
 	default:
-		fmt.Fprintf(w, "bastion")
-		return
+		w.WriteHeader(http.StatusNotFound)
 	}
-	w.WriteHeader(http.StatusCreated)
 }
 
 func getDockerClient(resource *citadel.Resource) (*dockerclient.DockerClient, error) {
 	var tlsConfig *tls.Config
 	u, err := url.Parse(resource.Addr)
 	if err != nil {
-		logger.Fatalf("erroring parsing host address: %s", err)
+		return nil, err
 	}
+
 	// only load tls config if using https
 	if u.Scheme == "https" {
 		tlsCfg, err := getTLSConfig()
 		if err != nil {
-			logger.Errorf("unable to get TLS config: %s", err)
 			return nil, err
 		}
 		tlsConfig = tlsCfg
 	}
-	docker, err := dockerclient.NewDockerClient(resource.Addr, tlsConfig)
-	if err != nil {
-		logger.Errorf("unable to connect to docker daemon: %s", err)
-		return nil, err
-	}
-	return docker, nil
+
+	return dockerclient.NewDockerClient(resource.Addr, tlsConfig)
 }
 
 func runContainer(container *citadel.Container) error {
-	// schedule
 	resource, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
-		logger.Errorf("error scheduling container: %s", err)
 		return err
 	}
-	logger.Infof("using host %s (%s)", resource.ID, resource.Addr)
+
+	logger.Printf("using host %s (%s)\n", resource.ID, resource.Addr)
+
 	docker, err := getDockerClient(resource)
 	if err != nil {
-		logger.Errorf("error getting docker client: %s", err)
 		return err
 	}
+
 	// TODO: error check on run instead of pulling every time?
 	if err := docker.PullImage(container.Image, ""); err != nil {
-		logger.Errorf("unable to pull image: %s", err)
 		return err
 	}
+
 	// format env
 	env := []string{}
 	for k, v := range container.Environment {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
+
 	containerConfig := &dockerclient.ContainerConfig{
 		Hostname:   container.Hostname,
 		Domainname: container.Domainname,
@@ -166,19 +144,47 @@ func runContainer(container *citadel.Container) error {
 		Memory:     int(container.Memory) * 1048576,
 		Env:        env,
 	}
+
 	// TODO: allow to be customized?
 	hostConfig := &dockerclient.HostConfig{
 		PublishAllPorts: true,
 	}
+
 	containerId, err := docker.CreateContainer(containerConfig, container.Name)
 	if err != nil {
-		logger.Errorf("error creating container: %s", err)
 		return err
 	}
+
 	if err := docker.StartContainer(containerId, hostConfig); err != nil {
-		logger.Errorf("error starting container: %s", err)
 		return err
 	}
-	logger.Infof("launched %s (%s) on %s", container.Name, containerId[:5], resource.ID)
+
+	logger.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], resource.ID)
+
 	return nil
+}
+
+func main() {
+	if err := loadConfig(); err != nil {
+		logger.Fatal(err)
+	}
+
+	registry := redis.NewRedisRegistry(config.RedisAddr, config.RedisPass)
+	defer registry.Close()
+
+	for _, host := range config.Hosts {
+		if err := registry.SaveResource(host); err != nil {
+			logger.Fatal(err)
+		}
+	}
+
+	clusterManager = citadel.NewClusterManager(registry, logger)
+	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
+
+	http.HandleFunc("/", receive)
+
+	logger.Printf("bastion listening on %s\n", config.ListenAddr)
+	if err := http.ListenAndServe(config.ListenAddr, nil); err != nil {
+		logger.Fatal(err)
+	}
 }
