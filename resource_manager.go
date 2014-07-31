@@ -2,20 +2,20 @@ package citadel
 
 import "log"
 
-// ResourceManager is responsible for managing the resources of the cluster
-type ResourceManager struct {
+// DockerManager is responsible for managing the resources of the cluster
+type DockerManager struct {
 	logger *log.Logger
 }
 
-func newResourceManger(logger *log.Logger) *ResourceManager {
-	return &ResourceManager{
+func newDockerManger(logger *log.Logger) *DockerManager {
+	return &DockerManager{
 		logger: logger,
 	}
 }
 
 // PlaceContainer uses the provided resources to make a decision on which resource the container
 // should run based on best utilization of the resources.
-func (r *ResourceManager) PlaceContainer(resources []*Resource, c *Container) (*Resource, error) {
+func (r *DockerManager) PlaceContainer(resources []*Docker, c *Container) (*Docker, error) {
 	var (
 		scores = []*score{}
 	)

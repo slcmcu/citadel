@@ -1,6 +1,6 @@
 package citadel
 
-type Resource struct {
+type Docker struct {
 	ID             string   `json:"id,omitempty"`
 	Addr           string   `json:"addr,omitempty"`
 	Cpus           float64  `json:"cpus,omitempty"`

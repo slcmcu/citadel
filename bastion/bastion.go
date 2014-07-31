@@ -32,7 +32,7 @@ type Config struct {
 	RedisAddr      string              `json:"redis-addr,omitempty"`
 	RedisPass      string              `json:"redis-pass,omitempty"`
 	ListenAddr     string              `json:"listen-addr,omitempty"`
-	Hosts          []*citadel.Resource `json:"hosts,omitempty"`
+	Hosts          []*citadel.Docker `json:"hosts,omitempty"`
 }
 
 func init() {
@@ -94,7 +94,7 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getDockerClient(resource *citadel.Resource) (*dockerclient.DockerClient, error) {
+func getDockerClient(resource *citadel.Docker) (*dockerclient.DockerClient, error) {
 	var tlsConfig *tls.Config
 	u, err := url.Parse(resource.Addr)
 	if err != nil {

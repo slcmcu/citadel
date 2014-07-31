@@ -12,11 +12,11 @@ type Registry struct {
 }
 
 type client struct {
-	r      *citadel.Resource
+	r      *citadel.Docker
 	client *dockerclient.DockerClient
 }
 
-func New(resources []*citadel.Resource, config *tls.Config) (citadel.Registry, error) {
+func New(resources []*citadel.Docker, config *tls.Config) (citadel.Registry, error) {
 	r := &Registry{
 		resources: make(map[string]*client, len(resources)),
 	}
@@ -33,8 +33,8 @@ func New(resources []*citadel.Resource, config *tls.Config) (citadel.Registry, e
 	return r, nil
 }
 
-func (r *Registry) FetchResources() ([]*citadel.Resource, error) {
-	out := []*citadel.Resource{}
+func (r *Registry) FetchDockers() ([]*citadel.Docker, error) {
+	out := []*citadel.Docker{}
 
 	for _, c := range r.resources {
 		containers, err := c.client.ListContainers(false)

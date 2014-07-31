@@ -3,7 +3,7 @@ package citadel
 import "testing"
 
 func TestScheduleHighMemory(t *testing.T) {
-	resources := []*Resource{
+	resources := []*Docker{
 		{
 			ID:     "1",
 			Cpus:   1,
@@ -18,7 +18,7 @@ func TestScheduleHighMemory(t *testing.T) {
 
 	var (
 		r = newMockRegistry(resources)
-		s = newResourceManger(r)
+		s = newDockerManger(r)
 	)
 
 	c := &Container{
@@ -39,7 +39,7 @@ func TestScheduleHighMemory(t *testing.T) {
 // this test should schedule the task on the smallest host because the
 // utilization is better than running the task on a large host
 func TestScheduleBestUtilization(t *testing.T) {
-	resources := []*Resource{
+	resources := []*Docker{
 		{
 			ID:     "1",
 			Cpus:   1,
@@ -54,7 +54,7 @@ func TestScheduleBestUtilization(t *testing.T) {
 
 	var (
 		r = newMockRegistry(resources)
-		s = newResourceManger(r)
+		s = newDockerManger(r)
 	)
 
 	c := &Container{

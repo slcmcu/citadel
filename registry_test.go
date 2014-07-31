@@ -7,12 +7,12 @@ type mockRegistry struct {
 }
 
 type reservation struct {
-	r      *Resource
+	r      *Docker
 	cpus   float64
 	memory float64
 }
 
-func newMockRegistry(rs []*Resource) *mockRegistry {
+func newMockRegistry(rs []*Docker) *mockRegistry {
 	m := &mockRegistry{
 		resources: make(map[string]*reservation, len(rs)),
 	}
@@ -24,8 +24,8 @@ func newMockRegistry(rs []*Resource) *mockRegistry {
 	return m
 }
 
-func (r *mockRegistry) FetchResources() ([]*Resource, error) {
-	out := []*Resource{}
+func (r *mockRegistry) FetchDockers() ([]*Docker, error) {
+	out := []*Docker{}
 
 	for _, rs := range r.resources {
 		out = append(out, rs.r)
@@ -67,13 +67,13 @@ func (r *mockRegistry) ReleaseReservation(id string, c *Container) error {
 	return nil
 }
 
-func (r *mockRegistry) DeleteResource(id string) error {
+func (r *mockRegistry) DeleteDocker(id string) error {
 	delete(r.resources, id)
 
 	return nil
 }
 
-func (r *mockRegistry) SaveResource(rs *Resource) error {
+func (r *mockRegistry) SaveDocker(rs *Docker) error {
 	r.resources[rs.ID] = &reservation{r: rs}
 
 	return nil

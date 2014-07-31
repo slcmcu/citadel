@@ -15,7 +15,7 @@ var (
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
 	registry        Registry
-	resourceManager *ResourceManager
+	resourceManager *DockerManager
 
 	schedulers map[string]Scheduler
 
@@ -29,7 +29,7 @@ func NewClusterManager(registry Registry, logger *log.Logger) *ClusterManager {
 	return &ClusterManager{
 		registry:        registry,
 		schedulers:      make(map[string]Scheduler),
-		resourceManager: newResourceManger(logger),
+		resourceManager: newDockerManger(logger),
 		logger:          logger,
 	}
 }
@@ -38,7 +38,7 @@ func NewClusterManager(registry Registry, logger *log.Logger) *ClusterManager {
 // a resource that is able to run the container.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
+func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -51,7 +51,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Resource, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	resources, err := m.registry.FetchResources()
+	resources, err := m.registry.FetchDockers()
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ func NewRedisRegistry(addr, pass string) citadel.Registry {
 	}
 }
 
-func (r *RedisRegistry) SaveResource(rs *citadel.Resource) error {
+func (r *RedisRegistry) SaveDocker(rs *citadel.Docker) error {
 	key := r.getKey(rs.ID)
 
 	data, err := json.Marshal(rs)
@@ -31,15 +31,15 @@ func (r *RedisRegistry) SaveResource(rs *citadel.Resource) error {
 	return err
 }
 
-func (r *RedisRegistry) DeleteResource(id string) error {
+func (r *RedisRegistry) DeleteDocker(id string) error {
 	key := r.getKey(id)
 
 	_, err := r.do("DEL", key, fmt.Sprintf("%s:reserved_cpus", key), fmt.Sprintf("%s:reserved_memory", key))
 	return err
 }
 
-func (r *RedisRegistry) FetchResources() ([]*citadel.Resource, error) {
-	out := []*citadel.Resource{}
+func (r *RedisRegistry) FetchDockers() ([]*citadel.Docker, error) {
+	out := []*citadel.Docker{}
 
 	keys, err := redis.Strings(r.do("KEYS", "citadel:resources:*"))
 	if err != nil {
@@ -56,7 +56,7 @@ func (r *RedisRegistry) FetchResources() ([]*citadel.Resource, error) {
 			return nil, err
 		}
 
-		var rs *citadel.Resource
+		var rs *citadel.Docker
 		if err := json.Unmarshal([]byte(data), &rs); err != nil {
 			return nil, err
 		}
