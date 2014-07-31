@@ -1,6 +1,12 @@
 package citadel
 
-import "testing"
+import (
+	"io/ioutil"
+	"log"
+	"testing"
+)
+
+var testLogger = log.New(ioutil.Discard, "", log.LstdFlags)
 
 func TestScheduleHighMemory(t *testing.T) {
 	resources := []*Docker{
@@ -17,8 +23,7 @@ func TestScheduleHighMemory(t *testing.T) {
 	}
 
 	var (
-		r = newMockRegistry(resources)
-		s = newDockerManger(r)
+		s = newDockerManger(testLogger)
 	)
 
 	c := &Container{
@@ -53,8 +58,7 @@ func TestScheduleBestUtilization(t *testing.T) {
 	}
 
 	var (
-		r = newMockRegistry(resources)
-		s = newDockerManger(r)
+		s = newDockerManger(testLogger)
 	)
 
 	c := &Container{
