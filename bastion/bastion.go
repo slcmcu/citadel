@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/citadel/citadel"
+	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
 )
 
@@ -26,21 +27,18 @@ func init() {
 }
 
 func receive(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		var container citadel.Container
-		if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := runContainer(&container); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	default:
-		w.WriteHeader(http.StatusNotFound)
+	var container *citadel.Container
+	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	if err := runContainer(container); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func runContainer(container *citadel.Container) error {
@@ -108,10 +106,11 @@ func main() {
 	clusterManager = citadel.NewClusterManager(config.Dockers, logger)
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
 
-	http.HandleFunc("/", receive)
+	r := mux.NewRouter()
+	r.HandleFunc("/", receive).Methods("POST")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
-	if err := http.ListenAndServe(config.ListenAddr, nil); err != nil {
+	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
 		logger.Fatal(err)
 	}
 }
