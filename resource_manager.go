@@ -2,30 +2,33 @@ package citadel
 
 import "log"
 
-// DockerManager is responsible for managing the resources of the cluster
-type DockerManager struct {
+// ResourceManager is responsible for managing the dockers of the cluster
+type ResourceManager struct {
 	logger *log.Logger
 }
 
-func newDockerManger(logger *log.Logger) *DockerManager {
-	return &DockerManager{
+func newDockerManger(logger *log.Logger) *ResourceManager {
+	return &ResourceManager{
 		logger: logger,
 	}
 }
 
-// PlaceContainer uses the provided resources to make a decision on which resource the container
-// should run based on best utilization of the resources.
-func (r *DockerManager) PlaceContainer(resources []*Docker, c *Container) (*Docker, error) {
+// PlaceContainer uses the provided dockers to make a decision on which resource the container
+// should run based on best utilization of the dockers.
+func (r *ResourceManager) PlaceContainer(dockers []*Docker, c *Container) (*Docker, error) {
 	var (
 		scores = []*score{}
 	)
 
-	for _, re := range resources {
+	for _, re := range dockers {
 		if re.Memory < c.Memory || re.Cpus < c.Cpus {
 			continue
 		}
 
-		cpus, memory := re.ReservedCpus, re.ReservedMemory
+		cpus, memory, err := re.GetCpuAndMemoryReservation()
+		if err != nil {
+			return nil, err
+		}
 
 		var (
 			cpuScore    = ((cpus + c.Cpus) / re.Cpus) * 100.0

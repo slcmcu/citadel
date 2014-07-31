@@ -13,7 +13,6 @@ import (
 	"os"
 
 	"github.com/citadel/citadel"
-	"github.com/citadel/citadel/docker"
 	"github.com/samalba/dockerclient"
 )
 
@@ -26,13 +25,13 @@ var (
 )
 
 type Config struct {
-	SSLCertificate string              `json:"ssl-cert,omitempty"`
-	SSLKey         string              `json:"ssl-key,omitempty"`
-	CACertificate  string              `json:"ca-cert,omitempty"`
-	RedisAddr      string              `json:"redis-addr,omitempty"`
-	RedisPass      string              `json:"redis-pass,omitempty"`
-	ListenAddr     string              `json:"listen-addr,omitempty"`
-	Hosts          []*citadel.Docker `json:"hosts,omitempty"`
+	SSLCertificate string            `json:"ssl-cert,omitempty"`
+	SSLKey         string            `json:"ssl-key,omitempty"`
+	CACertificate  string            `json:"ca-cert,omitempty"`
+	RedisAddr      string            `json:"redis-addr,omitempty"`
+	RedisPass      string            `json:"redis-pass,omitempty"`
+	ListenAddr     string            `json:"listen-addr,omitempty"`
+	Dockers        []*citadel.Docker `json:"dockers,omitempty"`
 }
 
 func init() {
@@ -94,40 +93,37 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getDockerClient(resource *citadel.Docker) (*dockerclient.DockerClient, error) {
-	var tlsConfig *tls.Config
-	u, err := url.Parse(resource.Addr)
+func setDockerClient(docker *citadel.Docker, tlsConfig *tls.Config) error {
+	var tc *tls.Config
+	u, err := url.Parse(docker.Addr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// only load tls config if using https
 	if u.Scheme == "https" {
-		tlsCfg, err := getTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig = tlsCfg
+		tc = tlsConfig
 	}
 
-	return dockerclient.NewDockerClient(resource.Addr, tlsConfig)
+	c, err := dockerclient.NewDockerClient(docker.Addr, tc)
+	if err != nil {
+		return err
+	}
+
+	docker.Client = c
+
+	return nil
 }
 
 func runContainer(container *citadel.Container) error {
-	resource, err := clusterManager.ScheduleContainer(container)
+	docker, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
 		return err
 	}
 
-	logger.Printf("using host %s (%s)\n", resource.ID, resource.Addr)
-
-	docker, err := getDockerClient(resource)
-	if err != nil {
-		return err
-	}
+	logger.Printf("using host %s (%s)\n", docker.ID, docker.Addr)
 
 	// TODO: error check on run instead of pulling every time?
-	if err := docker.PullImage(container.Image, ""); err != nil {
+	if err := docker.Client.PullImage(container.Image, ""); err != nil {
 		return err
 	}
 
@@ -150,16 +146,16 @@ func runContainer(container *citadel.Container) error {
 		PublishAllPorts: true,
 	}
 
-	containerId, err := docker.CreateContainer(containerConfig, container.Name)
+	containerId, err := docker.Client.CreateContainer(containerConfig, container.Name)
 	if err != nil {
 		return err
 	}
 
-	if err := docker.StartContainer(containerId, hostConfig); err != nil {
+	if err := docker.Client.StartContainer(containerId, hostConfig); err != nil {
 		return err
 	}
 
-	logger.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], resource.ID)
+	logger.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], docker.ID)
 
 	return nil
 }
@@ -174,13 +170,13 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	registry, err := docker.New(config.Hosts, tlsConfig)
-	if err != nil {
-		logger.Fatal(err)
+	for _, d := range config.Dockers {
+		if err := setDockerClient(d, tlsConfig); err != nil {
+			logger.Fatal(err)
+		}
 	}
-	defer registry.Close()
 
-	clusterManager = citadel.NewClusterManager(registry, logger)
+	clusterManager = citadel.NewClusterManager(config.Dockers, logger)
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
 
 	http.HandleFunc("/", receive)
