@@ -63,7 +63,6 @@ func (r *RedisRegistry) FetchResources() ([]*citadel.Resource, error) {
 
 		out = append(out, rs)
 	}
-
 	return out, nil
 }
 
@@ -71,12 +70,12 @@ func (r *RedisRegistry) GetTotalReservations(id string) (float64, float64, error
 	key := r.getKey(id)
 
 	cpus, err := redis.Float64(r.do("GET", fmt.Sprintf("%s:reserved_cpus", key)))
-	if err != nil {
+	if err != nil && err != redis.ErrNil {
 		return 0, 0, err
 	}
 
 	memory, err := redis.Float64(r.do("GET", fmt.Sprintf("%s:reserved_memory", key)))
-	if err != nil {
+	if err != nil && err != redis.ErrNil {
 		return 0, 0, err
 	}
 
