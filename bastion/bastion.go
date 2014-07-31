@@ -1,15 +1,11 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/citadel/citadel"
@@ -24,55 +20,9 @@ var (
 	logger = log.New(os.Stderr, "[bastion] ", log.LstdFlags)
 )
 
-type Config struct {
-	SSLCertificate string            `json:"ssl-cert,omitempty"`
-	SSLKey         string            `json:"ssl-key,omitempty"`
-	CACertificate  string            `json:"ca-cert,omitempty"`
-	RedisAddr      string            `json:"redis-addr,omitempty"`
-	RedisPass      string            `json:"redis-pass,omitempty"`
-	ListenAddr     string            `json:"listen-addr,omitempty"`
-	Dockers        []*citadel.Docker `json:"dockers,omitempty"`
-}
-
 func init() {
 	flag.StringVar(&configPath, "conf", "", "config file")
 	flag.Parse()
-}
-
-func loadConfig() error {
-	f, err := os.Open(configPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return json.NewDecoder(f).Decode(&config)
-}
-
-func getTLSConfig() (*tls.Config, error) {
-	// TLS config
-	var tlsConfig tls.Config
-	tlsConfig.InsecureSkipVerify = true
-	certPool := x509.NewCertPool()
-
-	file, err := ioutil.ReadFile(config.CACertificate)
-	if err != nil {
-		return nil, err
-	}
-
-	certPool.AppendCertsFromPEM(file)
-	tlsConfig.RootCAs = certPool
-	_, errCert := os.Stat(config.SSLCertificate)
-	_, errKey := os.Stat(config.SSLKey)
-	if errCert == nil && errKey == nil {
-		cert, err := tls.LoadX509KeyPair(config.SSLCertificate, config.SSLKey)
-		if err != nil {
-			return &tlsConfig, err
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	return &tlsConfig, nil
 }
 
 func receive(w http.ResponseWriter, r *http.Request) {
@@ -91,27 +41,6 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
-}
-
-func setDockerClient(docker *citadel.Docker, tlsConfig *tls.Config) error {
-	var tc *tls.Config
-	u, err := url.Parse(docker.Addr)
-	if err != nil {
-		return err
-	}
-
-	if u.Scheme == "https" {
-		tc = tlsConfig
-	}
-
-	c, err := dockerclient.NewDockerClient(docker.Addr, tc)
-	if err != nil {
-		return err
-	}
-
-	docker.Client = c
-
-	return nil
 }
 
 func runContainer(container *citadel.Container) error {
