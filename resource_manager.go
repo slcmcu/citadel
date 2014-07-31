@@ -1,12 +1,16 @@
 package citadel
 
+import "log"
+
 // ResourceManager is responsible for managing the resources of the cluster
 type ResourceManager struct {
 	registry Registry
+	logger   *log.Logger
 }
 
-func newResourceManger(registry Registry) *ResourceManager {
+func newResourceManger(registry Registry, logger *log.Logger) *ResourceManager {
 	return &ResourceManager{
+		logger:   logger,
 		registry: registry,
 	}
 }
@@ -29,11 +33,12 @@ func (r *ResourceManager) PlaceContainer(resources []*Resource, c *Container) (*
 		}
 
 		var (
-			cpuScore    = (cpus / re.Cpus) * 100.0
-			memoryScore = (memory / re.Memory) * 100.0
+			cpuScore    = ((cpus + c.Cpus) / re.Cpus) * 100.0
+			memoryScore = ((memory + c.Memory) / re.Memory) * 100.0
 			total       = ((cpuScore + memoryScore) / 200.0) * 100.0
 		)
 
+		log.Printf("resource=%s score=%f\n", re.ID, total)
 		if total <= 100.0 {
 			scores = append(scores, &score{r: re, score: total})
 		}

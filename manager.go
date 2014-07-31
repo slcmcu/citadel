@@ -29,7 +29,7 @@ func NewClusterManager(registry Registry, logger *log.Logger) *ClusterManager {
 	return &ClusterManager{
 		registry:        registry,
 		schedulers:      make(map[string]Scheduler),
-		resourceManager: newResourceManger(registry),
+		resourceManager: newResourceManger(registry, logger),
 		logger:          logger,
 	}
 }
