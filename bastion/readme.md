@@ -2,7 +2,7 @@
 This is a reference implementation of the Citadel Docker scheduler.
 
 # Usage
-In order to use Bastion, you must setup your Docker remote hosts using TLS.  You can use the example certs in this repository for testing (DO NOT USE IN PRODUCTION) or see https://docs.docker.com/articles/https/ for more information.
+Create a custom config using `bastion.conf.sample` as an example.  If you use TLS Docker hosts, the use the below to specify the certificate paths.
 
 ## Start Docker with TLS enabled
 Place the sample certs in `/certs`.  Add the following to your Docker config and restart the daemon:
