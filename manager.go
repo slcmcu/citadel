@@ -4,6 +4,9 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
+
+	"github.com/rcrowley/go-metrics"
 )
 
 var (
@@ -19,6 +22,8 @@ type ClusterManager struct {
 
 	schedulers map[string]Scheduler
 
+	timer metrics.Timer
+
 	logger *log.Logger
 	mux    sync.Mutex
 }
@@ -26,12 +31,17 @@ type ClusterManager struct {
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
 func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
-	return &ClusterManager{
+	m := &ClusterManager{
 		engines:         engines,
 		schedulers:      make(map[string]Scheduler),
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
+		timer:           metrics.NewTimer(),
 	}
+
+	metrics.Register("citadel-timer", m.timer)
+
+	return m
 }
 
 // ScheduleContainer uses the schedulers registered with the cluster and finds
@@ -39,6 +49,9 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
+	now := time.Now()
+	defer m.timer.UpdateSince(now)
+
 	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
 	if err := ValidateContainer(c); err != nil {

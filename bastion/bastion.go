@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/citadel/citadel"
 	"github.com/gorilla/mux"
+	"github.com/rcrowley/go-metrics"
 	"github.com/samalba/dockerclient"
 )
 
@@ -159,6 +161,8 @@ func main() {
 	}
 
 	clusterManager = citadel.NewClusterManager(config.Engines, logger)
+
+	go metrics.Log(metrics.DefaultRegistry, 10*time.Second, logger)
 
 	scheduler := citadel.NewMultiScheduler(
 		&citadel.LabelScheduler{},
