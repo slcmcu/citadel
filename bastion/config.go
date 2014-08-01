@@ -12,7 +12,7 @@ type Config struct {
 	SSLKey         string            `json:"ssl-key,omitempty"`
 	CACertificate  string            `json:"ca-cert,omitempty"`
 	ListenAddr     string            `json:"listen-addr,omitempty"`
-	Dockers        []*citadel.Docker `json:"dockers,omitempty"`
+	Dockers        []*citadel.Docker `json:"engines,omitempty"`
 }
 
 func loadConfig() error {

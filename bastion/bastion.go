@@ -41,6 +41,10 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func engines(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func runContainer(container *citadel.Container) error {
 	docker, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
