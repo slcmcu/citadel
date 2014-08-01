@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"github.com/citadel/citadel"
 	"github.com/gorilla/mux"
 	"github.com/rcrowley/go-metrics"
-	"github.com/samalba/dockerclient"
 )
 
 var (
@@ -35,7 +33,7 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := destroyContainer(container); err != nil {
+	if err := clusterManager.Remove(container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -48,14 +46,14 @@ type placement struct {
 	Engine    *citadel.Docker    `json:"engine,omitempty"`
 }
 
-func receive(w http.ResponseWriter, r *http.Request) {
+func run(w http.ResponseWriter, r *http.Request) {
 	var container *citadel.Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	placement, err := runContainer(container)
+	engine, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -63,7 +61,10 @@ func receive(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 
-	if err := json.NewEncoder(w).Encode(placement); err != nil {
+	if err := json.NewEncoder(w).Encode(&placement{
+		container,
+		engine,
+	}); err != nil {
 		logger.Println(err)
 	}
 }
@@ -74,74 +75,6 @@ func engines(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(config.Engines); err != nil {
 		logger.Println(err)
 	}
-}
-
-func runContainer(container *citadel.Container) (*placement, error) {
-	docker, err := clusterManager.ScheduleContainer(container)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Printf("using host %s (%s)\n", docker.ID, docker.Addr)
-
-	// format env
-	env := []string{}
-	for k, v := range container.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	containerConfig := &dockerclient.ContainerConfig{
-		Hostname:   container.Hostname,
-		Domainname: container.Domainname,
-		Image:      container.Image,
-		Memory:     int(container.Memory) * 1024 * 1024,
-		Env:        env,
-	}
-
-	citadel.SetContainerCpus(docker, container, containerConfig)
-
-	hostConfig := &dockerclient.HostConfig{
-		PublishAllPorts: true,
-	}
-
-	containerId, err := docker.Client.CreateContainer(containerConfig, container.Name)
-	if err != nil {
-		if err == dockerclient.ErrNotFound {
-			if err := docker.Client.PullImage(container.Image, "latest"); err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-
-	if err := docker.Client.StartContainer(containerId, hostConfig); err != nil {
-		return nil, err
-	}
-
-	logger.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], docker.ID)
-
-	return &placement{
-		Container: container,
-		Engine:    docker,
-	}, nil
-}
-
-func destroyContainer(container *citadel.Container) error {
-	engines := clusterManager.Engines()
-	for _, engine := range engines {
-		_, err := engine.Client.InspectContainer(container.Name)
-		if err != nil {
-			continue
-		}
-		if err := engine.Client.KillContainer(container.Name); err != nil {
-			return err
-		}
-		if err := engine.Client.RemoveContainer(container.Name); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func main() {
@@ -171,7 +104,7 @@ func main() {
 	clusterManager.RegisterScheduler("service", scheduler)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/run", receive).Methods("POST")
+	r.HandleFunc("/run", run).Methods("POST")
 	r.HandleFunc("/destroy", destroy).Methods("POST")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)

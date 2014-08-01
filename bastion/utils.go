@@ -53,7 +53,7 @@ func setDockerClient(docker *citadel.Docker, tlsConfig *tls.Config) error {
 		return err
 	}
 
-	docker.Client = c
+	docker.SetClient(c)
 
 	return nil
 }

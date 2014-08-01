@@ -21,7 +21,7 @@ func (i *ImageScheduler) Schedule(engines []*Docker, c *Container) ([]*Docker, e
 	}
 
 	for _, e := range engines {
-		images, err := e.Client.ListImages()
+		images, err := e.client.ListImages()
 		if err != nil {
 			return nil, err
 		}
