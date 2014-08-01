@@ -26,6 +26,19 @@ func init() {
 	flag.Parse()
 }
 
+func destroy(w http.ResponseWriter, r *http.Request) {
+	var container *citadel.Container
+	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := destroyContainer(container); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func receive(w http.ResponseWriter, r *http.Request) {
 	var container *citadel.Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
@@ -95,6 +108,24 @@ func runContainer(container *citadel.Container) error {
 	return nil
 }
 
+func destroyContainer(container *citadel.Container) error {
+	engines := clusterManager.Engines()
+	for _, engine := range engines {
+		_, err := engine.Client.InspectContainer(container.Name)
+		if err != nil {
+			logger.Printf("no container found on host %s name=%s\n", engine.ID, container.Name)
+			continue
+		}
+		if err := engine.Client.KillContainer(container.Name); err != nil {
+			return err
+		}
+		if err := engine.Client.RemoveContainer(container.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	if err := loadConfig(); err != nil {
 		logger.Fatal(err)
@@ -115,8 +146,8 @@ func main() {
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", receive).Methods("POST")
-	r.HandleFunc("/engines", engines).Methods("GET")
+	r.HandleFunc("/run", receive).Methods("POST")
+	r.HandleFunc("/destroy", destroy).Methods("POST")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {

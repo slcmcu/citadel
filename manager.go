@@ -74,6 +74,10 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	return placement, nil
 }
 
+func (m *ClusterManager) Engines() []*Docker {
+	return m.engines
+}
+
 // RegisterScheduler registers the scheduler for a specific container type within the
 // cluster.  An ErrSchedulerExists error is returned if the cluster already has a
 // scheduler registered for that specific type.
