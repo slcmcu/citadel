@@ -95,6 +95,8 @@ func runContainer(container *citadel.Container) (*placement, error) {
 		Env:        env,
 	}
 
+	citadel.SetContainerCpus(docker, container, containerConfig)
+
 	hostConfig := &dockerclient.HostConfig{
 		PublishAllPorts: true,
 	}
