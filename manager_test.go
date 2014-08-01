@@ -27,7 +27,11 @@ func TestNoSchedulerForType(t *testing.T) {
 	m := NewClusterManager(nil, defaultLogger)
 
 	_, err := m.ScheduleContainer(&Container{
-		Type: "service",
+		Type:   "service",
+		Cpus:   1,
+		Memory: 2,
+		Name:   "test",
+		Image:  "test",
 	})
 
 	if err == nil {
