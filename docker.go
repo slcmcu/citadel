@@ -24,7 +24,7 @@ func (d *Docker) GetCpuAndMemoryReservation() (cpu float64, mem float64, err err
 			return 0, 0, err
 		}
 
-		cpu += float64(info.Config.CpuShares)
+		cpu += float64(info.Config.CpuShares) / 100.0 * d.Cpus
 		mem += float64(info.Config.Memory / 1024 / 1024)
 	}
 

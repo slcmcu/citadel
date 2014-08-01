@@ -39,12 +39,16 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
+	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
+
+	if err := ValidateContainer(c); err != nil {
+		return nil, err
+	}
+
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	var err error
-
-	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
 	// find the correct scheduler for the container's type
 	scheduler := m.schedulers[c.Type]
