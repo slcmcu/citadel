@@ -42,7 +42,11 @@ func receive(w http.ResponseWriter, r *http.Request) {
 }
 
 func engines(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
 
+	if err := json.NewEncoder(w).Encode(config.Engines); err != nil {
+		logger.Println(err)
+	}
 }
 
 func runContainer(container *citadel.Container) error {
@@ -101,17 +105,18 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	for _, d := range config.Dockers {
+	for _, d := range config.Engines {
 		if err := setDockerClient(d, tlsConfig); err != nil {
 			logger.Fatal(err)
 		}
 	}
 
-	clusterManager = citadel.NewClusterManager(config.Dockers, logger)
+	clusterManager = citadel.NewClusterManager(config.Engines, logger)
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", receive).Methods("POST")
+	r.HandleFunc("/engines", engines).Methods("GET")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
