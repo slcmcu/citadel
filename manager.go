@@ -14,7 +14,7 @@ var (
 
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
-	dockers         []*Docker
+	engines         []*Docker
 	resourceManager *ResourceManager
 
 	schedulers map[string]Scheduler
@@ -25,9 +25,9 @@ type ClusterManager struct {
 
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
-func NewClusterManager(dockers []*Docker, logger *log.Logger) *ClusterManager {
+func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 	return &ClusterManager{
-		dockers:         dockers,
+		engines:         engines,
 		schedulers:      make(map[string]Scheduler),
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
@@ -53,19 +53,19 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	dockers := m.dockers
+	engines := m.engines
 
 	// let the scheduler make a decision about the hosts that it would like the container to
 	// be executed on
-	if dockers, err = scheduler.Schedule(dockers, c); err != nil {
+	if engines, err = scheduler.Schedule(engines, c); err != nil {
 		return nil, err
 	}
-	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(dockers))
+	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(engines))
 
-	// check with the resource manager to ensure that the dockers that the scheduler is able
+	// check with the resource manager to ensure that the engines that the scheduler is able
 	// to run the container and to place the container on the resource with the best utilization
 	// score to maximize effenciency
-	placement, err := m.resourceManager.PlaceContainer(dockers, c)
+	placement, err := m.resourceManager.PlaceContainer(engines, c)
 	if err != nil {
 		return nil, err
 	}

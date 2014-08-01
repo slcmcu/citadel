@@ -41,6 +41,14 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func engines(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(config.Engines); err != nil {
+		logger.Println(err)
+	}
+}
+
 func runContainer(container *citadel.Container) error {
 	docker, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
@@ -108,6 +116,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", receive).Methods("POST")
+	r.HandleFunc("/engines", engines).Methods("GET")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
