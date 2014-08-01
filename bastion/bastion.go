@@ -60,6 +60,7 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+
 	if err := json.NewEncoder(w).Encode(placement); err != nil {
 		logger.Println(err)
 	}
