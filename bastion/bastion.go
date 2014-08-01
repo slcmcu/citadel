@@ -113,7 +113,6 @@ func destroyContainer(container *citadel.Container) error {
 	for _, engine := range engines {
 		_, err := engine.Client.InspectContainer(container.Name)
 		if err != nil {
-			logger.Printf("no container found on host %s name=%s\n", engine.ID, container.Name)
 			continue
 		}
 		if err := engine.Client.KillContainer(container.Name); err != nil {
