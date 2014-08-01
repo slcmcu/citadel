@@ -154,7 +154,12 @@ func main() {
 	}
 
 	clusterManager = citadel.NewClusterManager(config.Engines, logger)
-	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
+
+	scheduler := citadel.NewMultiScheduler(
+		&citadel.LabelScheduler{},
+	)
+
+	clusterManager.RegisterScheduler("service", scheduler)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/run", receive).Methods("POST")
