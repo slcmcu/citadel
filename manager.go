@@ -90,6 +90,10 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	}
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
 
+	if err := m.runContainer(c, placement); err != nil {
+		return nil, err
+	}
+
 	return placement, nil
 }
 
