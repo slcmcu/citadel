@@ -24,7 +24,10 @@ type ClusterManager struct {
 
 	schedulers map[string]Scheduler
 
+	// timer records the time it takes to comple a scheduling operation
 	timer metrics.Timer
+	// waitTimer records the time it takes to acquire an exclusive lock on the cluster
+	waitTimer metrics.Timer
 
 	logger *log.Logger
 	mux    sync.Mutex
@@ -39,9 +42,11 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
 		timer:           metrics.NewTimer(),
+		waitTimer:       metrics.NewTimer(),
 	}
 
 	metrics.Register("citadel-timer", m.timer)
+	metrics.Register("citadel-wait-timer", m.waitTimer)
 
 	return m
 }
@@ -61,6 +66,10 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	}
 
 	m.mux.Lock()
+
+	// update the timer after we get the lock
+	m.waitTimer.UpdateSince(now)
+
 	defer m.mux.Unlock()
 
 	var err error
