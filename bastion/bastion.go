@@ -39,6 +39,11 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type placement struct {
+	Container *citadel.Container `json:"container,omitempty"`
+	Engine    *citadel.Docker    `json:"engine,omitempty"`
+}
+
 func receive(w http.ResponseWriter, r *http.Request) {
 	var container *citadel.Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
@@ -46,12 +51,16 @@ func receive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := runContainer(container); err != nil {
+	placement, err := runContainer(container)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(placement); err != nil {
+		logger.Println(err)
+	}
 }
 
 func engines(w http.ResponseWriter, r *http.Request) {
@@ -62,17 +71,17 @@ func engines(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func runContainer(container *citadel.Container) error {
+func runContainer(container *citadel.Container) (*placement, error) {
 	docker, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	logger.Printf("using host %s (%s)\n", docker.ID, docker.Addr)
 
 	// TODO: error check on run instead of pulling every time?
 	if err := docker.Client.PullImage(container.Image, ""); err != nil {
-		return err
+		return nil, err
 	}
 
 	// format env
@@ -96,16 +105,19 @@ func runContainer(container *citadel.Container) error {
 
 	containerId, err := docker.Client.CreateContainer(containerConfig, container.Name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := docker.Client.StartContainer(containerId, hostConfig); err != nil {
-		return err
+		return nil, err
 	}
 
 	logger.Printf("launched %s (%s) on %s\n", container.Name, containerId[:5], docker.ID)
 
-	return nil
+	return &placement{
+		Container: container,
+		Engine:    docker,
+	}, nil
 }
 
 func destroyContainer(container *citadel.Container) error {
