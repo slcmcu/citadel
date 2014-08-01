@@ -32,10 +32,12 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	if err := destroyContainer(container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -79,11 +81,6 @@ func runContainer(container *citadel.Container) (*placement, error) {
 
 	logger.Printf("using host %s (%s)\n", docker.ID, docker.Addr)
 
-	// TODO: error check on run instead of pulling every time?
-	if err := docker.Client.PullImage(container.Image, ""); err != nil {
-		return nil, err
-	}
-
 	// format env
 	env := []string{}
 	for k, v := range container.Environment {
@@ -94,18 +91,23 @@ func runContainer(container *citadel.Container) (*placement, error) {
 		Hostname:   container.Hostname,
 		Domainname: container.Domainname,
 		Image:      container.Image,
-		Memory:     int(container.Memory) * 1048576,
+		Memory:     int(container.Memory) * 1024 * 1024,
 		Env:        env,
 	}
 
-	// TODO: allow to be customized?
 	hostConfig := &dockerclient.HostConfig{
 		PublishAllPorts: true,
 	}
 
 	containerId, err := docker.Client.CreateContainer(containerConfig, container.Name)
 	if err != nil {
-		return nil, err
+		if err == dockerclient.ErrNotFound {
+			if err := docker.Client.PullImage(container.Image, "latest"); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	if err := docker.Client.StartContainer(containerId, hostConfig); err != nil {
