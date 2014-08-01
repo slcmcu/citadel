@@ -97,13 +97,13 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	for _, d := range config.Dockers {
+	for _, d := range config.Engines {
 		if err := setDockerClient(d, tlsConfig); err != nil {
 			logger.Fatal(err)
 		}
 	}
 
-	clusterManager = citadel.NewClusterManager(config.Dockers, logger)
+	clusterManager = citadel.NewClusterManager(config.Engines, logger)
 	clusterManager.RegisterScheduler("service", &citadel.LabelScheduler{})
 
 	r := mux.NewRouter()
