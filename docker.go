@@ -9,17 +9,21 @@ type Docker struct {
 	Memory float64  `json:"memory,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 
-	Client *dockerclient.DockerClient `json:"-"`
+	client *dockerclient.DockerClient
+}
+
+func (d *Docker) SetClient(client *dockerclient.DockerClient) {
+	d.client = client
 }
 
 func (d *Docker) GetCpuAndMemoryReservation() (cpu float64, mem float64, err error) {
-	containers, err := d.Client.ListContainers(false)
+	containers, err := d.client.ListContainers(false)
 	if err != nil {
 		return 0, 0, err
 	}
 
 	for _, ci := range containers {
-		info, err := d.Client.InspectContainer(ci.Id)
+		info, err := d.client.InspectContainer(ci.Id)
 		if err != nil {
 			return 0, 0, err
 		}

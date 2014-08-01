@@ -2,8 +2,13 @@ package citadel
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
+	"time"
+
+	"github.com/rcrowley/go-metrics"
+	"github.com/samalba/dockerclient"
 )
 
 var (
@@ -19,6 +24,8 @@ type ClusterManager struct {
 
 	schedulers map[string]Scheduler
 
+	timer metrics.Timer
+
 	logger *log.Logger
 	mux    sync.Mutex
 }
@@ -26,12 +33,17 @@ type ClusterManager struct {
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
 func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
-	return &ClusterManager{
+	m := &ClusterManager{
 		engines:         engines,
 		schedulers:      make(map[string]Scheduler),
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
+		timer:           metrics.NewTimer(),
 	}
+
+	metrics.Register("citadel-timer", m.timer)
+
+	return m
 }
 
 // ScheduleContainer uses the schedulers registered with the cluster and finds
@@ -39,6 +51,9 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
+	now := time.Now()
+	defer m.timer.UpdateSince(now)
+
 	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
 	if err := ValidateContainer(c); err != nil {
@@ -78,10 +93,6 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	return placement, nil
 }
 
-func (m *ClusterManager) Engines() []*Docker {
-	return m.engines
-}
-
 // RegisterScheduler registers the scheduler for a specific container type within the
 // cluster.  An ErrSchedulerExists error is returned if the cluster already has a
 // scheduler registered for that specific type.
@@ -96,6 +107,59 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	}
 
 	m.schedulers[tpe] = s
+
+	return nil
+}
+
+func (m *ClusterManager) runContainer(c *Container, engine *Docker) error {
+	env := []string{}
+	for k, v := range c.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	config := &dockerclient.ContainerConfig{
+		Hostname:   c.Hostname,
+		Domainname: c.Domainname,
+		Image:      c.Image,
+		Memory:     int(c.Memory) * 1024 * 1024,
+		Env:        env,
+		CpuShares:  int(c.Cpus * 100.0 / engine.Cpus),
+	}
+
+	hostConfig := &dockerclient.HostConfig{
+		PublishAllPorts: true,
+	}
+
+	if _, err := engine.client.CreateContainer(config, c.Name); err != nil {
+		if err == dockerclient.ErrNotFound {
+			if err := engine.client.PullImage(c.Image, "latest"); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	return engine.client.StartContainer(c.Name, hostConfig)
+}
+
+func (m *ClusterManager) Remove(c *Container) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	for _, engine := range m.engines {
+		if err := engine.client.KillContainer(c.Name); err != nil {
+			if err == dockerclient.ErrNotFound {
+				continue
+			}
+
+			return err
+		}
+
+		if err := engine.client.RemoveContainer(c.Name); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
