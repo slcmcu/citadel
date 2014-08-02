@@ -1,6 +1,11 @@
 package citadel
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/samalba/dockerclient"
+)
 
 // ValidateContainer ensures that the required fields are set on the container
 func ValidateContainer(c *Container) error {
@@ -18,4 +23,36 @@ func ValidateContainer(c *Container) error {
 	}
 
 	return nil
+}
+func AsCitadelContainer(container *dockerclient.Container, engine *Docker) (*Container, error) {
+	info, err := engine.client.InspectContainer(container.Id)
+	if err != nil {
+		return nil, err
+	}
+	cType := ""
+	labels := []string{}
+	env := make(map[string]string)
+	for _, e := range info.Config.Env {
+		vals := strings.Split(e, "=")
+		k, v := vals[0], vals[1]
+		switch k {
+		case "_citadel_type":
+			cType = v
+		case "_citadel_labels":
+			labels = strings.Split(v, ",")
+		default:
+			env[k] = v
+		}
+	}
+	return &Container{
+		Name:        info.Name,
+		Image:       container.Image,
+		Cpus:        float64(info.Config.CpuShares),
+		Memory:      float64(info.Config.Memory),
+		Environment: env,
+		Hostname:    info.Config.Hostname,
+		Domainname:  info.Config.Domainname,
+		Type:        cType,
+		Labels:      labels,
+	}, nil
 }
