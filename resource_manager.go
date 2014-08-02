@@ -7,7 +7,7 @@ type ResourceManager struct {
 	logger *log.Logger
 }
 
-func newDockerManger(logger *log.Logger) *ResourceManager {
+func newEngineManger(logger *log.Logger) *ResourceManager {
 	return &ResourceManager{
 		logger: logger,
 	}
@@ -15,7 +15,7 @@ func newDockerManger(logger *log.Logger) *ResourceManager {
 
 // PlaceContainer uses the provided engines to make a decision on which resource the container
 // should run based on best utilization of the engines.
-func (r *ResourceManager) PlaceContainer(c *Container, engines []*Docker) (*Docker, error) {
+func (r *ResourceManager) PlaceContainer(c *Container, engines []*Engine) (*Engine, error) {
 	scores := []*score{}
 
 	for _, re := range engines {

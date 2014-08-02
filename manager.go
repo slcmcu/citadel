@@ -20,7 +20,7 @@ var (
 
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
-	engines         engineMap
+	engines         map[string]*Engine
 	resourceManager *ResourceManager
 
 	schedulers map[string]Scheduler
@@ -34,11 +34,11 @@ type ClusterManager struct {
 
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
-func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
+func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 	m := &ClusterManager{
-		engines:         engineMap{},
+		engines:         make(map[string]*Engine),
 		schedulers:      make(map[string]Scheduler),
-		resourceManager: newDockerManger(logger),
+		resourceManager: newEngineManger(logger),
 		logger:          logger,
 		timer:           metrics.NewTimer(),
 	}
@@ -63,16 +63,12 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 
 	m.mux.Lock()
 
-	t, err := newTransaction(c, m.engines.slice())
+	t := newTransaction(c)
 	defer func() {
 		t.Close()
 		m.mux.Unlock()
 		m.timer.UpdateSince(t.Started)
 	}()
-
-	if err != nil {
-		return nil, err
-	}
 
 	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
@@ -83,7 +79,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	accepted := []*Docker{}
+	accepted := []*Engine{}
 
 	for _, e := range m.engines {
 		// ensure that we preload all the containers for an engine to be used in the scheduling decison
@@ -123,7 +119,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 }
 
 // AddEngine adds a new engine to the cluster for use
-func (m *ClusterManager) AddEngine(e *Docker) error {
+func (m *ClusterManager) AddEngine(e *Engine) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -134,7 +130,7 @@ func (m *ClusterManager) AddEngine(e *Docker) error {
 }
 
 // RemoveEngine removes the engine from the cluster
-func (m *ClusterManager) RemoveEngine(e *Docker) error {
+func (m *ClusterManager) RemoveEngine(e *Engine) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -226,28 +222,23 @@ retry:
 }
 
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
-	var containers []*Container
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	containers := []*Container{}
 
 	for _, engine := range m.engines {
-		ctrs, err := engine.client.ListContainers(false)
-		if err != nil {
+		if err := engine.loadContainers(); err != nil {
 			return nil, err
 		}
 
-		for _, cnt := range ctrs {
-			c, err := asCitadelContainer(&cnt, engine)
-			if err != nil {
-				return nil, err
-			}
-
-			containers = append(containers, c)
-		}
+		containers = append(containers, engine.containers...)
 	}
 
 	return containers, nil
 }
 
-func (m *ClusterManager) Remove(c *Container) error {
+func (m *ClusterManager) RemoveContainer(c *Container) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 

@@ -8,7 +8,7 @@ type Port struct {
 }
 
 type Placement struct {
-	Engine     *Docker `json:"engine",omitempty"`
+	Engine     *Engine `json:"engine",omitempty"`
 	InternalIP string  `json:"internal_ip,omitempty"`
 	Ports      []*Port `json:"ports,omitempty"`
 }
@@ -27,22 +27,14 @@ type Transaction struct {
 	Placement *Placement `json:"placement,omitempty"`
 }
 
-func newTransaction(c *Container, engines []*Docker) (*Transaction, error) {
-	t := &Transaction{
+func newTransaction(c *Container) *Transaction {
+	return &Transaction{
 		Started:   time.Now(),
 		Container: c,
 	}
-
-	for _, e := range engines {
-		if err := e.loadContainers(); err != nil {
-			return t, err
-		}
-	}
-
-	return t, nil
 }
 
-func (t *Transaction) place(e *Docker) {
+func (t *Transaction) place(e *Engine) {
 	t.Placement = &Placement{
 		Engine: e,
 	}

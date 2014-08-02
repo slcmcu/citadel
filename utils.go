@@ -25,7 +25,7 @@ func ValidateContainer(c *Container) error {
 	return nil
 }
 
-func asCitadelContainer(container *dockerclient.Container, engine *Docker) (*Container, error) {
+func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Container, error) {
 	info, err := engine.client.InspectContainer(container.Id)
 	if err != nil {
 		return nil, err

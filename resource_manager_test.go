@@ -9,7 +9,7 @@ import (
 var testLogger = log.New(ioutil.Discard, "", log.LstdFlags)
 
 func TestScheduleHighMemory(t *testing.T) {
-	resources := []*Docker{
+	resources := []*Engine{
 		{
 			ID:     "1",
 			Cpus:   1,
@@ -23,7 +23,7 @@ func TestScheduleHighMemory(t *testing.T) {
 	}
 
 	var (
-		s = newDockerManger(testLogger)
+		s = newEngineManger(testLogger)
 	)
 
 	c := &Container{
@@ -44,7 +44,7 @@ func TestScheduleHighMemory(t *testing.T) {
 // this test should schedule the task on the smallest host because the
 // utilization is better than running the task on a large host
 func TestScheduleBestUtilization(t *testing.T) {
-	resources := []*Docker{
+	resources := []*Engine{
 		{
 			ID:     "1",
 			Cpus:   1,
@@ -58,7 +58,7 @@ func TestScheduleBestUtilization(t *testing.T) {
 	}
 
 	var (
-		s = newDockerManger(testLogger)
+		s = newEngineManger(testLogger)
 	)
 
 	c := &Container{

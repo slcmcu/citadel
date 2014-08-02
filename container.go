@@ -1,5 +1,6 @@
 package citadel
 
+// Container is a docker container running on a specific engine
 type Container struct {
 	Name        string              `json:"name,omitempty"`
 	Image       string              `json:"image,omitempty"`

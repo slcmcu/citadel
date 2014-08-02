@@ -4,7 +4,7 @@ import "github.com/samalba/dockerclient"
 
 type containers []*Container
 
-type Docker struct {
+type Engine struct {
 	ID     string   `json:"id,omitempty"`
 	Addr   string   `json:"addr,omitempty"`
 	Cpus   float64  `json:"cpus,omitempty"`
@@ -15,15 +15,15 @@ type Docker struct {
 	containers containers
 }
 
-func (d *Docker) SetClient(client *dockerclient.DockerClient) {
+func (d *Engine) SetClient(client *dockerclient.DockerClient) {
 	d.client = client
 }
 
-func (d *Docker) Containers() containers {
+func (d *Engine) Containers() containers {
 	return d.containers
 }
 
-func (d *Docker) loadContainers() error {
+func (d *Engine) loadContainers() error {
 	d.containers = containers{}
 
 	c, err := d.client.ListContainers(false)

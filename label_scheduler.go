@@ -3,7 +3,7 @@ package citadel
 type LabelScheduler struct {
 }
 
-func (l *LabelScheduler) Schedule(c *Container, e *Docker) (bool, error) {
+func (l *LabelScheduler) Schedule(c *Container, e *Engine) (bool, error) {
 	if len(c.Labels) == 0 || l.contains(e, c.Labels) {
 		return true, nil
 	}
@@ -11,7 +11,7 @@ func (l *LabelScheduler) Schedule(c *Container, e *Docker) (bool, error) {
 	return false, nil
 }
 
-func (l *LabelScheduler) contains(r *Docker, constraints []string) bool {
+func (l *LabelScheduler) contains(r *Engine, constraints []string) bool {
 	for _, c := range constraints {
 		if !l.resourceContains(r, c) {
 			return false
@@ -21,7 +21,7 @@ func (l *LabelScheduler) contains(r *Docker, constraints []string) bool {
 	return true
 }
 
-func (l *LabelScheduler) resourceContains(r *Docker, c string) bool {
+func (l *LabelScheduler) resourceContains(r *Engine, c string) bool {
 	for _, l := range r.Labels {
 		if l == c {
 			return true

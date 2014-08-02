@@ -37,7 +37,7 @@ func getTLSConfig() (*tls.Config, error) {
 	return &tlsConfig, nil
 }
 
-func setDockerClient(docker *citadel.Docker, tlsConfig *tls.Config) error {
+func setEngineClient(docker *citadel.Engine, tlsConfig *tls.Config) error {
 	var tc *tls.Config
 	u, err := url.Parse(docker.Addr)
 	if err != nil {
