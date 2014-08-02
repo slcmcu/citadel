@@ -11,21 +11,12 @@ type Transaction struct {
 
 	// Container is the current container that is being scheduled
 	Container *Container `json:"container,omitempty"`
-
-	// Placement is the selection from the cluster that is able to run the container
-	Placement *Placement `json:"placement,omitempty"`
 }
 
 func newTransaction(c *Container) *Transaction {
 	return &Transaction{
 		Started:   time.Now(),
 		Container: c,
-	}
-}
-
-func (t *Transaction) place(e *Engine) {
-	t.Placement = &Placement{
-		Engine: e,
 	}
 }
 
