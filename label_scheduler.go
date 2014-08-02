@@ -3,20 +3,22 @@ package citadel
 type LabelScheduler struct {
 }
 
-func (l *LabelScheduler) Schedule(engines []*Docker, c *Container) ([]*Docker, error) {
-	if len(c.Labels) == 0 {
-		return engines, nil
+func (l *LabelScheduler) Schedule(t *Transaction) error {
+	if len(t.Container.Labels) == 0 {
+		return nil
 	}
 
-	out := []*Docker{}
+	accpeted := []*Docker{}
 
-	for _, r := range engines {
-		if l.contains(r, c.Labels) {
-			out = append(out, r)
+	for _, r := range t.GetEngines() {
+		if l.contains(r, t.Container.Labels) {
+			accpeted = append(accpeted, r)
 		}
 	}
 
-	return out, nil
+	t.Reduce(accpeted)
+
+	return nil
 }
 
 func (l *LabelScheduler) contains(r *Docker, constraints []string) bool {

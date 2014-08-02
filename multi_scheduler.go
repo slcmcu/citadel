@@ -10,17 +10,12 @@ func NewMultiScheduler(s ...Scheduler) Scheduler {
 	}
 }
 
-func (m *MultiScheduler) Schedule(resources []*Docker, c *Container) ([]*Docker, error) {
-	var (
-		err  error
-		prev = resources
-	)
-
+func (m *MultiScheduler) Schedule(t *Transaction) error {
 	for _, s := range m.schedulers {
-		if prev, err = s.Schedule(prev, c); err != nil {
-			return nil, err
+		if err := s.Schedule(t); err != nil {
+			return err
 		}
 	}
 
-	return prev, nil
+	return nil
 }
