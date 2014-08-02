@@ -1,16 +1,16 @@
 # Bastion
-This is a reference implementation of the Citadel Docker scheduler.
+This is a reference implementation of the Citadel Engine scheduler.
 
 # Usage
-Create a custom config using `bastion.conf.sample` as an example.  If you use TLS Docker hosts, the use the below to specify the certificate paths.
+Create a custom config using `bastion.conf.sample` as an example.  If you use TLS Engine hosts, the use the below to specify the certificate paths.
 
-## Start Docker with TLS enabled
-Place the sample certs in `/certs`.  Add the following to your Docker config and restart the daemon:
+## Start Engine with TLS enabled
+Place the sample certs in `/certs`.  Add the following to your Engine config and restart the daemon:
 
 `--tls --tlscert --tlskey --tlscacert=/certs/ca.pem --tlscert=/certs/server-cert.pem --tlskey=/certs/server-key.pem -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 --tlsverify`
 
 ## Run Bastion:
-There is a pre-built Docker image available for testing.  It comes bundled with the example certs.  This example shows bind mounting an external config file into the container.
+There is a pre-built Engine image available for testing.  It comes bundled with the example certs.  This example shows bind mounting an external config file into the container.
 
 `docker run -it -p 8080:8080 -v bastion.conf:/etc/bastion.conf ehazlett/bastion -conf /etc/bastion.conf`
 

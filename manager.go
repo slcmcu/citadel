@@ -2,7 +2,6 @@ package citadel
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -20,7 +19,7 @@ var (
 
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
-	engines         engineMap
+	engines         map[string]*Engine
 	resourceManager *ResourceManager
 
 	schedulers map[string]Scheduler
@@ -34,11 +33,11 @@ type ClusterManager struct {
 
 // NewClusterManager returns a new cluster manager initialized with the registry
 // and a logger
-func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
+func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 	m := &ClusterManager{
-		engines:         engineMap{},
+		engines:         make(map[string]*Engine),
 		schedulers:      make(map[string]Scheduler),
-		resourceManager: newDockerManger(logger),
+		resourceManager: newEngineManger(logger),
 		logger:          logger,
 		timer:           metrics.NewTimer(),
 	}
@@ -63,16 +62,12 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 
 	m.mux.Lock()
 
-	t, err := newTransaction(c, m.engines.slice())
+	t := newTransaction(c)
 	defer func() {
 		t.Close()
 		m.mux.Unlock()
 		m.timer.UpdateSince(t.Started)
 	}()
-
-	if err != nil {
-		return nil, err
-	}
 
 	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
@@ -83,7 +78,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	accepted := []*Docker{}
+	accepted := []*Engine{}
 
 	for _, e := range m.engines {
 		// ensure that we preload all the containers for an engine to be used in the scheduling decison
@@ -123,7 +118,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 }
 
 // AddEngine adds a new engine to the cluster for use
-func (m *ClusterManager) AddEngine(e *Docker) error {
+func (m *ClusterManager) AddEngine(e *Engine) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -134,7 +129,7 @@ func (m *ClusterManager) AddEngine(e *Docker) error {
 }
 
 // RemoveEngine removes the engine from the cluster
-func (m *ClusterManager) RemoveEngine(e *Docker) error {
+func (m *ClusterManager) RemoveEngine(e *Engine) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -162,43 +157,7 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 }
 
 func (m *ClusterManager) runContainer(t *Transaction) error {
-	env := []string{}
-	for k, v := range t.Container.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	env = append(env,
-		fmt.Sprintf("_citadel_type=%s", t.Container.Type),
-		fmt.Sprintf("_citadel_labels=%s", strings.Join(t.Container.Labels, ",")),
-	)
-
-	config := &dockerclient.ContainerConfig{
-		Hostname:   t.Container.Hostname,
-		Domainname: t.Container.Domainname,
-		Image:      t.Container.Image,
-		Memory:     int(t.Container.Memory) * 1024 * 1024,
-		Env:        env,
-		CpuShares:  int(t.Container.Cpus * 100.0 / t.Placement.Engine.Cpus),
-	}
-
-	hostConfig := &dockerclient.HostConfig{
-		PublishAllPorts: true,
-	}
-
-retry:
-	if _, err := t.Placement.Engine.client.CreateContainer(config, t.Container.Name); err != nil {
-		if err != dockerclient.ErrNotFound {
-			return err
-		}
-
-		if err := t.Placement.Engine.client.PullImage(t.Container.Image, "latest"); err != nil {
-			return err
-		}
-
-		goto retry
-	}
-
-	if err := t.Placement.Engine.client.StartContainer(t.Container.Name, hostConfig); err != nil {
+	if err := t.Container.Run(t.Placement.Engine); err != nil {
 		return err
 	}
 
@@ -225,34 +184,32 @@ retry:
 	return nil
 }
 
+// ListContainers returns all the running containers in the cluster
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
-	var containers []*Container
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	containers := []*Container{}
 
 	for _, engine := range m.engines {
-		ctrs, err := engine.client.ListContainers(false)
-		if err != nil {
+		if err := engine.loadContainers(); err != nil {
 			return nil, err
 		}
 
-		for _, cnt := range ctrs {
-			c, err := asCitadelContainer(&cnt, engine)
-			if err != nil {
-				return nil, err
-			}
-
-			containers = append(containers, c)
-		}
+		containers = append(containers, engine.containers...)
 	}
 
 	return containers, nil
 }
 
-func (m *ClusterManager) Remove(c *Container) error {
+// RemoveContainer will itterate over all the engines in the cluster and first kill
+// the container then remove it complete from the engine
+func (m *ClusterManager) RemoveContainer(c *Container) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	for _, engine := range m.engines {
-		if err := engine.client.KillContainer(c.Name); err != nil {
+		if err := c.Kill(engine); err != nil {
 			if err == dockerclient.ErrNotFound {
 				continue
 			}
@@ -260,9 +217,7 @@ func (m *ClusterManager) Remove(c *Container) error {
 			return err
 		}
 
-		if err := engine.client.RemoveContainer(c.Name); err != nil {
-			return err
-		}
+		return engine.client.RemoveContainer(c.Name)
 	}
 
 	return nil

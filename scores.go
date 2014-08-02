@@ -3,7 +3,7 @@ package citadel
 import "sort"
 
 type score struct {
-	r     *Docker
+	r     *Engine
 	score float64
 }
 

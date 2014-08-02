@@ -33,7 +33,7 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := clusterManager.Remove(container); err != nil {
+	if err := clusterManager.RemoveContainer(container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -93,7 +93,7 @@ func main() {
 	}
 
 	for _, d := range config.Engines {
-		if err := setDockerClient(d, tlsConfig); err != nil {
+		if err := setEngineClient(d, tlsConfig); err != nil {
 			logger.Fatal(err)
 		}
 	}
