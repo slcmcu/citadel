@@ -165,19 +165,23 @@ retry:
 
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	var containers []*Container
+
 	for _, engine := range m.engines {
 		ctrs, err := engine.client.ListContainers(false)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, cnt := range ctrs {
-			c, err := AsCitadelContainer(&cnt, engine)
+			c, err := asCitadelContainer(&cnt, engine)
 			if err != nil {
 				return nil, err
 			}
+
 			containers = append(containers, c)
 		}
 	}
+
 	return containers, nil
 }
 
