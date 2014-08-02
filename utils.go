@@ -32,11 +32,11 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	}
 
 	var ports []*Port
-
 	for _, port := range container.Ports {
 		p := &Port{
-			Proto: port.Type,
-			Port:  port.PublicPort,
+			Proto:         port.Type,
+			Port:          port.PublicPort,
+			ContainerPort: port.PrivatePort,
 		}
 		ports = append(ports, p)
 	}
