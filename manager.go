@@ -212,6 +212,19 @@ func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	return containers, nil
 }
 
+func (m *ClusterManager) ListEngines() ([]*Engine, error) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	out := []*Engine{}
+
+	for _, e := range m.engines {
+		out = append(out, e)
+	}
+
+	return out, nil
+}
+
 // RemoveContainer will iterate over all the engines in the cluster and first kill
 // the container then remove it complete from the engine
 func (m *ClusterManager) RemoveContainer(c *Container) error {
