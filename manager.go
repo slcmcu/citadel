@@ -169,15 +169,23 @@ func (m *ClusterManager) runContainer(t *Transaction) error {
 	t.Placement.InternalIP = info.NetworkSettings.IpAddress
 
 	for pp, b := range info.NetworkSettings.Ports {
-		proto := strings.Split(pp, "/")[1]
+		parts := strings.Split(pp, "/")
+		rawPort, proto := parts[0], parts[1]
+
 		port, err := strconv.Atoi(b[0].HostPort)
 		if err != nil {
 			return err
 		}
 
+		containerPort, err := strconv.Atoi(rawPort)
+		if err != nil {
+			return err
+		}
+
 		t.Placement.Ports = append(t.Placement.Ports, &Port{
-			Proto: proto,
-			Port:  port,
+			Proto:         proto,
+			Port:          port,
+			ContainerPort: containerPort,
 		})
 	}
 
