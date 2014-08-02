@@ -202,7 +202,7 @@ func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	return containers, nil
 }
 
-// RemoveContainer will itterate over all the engines in the cluster and first kill
+// RemoveContainer will iterate over all the engines in the cluster and first kill
 // the container then remove it complete from the engine
 func (m *ClusterManager) RemoveContainer(c *Container) error {
 	m.mux.Lock()
@@ -217,7 +217,9 @@ func (m *ClusterManager) RemoveContainer(c *Container) error {
 			return err
 		}
 
-		return engine.client.RemoveContainer(c.Name)
+		if err := engine.client.RemoveContainer(c.Name); err != nil {
+			return err
+		}
 	}
 
 	return nil
