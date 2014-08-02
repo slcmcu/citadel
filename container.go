@@ -38,6 +38,9 @@ type Container struct {
 
 	// UserData is user defined data that is passed to the container
 	UserData map[string][]string `json:"user_data,omitempty"`
+
+	// Placement is the host information from the cluster
+	Placement *Placement `json:"placement,omitempty"`
 }
 
 func (c *Container) Run(e *Engine) error {

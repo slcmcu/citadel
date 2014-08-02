@@ -31,6 +31,22 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 		return nil, err
 	}
 
+	var ports []*Port
+
+	for _, port := range container.Ports {
+		p := &Port{
+			Proto: port.Type,
+			Port:  port.PublicPort,
+		}
+		ports = append(ports, p)
+	}
+
+	placement := &Placement{
+		Engine:     engine,
+		InternalIP: info.NetworkSettings.IpAddress,
+		Ports:      ports,
+	}
+
 	var (
 		cType  = ""
 		labels = []string{}
@@ -63,5 +79,6 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 		Domainname:  info.Config.Domainname,
 		Type:        cType,
 		Labels:      labels,
+		Placement:   placement,
 	}, nil
 }

@@ -102,11 +102,18 @@ func main() {
 
 	go metrics.Log(metrics.DefaultRegistry, 10*time.Second, logger)
 
-	scheduler := citadel.NewMultiScheduler(
+	labelScheduler := &citadel.LabelScheduler{}
+
+	uniqueScheduler := &citadel.UniqueScheduler{}
+
+	multiScheduler := citadel.NewMultiScheduler(
 		&citadel.LabelScheduler{},
+		&citadel.UniqueScheduler{},
 	)
 
-	clusterManager.RegisterScheduler("service", scheduler)
+	clusterManager.RegisterScheduler("service", labelScheduler)
+	clusterManager.RegisterScheduler("unique", uniqueScheduler)
+	clusterManager.RegisterScheduler("multi", multiScheduler)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/containers", containers).Methods("GET")
