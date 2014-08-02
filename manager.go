@@ -143,14 +143,17 @@ func (m *ClusterManager) runContainer(c *Container, engine *Docker) error {
 		PublishAllPorts: true,
 	}
 
+retry:
 	if _, err := engine.client.CreateContainer(config, c.Name); err != nil {
-		if err == dockerclient.ErrNotFound {
-			if err := engine.client.PullImage(c.Image, "latest"); err != nil {
-				return err
-			}
-		} else {
+		if err != dockerclient.ErrNotFound {
 			return err
 		}
+
+		if err := engine.client.PullImage(c.Image, "latest"); err != nil {
+			return err
+		}
+
+		goto retry
 	}
 
 	return engine.client.StartContainer(c.Name, hostConfig)
