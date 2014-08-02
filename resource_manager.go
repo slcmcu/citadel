@@ -15,21 +15,19 @@ func newDockerManger(logger *log.Logger) *ResourceManager {
 
 // PlaceContainer uses the provided engines to make a decision on which resource the container
 // should run based on best utilization of the engines.
-func (r *ResourceManager) PlaceContainer(t *Transaction) error {
-	var (
-		scores = []*score{}
-	)
+func (r *ResourceManager) PlaceContainer(c *Container, engines []*Docker) (*Docker, error) {
+	scores := []*score{}
 
-	for _, re := range t.engines {
-		if re.Memory < t.Container.Memory || re.Cpus < t.Container.Cpus {
+	for _, re := range engines {
+		if re.Memory < c.Memory || re.Cpus < c.Cpus {
 			continue
 		}
 
 		cpus, memory := re.containers.totalCpuAndMemory()
 
 		var (
-			cpuScore    = ((cpus + t.Container.Cpus) / re.Cpus) * 100.0
-			memoryScore = ((memory + t.Container.Memory) / re.Memory) * 100.0
+			cpuScore    = ((cpus + c.Cpus) / re.Cpus) * 100.0
+			memoryScore = ((memory + c.Memory) / re.Memory) * 100.0
 			total       = ((cpuScore + memoryScore) / 200.0) * 100.0
 		)
 
@@ -41,14 +39,10 @@ func (r *ResourceManager) PlaceContainer(t *Transaction) error {
 	}
 
 	if len(scores) == 0 {
-		return ErrUnableToSchedule
+		return nil, ErrUnableToSchedule
 	}
 
 	sortScores(scores)
 
-	t.Placement = &Placement{
-		Engine: scores[0].r,
-	}
-
-	return nil
+	return scores[0].r, nil
 }

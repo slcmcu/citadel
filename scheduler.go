@@ -1,6 +1,6 @@
 package citadel
 
 type Scheduler interface {
-	// Schedule returns valid resources for a Container to run on
-	Schedule(*Transaction) error
+	// Schedule returns true if the engine can run the specified container
+	Schedule(*Container, *Docker) (bool, error)
 }

@@ -1,10 +1,6 @@
 package citadel
 
-import (
-	"fmt"
-
-	"github.com/samalba/dockerclient"
-)
+import "github.com/samalba/dockerclient"
 
 type containers []*Container
 
@@ -27,14 +23,8 @@ func (d *Docker) Containers() containers {
 	return d.containers
 }
 
-func (d *Docker) cleanContainers() {
-	d.containers = nil
-}
-
 func (d *Docker) loadContainers() error {
-	if d.containers != nil {
-		return fmt.Errorf("invalid transaction state")
-	}
+	d.containers = containers{}
 
 	c, err := d.client.ListContainers(false)
 	if err != nil {

@@ -18,16 +18,12 @@ type Transaction struct {
 
 	// Placement is the selection from the cluster that is able to run the container
 	Placement *Placement `json:"placement,omitempty"`
-
-	// engines are the current engines in the bidding the run the container
-	engines []*Docker
 }
 
 func newTransaction(c *Container, engines []*Docker) (*Transaction, error) {
 	t := &Transaction{
 		Started:   time.Now(),
 		Container: c,
-		engines:   engines,
 	}
 
 	for _, e := range engines {
@@ -39,20 +35,14 @@ func newTransaction(c *Container, engines []*Docker) (*Transaction, error) {
 	return t, nil
 }
 
-func (t *Transaction) GetEngines() []*Docker {
-	return t.engines
-}
-
-func (t *Transaction) Reduce(engines []*Docker) {
-	t.engines = engines
+func (t *Transaction) Place(e *Docker) {
+	t.Placement = &Placement{
+		Engine: e,
+	}
 }
 
 func (t *Transaction) Close() error {
 	t.Ended = time.Now()
-
-	for _, e := range t.engines {
-		e.cleanContainers()
-	}
 
 	return nil
 }

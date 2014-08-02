@@ -82,20 +82,36 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	// let the scheduler make a decision about the hosts that it would like the container to
-	// be executed on
-	if err := scheduler.Schedule(t); err != nil {
-		return nil, err
+	accepted := []*Docker{}
+
+	for _, e := range m.engines {
+		// ensure that we preload all the containers for an engine to be used in the scheduling decison
+		if err := e.loadContainers(); err != nil {
+			return nil, err
+		}
+
+		canrun, err := scheduler.Schedule(c, e)
+		if err != nil {
+			return nil, err
+		}
+
+		if canrun {
+			accepted = append(accepted, e)
+		}
 	}
-	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(t.engines))
+
+	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(accepted))
 
 	// check with the resource manager to ensure that the engines that the scheduler is able
 	// to run the container and to place the container on the resource with the best utilization
 	// score to maximize effenciency
-	if err := m.resourceManager.PlaceContainer(t); err != nil {
+	engine, err := m.resourceManager.PlaceContainer(c, accepted)
+	if err != nil {
 		return nil, err
 	}
-	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, t.Placement.Engine.Addr)
+	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
+
+	t.Place(engine)
 
 	if err := m.runContainer(t); err != nil {
 		return nil, err
