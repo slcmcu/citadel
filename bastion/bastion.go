@@ -41,11 +41,6 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-type placement struct {
-	Container *citadel.Container `json:"container,omitempty"`
-	Engine    *citadel.Docker    `json:"engine,omitempty"`
-}
-
 func run(w http.ResponseWriter, r *http.Request) {
 	var container *citadel.Container
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
@@ -53,7 +48,7 @@ func run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	engine, err := clusterManager.ScheduleContainer(container)
+	transaction, err := clusterManager.ScheduleContainer(container)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -61,10 +56,7 @@ func run(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 
-	if err := json.NewEncoder(w).Encode(&placement{
-		container,
-		engine,
-	}); err != nil {
+	if err := json.NewEncoder(w).Encode(transaction); err != nil {
 		logger.Println(err)
 	}
 }

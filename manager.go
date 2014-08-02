@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/rcrowley/go-metrics"
 	"github.com/samalba/dockerclient"
@@ -27,8 +27,6 @@ type ClusterManager struct {
 
 	// timer records the time it takes to comple a scheduling operation
 	timer metrics.Timer
-	// waitTimer records the time it takes to acquire an exclusive lock on the cluster
-	waitTimer metrics.Timer
 
 	logger *log.Logger
 	mux    sync.Mutex
@@ -43,7 +41,6 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
 		timer:           metrics.NewTimer(),
-		waitTimer:       metrics.NewTimer(),
 	}
 
 	for _, e := range engines {
@@ -51,7 +48,6 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 	}
 
 	metrics.Register("citadel-timer", m.timer)
-	metrics.Register("citadel-wait-timer", m.waitTimer)
 
 	return m
 }
@@ -60,27 +56,25 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 // a resource that is able to run the container.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
-	c.Environment["_citadel_type"] = c.Type
-	c.Environment["_citadel_labels"] = strings.Join(c.Labels, ",")
-
-	now := time.Now()
-	defer m.timer.UpdateSince(now)
-
-	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
-
+func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 	if err := ValidateContainer(c); err != nil {
 		return nil, err
 	}
 
 	m.mux.Lock()
 
-	// update the timer after we get the lock
-	m.waitTimer.UpdateSince(now)
+	t, err := newTransaction(c, m.engines.slice())
+	defer func() {
+		t.Close()
+		m.mux.Unlock()
+		m.timer.UpdateSince(t.Started)
+	}()
 
-	defer m.mux.Unlock()
+	if err != nil {
+		return nil, err
+	}
 
-	var err error
+	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
 
 	// find the correct scheduler for the container's type
 	scheduler := m.schedulers[c.Type]
@@ -89,29 +83,43 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	engines := m.engines.slice()
+	accepted := []*Docker{}
 
-	// let the scheduler make a decision about the hosts that it would like the container to
-	// be executed on
-	if engines, err = scheduler.Schedule(engines, c); err != nil {
-		return nil, err
+	for _, e := range m.engines {
+		// ensure that we preload all the containers for an engine to be used in the scheduling decison
+		if err := e.loadContainers(); err != nil {
+			return nil, err
+		}
+
+		canrun, err := scheduler.Schedule(c, e)
+		if err != nil {
+			return nil, err
+		}
+
+		if canrun {
+			accepted = append(accepted, e)
+		}
 	}
-	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(engines))
+
+	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(accepted))
 
 	// check with the resource manager to ensure that the engines that the scheduler is able
 	// to run the container and to place the container on the resource with the best utilization
 	// score to maximize effenciency
-	placement, err := m.resourceManager.PlaceContainer(engines, c)
+	engine, err := m.resourceManager.PlaceContainer(c, accepted)
 	if err != nil {
 		return nil, err
 	}
-	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, placement.Addr)
 
-	if err := m.runContainer(c, placement); err != nil {
+	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
+
+	t.place(engine)
+
+	if err := m.runContainer(t); err != nil {
 		return nil, err
 	}
 
-	return placement, nil
+	return t, nil
 }
 
 // AddEngine adds a new engine to the cluster for use
@@ -153,19 +161,24 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	return nil
 }
 
-func (m *ClusterManager) runContainer(c *Container, engine *Docker) error {
+func (m *ClusterManager) runContainer(t *Transaction) error {
 	env := []string{}
-	for k, v := range c.Environment {
+	for k, v := range t.Container.Environment {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
+	env = append(env,
+		fmt.Sprintf("_citadel_type=%s", t.Container.Type),
+		fmt.Sprintf("_citadel_labels=%s", strings.Join(t.Container.Labels, ",")),
+	)
+
 	config := &dockerclient.ContainerConfig{
-		Hostname:   c.Hostname,
-		Domainname: c.Domainname,
-		Image:      c.Image,
-		Memory:     int(c.Memory) * 1024 * 1024,
+		Hostname:   t.Container.Hostname,
+		Domainname: t.Container.Domainname,
+		Image:      t.Container.Image,
+		Memory:     int(t.Container.Memory) * 1024 * 1024,
 		Env:        env,
-		CpuShares:  int(c.Cpus * 100.0 / engine.Cpus),
+		CpuShares:  int(t.Container.Cpus * 100.0 / t.Placement.Engine.Cpus),
 	}
 
 	hostConfig := &dockerclient.HostConfig{
@@ -173,19 +186,43 @@ func (m *ClusterManager) runContainer(c *Container, engine *Docker) error {
 	}
 
 retry:
-	if _, err := engine.client.CreateContainer(config, c.Name); err != nil {
+	if _, err := t.Placement.Engine.client.CreateContainer(config, t.Container.Name); err != nil {
 		if err != dockerclient.ErrNotFound {
 			return err
 		}
 
-		if err := engine.client.PullImage(c.Image, "latest"); err != nil {
+		if err := t.Placement.Engine.client.PullImage(t.Container.Image, "latest"); err != nil {
 			return err
 		}
 
 		goto retry
 	}
 
-	return engine.client.StartContainer(c.Name, hostConfig)
+	if err := t.Placement.Engine.client.StartContainer(t.Container.Name, hostConfig); err != nil {
+		return err
+	}
+
+	info, err := t.Placement.Engine.client.InspectContainer(t.Container.Name)
+	if err != nil {
+		return err
+	}
+
+	t.Placement.InternalIP = info.NetworkSettings.IpAddress
+
+	for pp, b := range info.NetworkSettings.Ports {
+		proto := strings.Split(pp, "/")[1]
+		port, err := strconv.Atoi(b[0].HostPort)
+		if err != nil {
+			return err
+		}
+
+		t.Placement.Ports = append(t.Placement.Ports, &Port{
+			Proto: proto,
+			Port:  port,
+		})
+	}
+
+	return nil
 }
 
 func (m *ClusterManager) ListContainers() ([]*Container, error) {

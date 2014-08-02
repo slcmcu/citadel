@@ -12,26 +12,23 @@ import (
 type ImageScheduler struct {
 }
 
-func (i *ImageScheduler) Schedule(engines []*Docker, c *Container) ([]*Docker, error) {
-	out := []*Docker{}
-
+func (i *ImageScheduler) Schedule(c *Container, e *Docker) (bool, error) {
 	fullImage := c.Image
+
 	if !strings.Contains(fullImage, ":") {
 		fullImage = fmt.Sprintf("%s:latest", fullImage)
 	}
 
-	for _, e := range engines {
-		images, err := e.client.ListImages()
-		if err != nil {
-			return nil, err
-		}
-
-		if i.containsImage(fullImage, images) {
-			out = append(out, e)
-		}
+	images, err := e.client.ListImages()
+	if err != nil {
+		return false, err
 	}
 
-	return out, nil
+	if i.containsImage(fullImage, images) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (i *ImageScheduler) containsImage(requested string, images []*dockerclient.Image) bool {

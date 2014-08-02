@@ -2,6 +2,8 @@ package citadel
 
 import "github.com/samalba/dockerclient"
 
+type containers []*Container
+
 type Docker struct {
 	ID     string   `json:"id,omitempty"`
 	Addr   string   `json:"addr,omitempty"`
@@ -9,28 +11,43 @@ type Docker struct {
 	Memory float64  `json:"memory,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 
-	client *dockerclient.DockerClient
+	client     *dockerclient.DockerClient
+	containers containers
 }
 
 func (d *Docker) SetClient(client *dockerclient.DockerClient) {
 	d.client = client
 }
 
-func (d *Docker) GetCpuAndMemoryReservation() (cpu float64, mem float64, err error) {
-	containers, err := d.client.ListContainers(false)
+func (d *Docker) Containers() containers {
+	return d.containers
+}
+
+func (d *Docker) loadContainers() error {
+	d.containers = containers{}
+
+	c, err := d.client.ListContainers(false)
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 
-	for _, ci := range containers {
-		info, err := d.client.InspectContainer(ci.Id)
+	for _, ci := range c {
+		cc, err := asCitadelContainer(&ci, d)
 		if err != nil {
-			return 0, 0, err
+			return err
 		}
 
-		cpu += float64(info.Config.CpuShares) / 100.0 * d.Cpus
-		mem += float64(info.Config.Memory / 1024 / 1024)
+		d.containers = append(d.containers, cc)
 	}
 
-	return cpu, mem, nil
+	return nil
+}
+
+func (c containers) totalCpuAndMemory() (cpu float64, mem float64) {
+	for _, ci := range c {
+		cpu += ci.Cpus
+		mem += ci.Memory
+	}
+
+	return cpu, mem
 }
