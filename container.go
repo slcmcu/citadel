@@ -39,6 +39,9 @@ type Container struct {
 	// Labels are matched with constraints on the engines
 	Labels []string `json:"labels,omitempty"`
 
+	// BindPorts ensures that the container has exclusive access to the specified ports
+	BindPorts []*Port `json:"bind_ports,omitempty"`
+
 	// UserData is user defined data that is passed to the container
 	UserData map[string][]string `json:"user_data,omitempty"`
 
@@ -62,17 +65,30 @@ func (c *Container) Run(e *Engine) error {
 	)
 
 	config := &dockerclient.ContainerConfig{
-		Hostname:   c.Hostname,
-		Domainname: c.Domainname,
-		Image:      c.Image,
-		Cmd:        c.Args,
-		Memory:     int(c.Memory) * 1024 * 1024,
-		Env:        env,
-		CpuShares:  int(c.Cpus * 100.0 / e.Cpus),
+		Hostname:     c.Hostname,
+		Domainname:   c.Domainname,
+		Image:        c.Image,
+		Cmd:          c.Args,
+		Memory:       int(c.Memory) * 1024 * 1024,
+		Env:          env,
+		CpuShares:    int(c.Cpus * 100.0 / e.Cpus),
+		ExposedPorts: make(map[string]struct{}),
 	}
 
 	hostConfig := &dockerclient.HostConfig{
-		PublishAllPorts: true,
+		PublishAllPorts: len(c.BindPorts) == 0,
+		PortBindings:    make(map[string][]dockerclient.PortBinding),
+	}
+
+	for _, b := range c.BindPorts {
+		key := fmt.Sprintf("%d/%s", b.Port, b.Proto)
+		config.ExposedPorts[key] = struct{}{}
+
+		hostConfig.PortBindings[key] = []dockerclient.PortBinding{
+			{
+				HostPort: fmt.Sprint(b.Port),
+			},
+		}
 	}
 
 retry:
