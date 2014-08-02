@@ -30,6 +30,9 @@ type Container struct {
 	// Domainname is the domain name to set for the container
 	Domainname string `json:"domain,omitempty"`
 
+	// Args are cli arguments to pass to the image
+	Args []string `json:"args,omitempty"`
+
 	// Type is the container type, often service, batch, etc...
 	Type string `json:"type,omitempty"`
 
@@ -62,6 +65,7 @@ func (c *Container) Run(e *Engine) error {
 		Hostname:   c.Hostname,
 		Domainname: c.Domainname,
 		Image:      c.Image,
+		Cmd:        c.Args,
 		Memory:     int(c.Memory) * 1024 * 1024,
 		Env:        env,
 		CpuShares:  int(c.Cpus * 100.0 / e.Cpus),
