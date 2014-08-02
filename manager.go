@@ -2,7 +2,6 @@ package citadel
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -158,43 +157,7 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 }
 
 func (m *ClusterManager) runContainer(t *Transaction) error {
-	env := []string{}
-	for k, v := range t.Container.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	env = append(env,
-		fmt.Sprintf("_citadel_type=%s", t.Container.Type),
-		fmt.Sprintf("_citadel_labels=%s", strings.Join(t.Container.Labels, ",")),
-	)
-
-	config := &dockerclient.ContainerConfig{
-		Hostname:   t.Container.Hostname,
-		Domainname: t.Container.Domainname,
-		Image:      t.Container.Image,
-		Memory:     int(t.Container.Memory) * 1024 * 1024,
-		Env:        env,
-		CpuShares:  int(t.Container.Cpus * 100.0 / t.Placement.Engine.Cpus),
-	}
-
-	hostConfig := &dockerclient.HostConfig{
-		PublishAllPorts: true,
-	}
-
-retry:
-	if _, err := t.Placement.Engine.client.CreateContainer(config, t.Container.Name); err != nil {
-		if err != dockerclient.ErrNotFound {
-			return err
-		}
-
-		if err := t.Placement.Engine.client.PullImage(t.Container.Image, "latest"); err != nil {
-			return err
-		}
-
-		goto retry
-	}
-
-	if err := t.Placement.Engine.client.StartContainer(t.Container.Name, hostConfig); err != nil {
+	if err := t.Container.Run(t.Placement.Engine); err != nil {
 		return err
 	}
 
@@ -221,6 +184,7 @@ retry:
 	return nil
 }
 
+// ListContainers returns all the running containers in the cluster
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -238,12 +202,14 @@ func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	return containers, nil
 }
 
+// RemoveContainer will itterate over all the engines in the cluster and first kill
+// the container then remove it complete from the engine
 func (m *ClusterManager) RemoveContainer(c *Container) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	for _, engine := range m.engines {
-		if err := engine.client.KillContainer(c.Name); err != nil {
+		if err := c.Kill(engine); err != nil {
 			if err == dockerclient.ErrNotFound {
 				continue
 			}
@@ -251,9 +217,7 @@ func (m *ClusterManager) RemoveContainer(c *Container) error {
 			return err
 		}
 
-		if err := engine.client.RemoveContainer(c.Name); err != nil {
-			return err
-		}
+		return engine.client.RemoveContainer(c.Name)
 	}
 
 	return nil
