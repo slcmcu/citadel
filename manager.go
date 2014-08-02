@@ -19,7 +19,7 @@ var (
 
 // ClusterManager manages changes to the state of the cluster
 type ClusterManager struct {
-	engines         []*Docker
+	engines         engineMap
 	resourceManager *ResourceManager
 
 	schedulers map[string]Scheduler
@@ -37,12 +37,16 @@ type ClusterManager struct {
 // and a logger
 func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 	m := &ClusterManager{
-		engines:         engines,
+		engines:         engineMap{},
 		schedulers:      make(map[string]Scheduler),
 		resourceManager: newDockerManger(logger),
 		logger:          logger,
 		timer:           metrics.NewTimer(),
 		waitTimer:       metrics.NewTimer(),
+	}
+
+	for _, e := range engines {
+		m.engines[e.ID] = e
 	}
 
 	metrics.Register("citadel-timer", m.timer)
@@ -81,7 +85,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 		return nil, ErrNoSchedulerForType
 	}
 
-	engines := m.engines
+	engines := m.engines.slice()
 
 	// let the scheduler make a decision about the hosts that it would like the container to
 	// be executed on
@@ -104,6 +108,27 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
 	}
 
 	return placement, nil
+}
+
+// AddEngine adds a new engine to the cluster for use
+func (m *ClusterManager) AddEngine(e *Docker) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	m.engines[e.ID] = e
+
+	return nil
+
+}
+
+// RemoveEngine removes the engine from the cluster
+func (m *ClusterManager) RemoveEngine(e *Docker) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	delete(m.engines, e.ID)
+
+	return nil
 }
 
 // RegisterScheduler registers the scheduler for a specific container type within the
