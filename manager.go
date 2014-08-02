@@ -108,9 +108,11 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
 
-	t.place(engine)
+	c.Placement = &Placement{
+		Engine: engine,
+	}
 
-	if err := m.runContainer(t); err != nil {
+	if err := m.runContainer(c); err != nil {
 		return nil, err
 	}
 
@@ -156,17 +158,17 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	return nil
 }
 
-func (m *ClusterManager) runContainer(t *Transaction) error {
-	if err := t.Container.Run(t.Placement.Engine); err != nil {
+func (m *ClusterManager) runContainer(c *Container) error {
+	if err := c.Run(c.Placement.Engine); err != nil {
 		return err
 	}
 
-	info, err := t.Placement.Engine.client.InspectContainer(t.Container.Name)
+	info, err := c.Placement.Engine.client.InspectContainer(c.Name)
 	if err != nil {
 		return err
 	}
 
-	t.Placement.InternalIP = info.NetworkSettings.IpAddress
+	c.Placement.InternalIP = info.NetworkSettings.IpAddress
 
 	for pp, b := range info.NetworkSettings.Ports {
 		parts := strings.Split(pp, "/")
@@ -182,7 +184,7 @@ func (m *ClusterManager) runContainer(t *Transaction) error {
 			return err
 		}
 
-		t.Placement.Ports = append(t.Placement.Ports, &Port{
+		c.Placement.Ports = append(c.Placement.Ports, &Port{
 			Proto:         proto,
 			Port:          port,
 			ContainerPort: containerPort,
