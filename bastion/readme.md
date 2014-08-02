@@ -42,3 +42,10 @@ For example, if you are running bastion local:
 `curl -d @go-demo.json http://127.0.0.1:8080/`
 
 Bastion will pull the image and then start the container.  Bastion will return the error if one occurs otherwise it will return a `201 Created` on success (no content).
+
+# Types
+Currently the following schedulers are implemented and exposed as instance "types":
+
+* `service`: this will only run the container if the host matches the labels
+* `unique`: this will only run the container on hosts that do not have another instance running
+* `multi`: this uses a combination of both `service` and `unique` for placement
