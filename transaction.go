@@ -2,17 +2,6 @@ package citadel
 
 import "time"
 
-type Port struct {
-	Proto string `json:"proto,omitempty"`
-	Port  int    `json:"port,omitempty"`
-}
-
-type Placement struct {
-	Engine     *Engine `json:"engine",omitempty"`
-	InternalIP string  `json:"internal_ip,omitempty"`
-	Ports      []*Port `json:"ports,omitempty"`
-}
-
 type Transaction struct {
 	// Started is the time the transaction began
 	Started time.Time `json:"started,omitempty"`
