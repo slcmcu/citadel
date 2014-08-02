@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +61,9 @@ func NewClusterManager(engines []*Docker, logger *log.Logger) *ClusterManager {
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) ScheduleContainer(c *Container) (*Docker, error) {
+	c.Environment["_citadel_type"] = c.Type
+	c.Environment["_citadel_labels"] = strings.Join(c.Labels, ",")
+
 	now := time.Now()
 	defer m.timer.UpdateSince(now)
 
@@ -182,6 +186,28 @@ retry:
 	}
 
 	return engine.client.StartContainer(c.Name, hostConfig)
+}
+
+func (m *ClusterManager) ListContainers() ([]*Container, error) {
+	var containers []*Container
+
+	for _, engine := range m.engines {
+		ctrs, err := engine.client.ListContainers(false)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cnt := range ctrs {
+			c, err := asCitadelContainer(&cnt, engine)
+			if err != nil {
+				return nil, err
+			}
+
+			containers = append(containers, c)
+		}
+	}
+
+	return containers, nil
 }
 
 func (m *ClusterManager) Remove(c *Container) error {

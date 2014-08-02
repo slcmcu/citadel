@@ -77,6 +77,19 @@ func engines(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func containers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+
+	containers, err := clusterManager.ListContainers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(containers); err != nil {
+		logger.Println(err)
+	}
+}
+
 func main() {
 	if err := loadConfig(); err != nil {
 		logger.Fatal(err)
@@ -104,6 +117,7 @@ func main() {
 	clusterManager.RegisterScheduler("service", scheduler)
 
 	r := mux.NewRouter()
+	r.HandleFunc("/containers", containers).Methods("GET")
 	r.HandleFunc("/run", run).Methods("POST")
 	r.HandleFunc("/destroy", destroy).Methods("POST")
 
