@@ -2,8 +2,15 @@ package citadel
 
 import "time"
 
+type Port struct {
+	Proto string `json:"proto,omitempty"`
+	Port  int    `json:"port,omitempty"`
+}
+
 type Placement struct {
-	Engine *Docker `json:"engine",omitempty"`
+	Engine     *Docker `json:"engine",omitempty"`
+	InternalIP string  `json:"internal_ip,omitempty"`
+	Ports      []*Port `json:"ports,omitempty"`
 }
 
 type Transaction struct {
@@ -35,7 +42,7 @@ func newTransaction(c *Container, engines []*Docker) (*Transaction, error) {
 	return t, nil
 }
 
-func (t *Transaction) Place(e *Docker) {
+func (t *Transaction) place(e *Docker) {
 	t.Placement = &Placement{
 		Engine: e,
 	}

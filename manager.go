@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -109,9 +110,10 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
 
-	t.Place(engine)
+	t.place(engine)
 
 	if err := m.runContainer(t); err != nil {
 		return nil, err
@@ -196,7 +198,31 @@ retry:
 		goto retry
 	}
 
-	return t.Placement.Engine.client.StartContainer(t.Container.Name, hostConfig)
+	if err := t.Placement.Engine.client.StartContainer(t.Container.Name, hostConfig); err != nil {
+		return err
+	}
+
+	info, err := t.Placement.Engine.client.InspectContainer(t.Container.Name)
+	if err != nil {
+		return err
+	}
+
+	t.Placement.InternalIP = info.NetworkSettings.IpAddress
+
+	for pp, b := range info.NetworkSettings.Ports {
+		proto := strings.Split(pp, "/")[1]
+		port, err := strconv.Atoi(b[0].HostPort)
+		if err != nil {
+			return err
+		}
+
+		t.Placement.Ports = append(t.Placement.Ports, &Port{
+			Proto: proto,
+			Port:  port,
+		})
+	}
+
+	return nil
 }
 
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
