@@ -94,6 +94,23 @@ retry:
 	return e.updatePortInformation(c)
 }
 
+func (e *Engine) ListImages() ([]string, error) {
+	images, err := e.client.ListImages()
+	if err != nil {
+		return nil, err
+	}
+
+	out := []string{}
+
+	for _, i := range images {
+		for _, t := range i.RepoTags {
+			out = append(out, t)
+		}
+	}
+
+	return out, nil
+}
+
 func (e *Engine) updatePortInformation(c *Container) error {
 	info, err := e.client.InspectContainer(c.ID)
 	if err != nil {
