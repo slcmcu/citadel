@@ -3,7 +3,7 @@ package citadel
 type LabelScheduler struct {
 }
 
-func (l *LabelScheduler) Schedule(c *Container, e *Engine) (bool, error) {
+func (l *LabelScheduler) Schedule(c *Image, e *Engine) (bool, error) {
 	if len(c.Labels) == 0 || l.contains(e, c.Labels) {
 		return true, nil
 	}

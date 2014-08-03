@@ -26,12 +26,12 @@ func TestScheduleHighMemory(t *testing.T) {
 		s = newEngineManger(testLogger)
 	)
 
-	c := &Container{
+	c := &Image{
 		Cpus:   0.1,
 		Memory: 1248,
 	}
 
-	h1, err := s.PlaceContainer(resources, c)
+	h1, err := s.PlaceImage(resources, c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,12 +61,12 @@ func TestScheduleBestUtilization(t *testing.T) {
 		s = newEngineManger(testLogger)
 	)
 
-	c := &Container{
+	c := &Image{
 		Cpus:   0.1,
 		Memory: 92,
 	}
 
-	h1, err := s.PlaceContainer(resources, c)
+	h1, err := s.PlaceImage(resources, c)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,7 +9,7 @@ import (
 type testScheduler struct {
 }
 
-func (t *testScheduler) Schedule(rs []*Engine, c *Container) ([]*Engine, error) {
+func (t *testScheduler) Schedule(rs []*Engine, c *Image) ([]*Engine, error) {
 	return rs, nil
 }
 
@@ -26,7 +26,7 @@ func TestNewManager(t *testing.T) {
 func TestNoSchedulerForType(t *testing.T) {
 	m := NewClusterManager(nil, defaultLogger)
 
-	_, err := m.ScheduleContainer(&Container{
+	_, err := m.ScheduleImage(&Image{
 		Type:   "service",
 		Cpus:   1,
 		Memory: 2,

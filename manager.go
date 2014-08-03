@@ -3,12 +3,10 @@ package citadel
 import (
 	"errors"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
+	"time"
 
 	"github.com/rcrowley/go-metrics"
-	"github.com/samalba/dockerclient"
 )
 
 var (
@@ -51,28 +49,26 @@ func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 	return m
 }
 
-// ScheduleContainer uses the schedulers registered with the cluster and finds
-// a resource that is able to run the container.
+// Schedule uses the schedulers registered with the cluster and finds
+// a resource that is able to run the image.  If successful a container with the runtime
+// information about where and how it was run will be returned.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
-	if err := ValidateContainer(c); err != nil {
+func (m *ClusterManager) Schedule(i *Image) (*Container, error) {
+	if err := ValidateImage(i); err != nil {
 		return nil, err
 	}
 
 	m.mux.Lock()
 
-	t := newTransaction(c)
+	started := time.Now()
 	defer func() {
-		t.Close()
 		m.mux.Unlock()
-		m.timer.UpdateSince(t.Started)
+		m.timer.UpdateSince(started)
 	}()
 
-	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
-
 	// find the correct scheduler for the container's type
-	scheduler := m.schedulers[c.Type]
+	scheduler := m.schedulers[i.Type]
 
 	if scheduler == nil {
 		return nil, ErrNoSchedulerForType
@@ -86,7 +82,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 			return nil, err
 		}
 
-		canrun, err := scheduler.Schedule(c, e)
+		canrun, err := scheduler.Schedule(i, e)
 		if err != nil {
 			return nil, err
 		}
@@ -96,27 +92,23 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 		}
 	}
 
-	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(accepted))
+	container := &Container{
+		Image: i,
+	}
 
 	// check with the resource manager to ensure that the engines that the scheduler is able
 	// to run the container and to place the container on the resource with the best utilization
 	// score to maximize effenciency
-	engine, err := m.resourceManager.PlaceContainer(c, accepted)
+	engine, err := m.resourceManager.PlaceContainer(container, accepted)
 	if err != nil {
 		return nil, err
 	}
 
-	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
-
-	c.Placement = &Placement{
-		Engine: engine,
-	}
-
-	if err := m.runContainer(c); err != nil {
+	if err := engine.Run(container); err != nil {
 		return nil, err
 	}
 
-	return t, nil
+	return container, nil
 }
 
 // AddEngine adds a new engine to the cluster for use
@@ -158,42 +150,6 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	return nil
 }
 
-func (m *ClusterManager) runContainer(c *Container) error {
-	if err := c.Run(c.Placement.Engine); err != nil {
-		return err
-	}
-
-	info, err := c.Placement.Engine.client.InspectContainer(c.Name)
-	if err != nil {
-		return err
-	}
-
-	c.Placement.InternalIP = info.NetworkSettings.IpAddress
-
-	for pp, b := range info.NetworkSettings.Ports {
-		parts := strings.Split(pp, "/")
-		rawPort, proto := parts[0], parts[1]
-
-		port, err := strconv.Atoi(b[0].HostPort)
-		if err != nil {
-			return err
-		}
-
-		containerPort, err := strconv.Atoi(rawPort)
-		if err != nil {
-			return err
-		}
-
-		c.Placement.Ports = append(c.Placement.Ports, &Port{
-			Proto:         proto,
-			Port:          port,
-			ContainerPort: containerPort,
-		})
-	}
-
-	return nil
-}
-
 // ListContainers returns all the running containers in the cluster
 func (m *ClusterManager) ListContainers() ([]*Container, error) {
 	m.mux.Lock()
@@ -227,20 +183,16 @@ func (m *ClusterManager) ListEngines() ([]*Engine, error) {
 
 // RemoveContainer will iterate over all the engines in the cluster and first kill
 // the container then remove it complete from the engine
-func (m *ClusterManager) RemoveContainer(c *Container) error {
+func (m *ClusterManager) RemoveContainer(container *Container) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	for _, engine := range m.engines {
-		if err := c.Kill(engine); err != nil {
-			if err == dockerclient.ErrNotFound {
-				continue
-			}
-
+	if eng, ok := m.engines[container.Engine.ID]; ok {
+		if err := eng.client.KillContainer(container.ID); err != nil {
 			return err
 		}
 
-		if err := engine.client.RemoveContainer(c.Name); err != nil {
+		if err := eng.client.RemoveContainer(container.ID); err != nil {
 			return err
 		}
 	}

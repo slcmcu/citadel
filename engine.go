@@ -1,6 +1,12 @@
 package citadel
 
-import "github.com/samalba/dockerclient"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/samalba/dockerclient"
+)
 
 type containers []*Container
 
@@ -23,6 +29,101 @@ func (d *Engine) Containers() containers {
 	return d.containers
 }
 
+func (e *Engine) Run(c *Container) error {
+	var (
+		err    error
+		env    = []string{}
+		client = e.client
+		i      = c.Image
+	)
+	c.Engine = e
+
+	for k, v := range i.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	env = append(env,
+		fmt.Sprintf("_citadel_type=%s", i.Type),
+		fmt.Sprintf("_citadel_labels=%s", strings.Join(i.Labels, ",")),
+	)
+
+	config := &dockerclient.ContainerConfig{
+		Hostname:     i.Hostname,
+		Domainname:   i.Domainname,
+		Image:        i.Name,
+		Cmd:          i.Args,
+		Memory:       int(i.Memory) * 1024 * 1024,
+		Env:          env,
+		CpuShares:    int(i.Cpus * 100.0 / e.Cpus),
+		ExposedPorts: make(map[string]struct{}),
+	}
+
+	hostConfig := &dockerclient.HostConfig{
+		PublishAllPorts: len(i.BindPorts) == 0,
+		PortBindings:    make(map[string][]dockerclient.PortBinding),
+	}
+
+	for _, b := range i.BindPorts {
+		key := fmt.Sprintf("%d/%s", b.Port, b.Proto)
+		config.ExposedPorts[key] = struct{}{}
+
+		hostConfig.PortBindings[key] = []dockerclient.PortBinding{
+			{
+				HostPort: fmt.Sprint(b.Port),
+			},
+		}
+	}
+
+retry:
+	if c.ID, err = client.CreateContainer(config, ""); err != nil {
+		if err != dockerclient.ErrNotFound {
+			return err
+		}
+
+		if err := client.PullImage(i.Name, "latest"); err != nil {
+			return err
+		}
+
+		goto retry
+	}
+
+	if err := client.StartContainer(c.ID, hostConfig); err != nil {
+		return err
+	}
+
+	return e.updatePortInformation(c)
+}
+
+func (e *Engine) updatePortInformation(c *Container) error {
+	info, err := e.client.InspectContainer(c.ID)
+	if err != nil {
+		return err
+	}
+
+	for pp, b := range info.NetworkSettings.Ports {
+		parts := strings.Split(pp, "/")
+		rawPort, proto := parts[0], parts[1]
+
+		port, err := strconv.Atoi(b[0].HostPort)
+		if err != nil {
+			return err
+		}
+
+		containerPort, err := strconv.Atoi(rawPort)
+		if err != nil {
+			return err
+		}
+
+		c.Ports = append(c.Ports, &Port{
+			Proto:     proto,
+			Port:      port,
+			ImagePort: containerPort,
+		})
+	}
+
+	return nil
+}
+
 func (d *Engine) loadContainers() error {
 	d.containers = containers{}
 
@@ -32,7 +133,7 @@ func (d *Engine) loadContainers() error {
 	}
 
 	for _, ci := range c {
-		cc, err := asCitadelContainer(&ci, d)
+		cc, err := fromDockerContainer(&ci, d)
 		if err != nil {
 			return err
 		}
@@ -45,8 +146,8 @@ func (d *Engine) loadContainers() error {
 
 func (c containers) totalCpuAndMemory() (cpu float64, mem float64) {
 	for _, ci := range c {
-		cpu += ci.Cpus
-		mem += ci.Memory
+		cpu += ci.Image.Cpus
+		mem += ci.Image.Memory
 	}
 
 	return cpu, mem
