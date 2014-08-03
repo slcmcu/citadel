@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rcrowley/go-metrics"
 	"github.com/samalba/dockerclient"
@@ -55,18 +56,17 @@ func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 // a resource that is able to run the container.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
+func (m *ClusterManager) ScheduleContainer(c *Container) (*Container, error) {
 	if err := ValidateContainer(c); err != nil {
 		return nil, err
 	}
 
 	m.mux.Lock()
 
-	t := newTransaction(c)
+	started := time.Now()
 	defer func() {
-		t.Close()
 		m.mux.Unlock()
-		m.timer.UpdateSince(t.Started)
+		m.timer.UpdateSince(started)
 	}()
 
 	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
@@ -116,9 +116,9 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.ContainerId = id
+	c.ID = id
 
-	return t, nil
+	return c, nil
 }
 
 // AddEngine adds a new engine to the cluster for use
@@ -170,8 +170,6 @@ func (m *ClusterManager) runContainer(c *Container) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	c.Placement.InternalIP = info.NetworkSettings.IpAddress
 
 	for pp, b := range info.NetworkSettings.Ports {
 		parts := strings.Split(pp, "/")

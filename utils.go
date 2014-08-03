@@ -40,9 +40,8 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	}
 
 	placement := &Placement{
-		Engine:     engine,
-		InternalIP: info.NetworkSettings.IpAddress,
-		Ports:      ports,
+		Engine: engine,
+		Ports:  ports,
 	}
 
 	var (
@@ -68,7 +67,7 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	}
 
 	return &Container{
-		Id:          container.Id,
+		ID:          container.Id,
 		Image:       container.Image,
 		Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
 		Memory:      float64(info.Config.Memory / 1024 / 1024),

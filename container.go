@@ -9,8 +9,9 @@ import (
 
 // Container is a docker container running on a specific engine
 type Container struct {
-	// Id is the container id
-	Id string `json:"id,omitempty"`
+	// ID is the container's id
+	// This is set by citadel
+	ID string `json:"id,omitempty"`
 
 	// Image is the docker image to base the container off of
 	Image string `json:"image,omitempty"`
@@ -46,6 +47,7 @@ type Container struct {
 	UserData map[string][]string `json:"user_data,omitempty"`
 
 	// Placement is the host information from the cluster
+	// This is set by citadel
 	Placement *Placement `json:"placement,omitempty"`
 }
 

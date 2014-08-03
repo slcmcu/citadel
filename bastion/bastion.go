@@ -115,7 +115,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/containers", containers).Methods("GET")
 	r.HandleFunc("/run", run).Methods("POST")
-	r.HandleFunc("/destroy", destroy).Methods("GET")
+	r.HandleFunc("/destroy", destroy).Methods("DELETE")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
