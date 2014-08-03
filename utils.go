@@ -14,8 +14,8 @@ func ValidateImage(c *Image) error {
 		return fmt.Errorf("container cannot have cpus equal to 0")
 	case c.Memory == 0:
 		return fmt.Errorf("container cannot have memory equal to 0")
-	case c.Image == "":
-		return fmt.Errorf("container must have an image")
+	case c.Name == "":
+		return fmt.Errorf("container must have an image name")
 	case c.Type == "":
 		return fmt.Errorf("container must have a type")
 	}
@@ -66,7 +66,7 @@ func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Co
 		Engine: engine,
 		Ports:  ports,
 		Image: &Image{
-			Image:       container.Image,
+			Name:        container.Image,
 			Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
 			Memory:      float64(info.Config.Memory / 1024 / 1024),
 			Environment: env,

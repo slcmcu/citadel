@@ -18,14 +18,14 @@ func (u *UniqueScheduler) Schedule(c *Image, e *Engine) (bool, error) {
 }
 
 func (u *UniqueScheduler) hasImage(i *Image, containers []*Container) bool {
-	fullImage := i.Image
+	fullImage := i.Name
 
 	if !strings.Contains(fullImage, ":") {
 		fullImage = fmt.Sprintf("%s:latest", fullImage)
 	}
 
 	for _, c := range containers {
-		if c.Image.Image == fullImage {
+		if c.Image.Name == fullImage {
 			return true
 		}
 	}

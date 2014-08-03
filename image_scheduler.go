@@ -13,7 +13,7 @@ type ImageScheduler struct {
 }
 
 func (i *ImageScheduler) Schedule(c *Image, e *Engine) (bool, error) {
-	fullImage := c.Image
+	fullImage := c.Name
 
 	if !strings.Contains(fullImage, ":") {
 		fullImage = fmt.Sprintf("%s:latest", fullImage)

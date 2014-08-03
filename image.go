@@ -2,8 +2,8 @@ package citadel
 
 // Image is a template for running a docker container
 type Image struct {
-	// Image is the docker image to base the container off of
-	Image string `json:"image,omitempty"`
+	// Name is the docker image to base the container off of
+	Name string `json:"name,omitempty"`
 
 	// Cpus is the number of cpu resources to give to the container
 	Cpus float64 `json:"cpus,omitempty"`

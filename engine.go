@@ -50,7 +50,7 @@ func (e *Engine) Run(c *Container) error {
 	config := &dockerclient.ContainerConfig{
 		Hostname:     i.Hostname,
 		Domainname:   i.Domainname,
-		Image:        i.Image,
+		Image:        i.Name,
 		Cmd:          i.Args,
 		Memory:       int(i.Memory) * 1024 * 1024,
 		Env:          env,
@@ -80,7 +80,7 @@ retry:
 			return err
 		}
 
-		if err := client.PullImage(i.Image, "latest"); err != nil {
+		if err := client.PullImage(i.Name, "latest"); err != nil {
 			return err
 		}
 
