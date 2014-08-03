@@ -107,7 +107,3 @@ retry:
 
 	return cc, client.StartContainer(cc, hostConfig)
 }
-
-func (c *Container) Kill(e *Engine) error {
-	return e.client.KillContainer(c.Id)
-}
