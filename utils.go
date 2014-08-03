@@ -7,8 +7,8 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
-// ValidateContainer ensures that the required fields are set on the container
-func ValidateContainer(c *Container) error {
+// ValidateImage ensures that the required fields are set on the container
+func ValidateImage(c *Image) error {
 	switch {
 	case c.Cpus == 0:
 		return fmt.Errorf("container cannot have cpus equal to 0")
@@ -23,7 +23,7 @@ func ValidateContainer(c *Container) error {
 	return nil
 }
 
-func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Container, error) {
+func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Container, error) {
 	info, err := engine.client.InspectContainer(container.Id)
 	if err != nil {
 		return nil, err
@@ -32,16 +32,11 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	var ports []*Port
 	for _, port := range container.Ports {
 		p := &Port{
-			Proto:         port.Type,
-			Port:          port.PublicPort,
-			ContainerPort: port.PrivatePort,
+			Proto:     port.Type,
+			Port:      port.PublicPort,
+			ImagePort: port.PrivatePort,
 		}
 		ports = append(ports, p)
-	}
-
-	placement := &Placement{
-		Engine: engine,
-		Ports:  ports,
 	}
 
 	var (
@@ -67,15 +62,18 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	}
 
 	return &Container{
-		ID:          container.Id,
-		Image:       container.Image,
-		Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
-		Memory:      float64(info.Config.Memory / 1024 / 1024),
-		Environment: env,
-		Hostname:    info.Config.Hostname,
-		Domainname:  info.Config.Domainname,
-		Type:        cType,
-		Labels:      labels,
-		Placement:   placement,
+		ID:     container.Id,
+		Engine: engine,
+		Ports:  ports,
+		Image: &Image{
+			Image:       container.Image,
+			Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
+			Memory:      float64(info.Config.Memory / 1024 / 1024),
+			Environment: env,
+			Hostname:    info.Config.Hostname,
+			Domainname:  info.Config.Domainname,
+			Type:        cType,
+			Labels:      labels,
+		},
 	}, nil
 }

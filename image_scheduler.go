@@ -12,7 +12,7 @@ import (
 type ImageScheduler struct {
 }
 
-func (i *ImageScheduler) Schedule(c *Container, e *Engine) (bool, error) {
+func (i *ImageScheduler) Schedule(c *Image, e *Engine) (bool, error) {
 	fullImage := c.Image
 
 	if !strings.Contains(fullImage, ":") {

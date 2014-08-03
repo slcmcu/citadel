@@ -3,8 +3,6 @@ package citadel
 import (
 	"errors"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -52,12 +50,12 @@ func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 	return m
 }
 
-// ScheduleContainer uses the schedulers registered with the cluster and finds
+// ScheduleImage uses the schedulers registered with the cluster and finds
 // a resource that is able to run the container.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
-func (m *ClusterManager) ScheduleContainer(c *Container) (*Container, error) {
-	if err := ValidateContainer(c); err != nil {
+func (m *ClusterManager) Schedule(i *Image) (*Container, error) {
+	if err := ValidateImage(i); err != nil {
 		return nil, err
 	}
 
@@ -69,10 +67,8 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Container, error) {
 		m.timer.UpdateSince(started)
 	}()
 
-	m.logger.Printf("task=%q image=%q cpus=%f memory=%f type=%q\n", "schedule", c.Image, c.Cpus, c.Memory, c.Type)
-
 	// find the correct scheduler for the container's type
-	scheduler := m.schedulers[c.Type]
+	scheduler := m.schedulers[i.Type]
 
 	if scheduler == nil {
 		return nil, ErrNoSchedulerForType
@@ -86,7 +82,7 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Container, error) {
 			return nil, err
 		}
 
-		canrun, err := scheduler.Schedule(c, e)
+		canrun, err := scheduler.Schedule(i, e)
 		if err != nil {
 			return nil, err
 		}
@@ -96,29 +92,23 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Container, error) {
 		}
 	}
 
-	m.logger.Printf("task=%q image=%q resource.count=%d\n", "schedule", c.Image, len(accepted))
+	container := &Container{
+		Image: i,
+	}
 
 	// check with the resource manager to ensure that the engines that the scheduler is able
 	// to run the container and to place the container on the resource with the best utilization
 	// score to maximize effenciency
-	engine, err := m.resourceManager.PlaceContainer(c, accepted)
+	engine, err := m.resourceManager.PlaceContainer(container, accepted)
 	if err != nil {
 		return nil, err
 	}
 
-	m.logger.Printf("task=%q image=%q placement=%q\n", "schedule", c.Image, engine.Addr)
-
-	c.Placement = &Placement{
-		Engine: engine,
-	}
-
-	id, err := m.runContainer(c)
-	if err != nil {
+	if err := engine.Run(container); err != nil {
 		return nil, err
 	}
-	c.ID = id
 
-	return c, nil
+	return container, nil
 }
 
 // AddEngine adds a new engine to the cluster for use
@@ -158,41 +148,6 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	m.schedulers[tpe] = s
 
 	return nil
-}
-
-func (m *ClusterManager) runContainer(c *Container) (string, error) {
-	containerId, err := c.Run(c.Placement.Engine)
-	if err != nil {
-		return "", err
-	}
-
-	info, err := c.Placement.Engine.client.InspectContainer(containerId)
-	if err != nil {
-		return "", err
-	}
-
-	for pp, b := range info.NetworkSettings.Ports {
-		parts := strings.Split(pp, "/")
-		rawPort, proto := parts[0], parts[1]
-
-		port, err := strconv.Atoi(b[0].HostPort)
-		if err != nil {
-			return "", err
-		}
-
-		containerPort, err := strconv.Atoi(rawPort)
-		if err != nil {
-			return "", err
-		}
-
-		c.Placement.Ports = append(c.Placement.Ports, &Port{
-			Proto:         proto,
-			Port:          port,
-			ContainerPort: containerPort,
-		})
-	}
-
-	return containerId, nil
 }
 
 // ListContainers returns all the running containers in the cluster

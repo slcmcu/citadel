@@ -39,13 +39,13 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 }
 
 func run(w http.ResponseWriter, r *http.Request) {
-	var container *citadel.Container
+	var container *citadel.Image
 	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	transaction, err := clusterManager.ScheduleContainer(container)
+	transaction, err := clusterManager.Schedule(container)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

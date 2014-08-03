@@ -9,24 +9,26 @@ import (
 type UniqueScheduler struct {
 }
 
-func (u *UniqueScheduler) Schedule(c *Container, e *Engine) (bool, error) {
-	if u.hasContainer(c, e.containers) {
+func (u *UniqueScheduler) Schedule(c *Image, e *Engine) (bool, error) {
+	if u.hasImage(c, e.containers) {
 		return false, nil
 	}
+
 	return true, nil
 }
 
-func (u *UniqueScheduler) hasContainer(container *Container, containers []*Container) bool {
-	fullImage := container.Image
+func (u *UniqueScheduler) hasImage(i *Image, containers []*Container) bool {
+	fullImage := i.Image
 
 	if !strings.Contains(fullImage, ":") {
 		fullImage = fmt.Sprintf("%s:latest", fullImage)
 	}
 
 	for _, c := range containers {
-		if c.Image == fullImage {
+		if c.Image.Image == fullImage {
 			return true
 		}
 	}
+
 	return false
 }

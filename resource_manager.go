@@ -13,21 +13,21 @@ func newEngineManger(logger *log.Logger) *ResourceManager {
 	}
 }
 
-// PlaceContainer uses the provided engines to make a decision on which resource the container
+// PlaceImage uses the provided engines to make a decision on which resource the container
 // should run based on best utilization of the engines.
 func (r *ResourceManager) PlaceContainer(c *Container, engines []*Engine) (*Engine, error) {
 	scores := []*score{}
 
 	for _, re := range engines {
-		if re.Memory < c.Memory || re.Cpus < c.Cpus {
+		if re.Memory < c.Image.Memory || re.Cpus < c.Image.Cpus {
 			continue
 		}
 
 		cpus, memory := re.containers.totalCpuAndMemory()
 
 		var (
-			cpuScore    = ((cpus + c.Cpus) / re.Cpus) * 100.0
-			memoryScore = ((memory + c.Memory) / re.Memory) * 100.0
+			cpuScore    = ((cpus + c.Image.Cpus) / re.Cpus) * 100.0
+			memoryScore = ((memory + c.Image.Memory) / re.Memory) * 100.0
 			total       = ((cpuScore + memoryScore) / 200.0) * 100.0
 		)
 
