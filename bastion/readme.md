@@ -35,11 +35,11 @@ Create the following `go-demo.json`:
 
 Then use `curl` to start the container:
 
-`curl -d @go-demo.json <bastion-host-ip:8080>/`
+`curl -d @go-demo.json <bastion-host-ip:8080>/run`
 
 For example, if you are running bastion local:
 
-`curl -d @go-demo.json http://127.0.0.1:8080/`
+`curl -d @go-demo.json http://127.0.0.1:8080/run`
 
 Bastion will pull the image and then start the container.  Bastion will return the error if one occurs otherwise it will return a `201 Created` on success (no content).
 
