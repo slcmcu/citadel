@@ -63,9 +63,8 @@ func run(w http.ResponseWriter, r *http.Request) {
 
 	var transactions []*citadel.Transaction
 	for i := 0; i < count; i++ {
-		c := new(citadel.Container)
-		*c = *container
-		t, err := clusterManager.ScheduleContainer(c)
+		cc := *container
+		t, err := clusterManager.ScheduleContainer(&cc)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
