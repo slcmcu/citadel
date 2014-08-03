@@ -27,11 +27,16 @@ func init() {
 }
 
 func destroy(w http.ResponseWriter, r *http.Request) {
-	engineId := r.FormValue("engine")
-	containerId := r.FormValue("container")
-
-	if err := clusterManager.RemoveContainer(engineId, containerId); err != nil {
+	var container *citadel.Container
+	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if err := clusterManager.RemoveContainer(container); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -39,21 +44,24 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 }
 
 func run(w http.ResponseWriter, r *http.Request) {
-	var container *citadel.Image
-	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
+	var image *citadel.Image
+	if err := json.NewDecoder(r.Body).Decode(&image); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
-	transaction, err := clusterManager.Schedule(container)
+	container, err := clusterManager.Schedule(image)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	if err := json.NewEncoder(w).Encode(transaction); err != nil {
+	if err := json.NewEncoder(w).Encode(container); err != nil {
 		logger.Println(err)
 	}
 }
@@ -116,8 +124,10 @@ func main() {
 	r.HandleFunc("/containers", containers).Methods("GET")
 	r.HandleFunc("/run", run).Methods("POST")
 	r.HandleFunc("/destroy", destroy).Methods("DELETE")
+	r.HandleFunc("/engines", engines).Methods("GET")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
+
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
 		logger.Fatal(err)
 	}

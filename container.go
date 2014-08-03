@@ -1,5 +1,6 @@
 package citadel
 
+// Container is a running instance
 type Container struct {
 	// ID is the container's id
 	ID string `json:"id,omitempty"`

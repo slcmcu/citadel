@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rcrowley/go-metrics"
-	"github.com/samalba/dockerclient"
 )
 
 var (
@@ -50,8 +49,9 @@ func NewClusterManager(engines []*Engine, logger *log.Logger) *ClusterManager {
 	return m
 }
 
-// ScheduleImage uses the schedulers registered with the cluster and finds
-// a resource that is able to run the container.
+// Schedule uses the schedulers registered with the cluster and finds
+// a resource that is able to run the image.  If successful a container with the runtime
+// information about where and how it was run will be returned.
 //
 // If not scheduling decision can be made an ErrUnableToSchedule error is returned.
 func (m *ClusterManager) Schedule(i *Image) (*Container, error) {
@@ -183,20 +183,19 @@ func (m *ClusterManager) ListEngines() ([]*Engine, error) {
 
 // RemoveContainer will iterate over all the engines in the cluster and first kill
 // the container then remove it complete from the engine
-func (m *ClusterManager) RemoveContainer(engineId string, containerId string) error {
+func (m *ClusterManager) RemoveContainer(container *Container) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	if eng, ok := m.engines[engineId]; ok {
-		if err := eng.client.KillContainer(containerId); err != nil {
-			if err != dockerclient.ErrNotFound {
-				return err
-			}
+	if eng, ok := m.engines[container.Engine.ID]; ok {
+		if err := eng.client.KillContainer(container.ID); err != nil {
+			return err
 		}
 
-		if err := eng.client.RemoveContainer(containerId); err != nil {
+		if err := eng.client.RemoveContainer(container.ID); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

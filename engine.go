@@ -36,7 +36,6 @@ func (e *Engine) Run(c *Container) error {
 		client = e.client
 		i      = c.Image
 	)
-
 	c.Engine = e
 
 	for k, v := range i.Environment {
