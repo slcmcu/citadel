@@ -9,8 +9,8 @@ import (
 
 // Container is a docker container running on a specific engine
 type Container struct {
-	// Name is the unique container name
-	Name string `json:"name,omitempty"`
+	// Id is the container id
+	Id string `json:"id,omitempty"`
 
 	// Image is the docker image to base the container off of
 	Image string `json:"image,omitempty"`
@@ -49,7 +49,7 @@ type Container struct {
 	Placement *Placement `json:"placement,omitempty"`
 }
 
-func (c *Container) Run(e *Engine) error {
+func (c *Container) Run(e *Engine) (string, error) {
 	var (
 		env    = []string{}
 		client = e.client
@@ -92,21 +92,22 @@ func (c *Container) Run(e *Engine) error {
 	}
 
 retry:
-	if _, err := client.CreateContainer(config, c.Name); err != nil {
+	cc, err := client.CreateContainer(config, "")
+	if err != nil {
 		if err != dockerclient.ErrNotFound {
-			return err
+			return "", err
 		}
 
 		if err := client.PullImage(c.Image, "latest"); err != nil {
-			return err
+			return "", err
 		}
 
 		goto retry
 	}
 
-	return client.StartContainer(c.Name, hostConfig)
+	return cc, client.StartContainer(cc, hostConfig)
 }
 
 func (c *Container) Kill(e *Engine) error {
-	return e.client.KillContainer(c.Name)
+	return e.client.KillContainer(c.Id)
 }

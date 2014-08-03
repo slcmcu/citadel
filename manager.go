@@ -112,9 +112,11 @@ func (m *ClusterManager) ScheduleContainer(c *Container) (*Transaction, error) {
 		Engine: engine,
 	}
 
-	if err := m.runContainer(c); err != nil {
+	id, err := m.runContainer(c)
+	if err != nil {
 		return nil, err
 	}
+	t.ContainerId = id
 
 	return t, nil
 }
@@ -158,14 +160,15 @@ func (m *ClusterManager) RegisterScheduler(tpe string, s Scheduler) error {
 	return nil
 }
 
-func (m *ClusterManager) runContainer(c *Container) error {
-	if err := c.Run(c.Placement.Engine); err != nil {
-		return err
+func (m *ClusterManager) runContainer(c *Container) (string, error) {
+	containerId, err := c.Run(c.Placement.Engine)
+	if err != nil {
+		return "", err
 	}
 
-	info, err := c.Placement.Engine.client.InspectContainer(c.Name)
+	info, err := c.Placement.Engine.client.InspectContainer(containerId)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	c.Placement.InternalIP = info.NetworkSettings.IpAddress
@@ -176,12 +179,12 @@ func (m *ClusterManager) runContainer(c *Container) error {
 
 		port, err := strconv.Atoi(b[0].HostPort)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		containerPort, err := strconv.Atoi(rawPort)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		c.Placement.Ports = append(c.Placement.Ports, &Port{
@@ -191,7 +194,7 @@ func (m *ClusterManager) runContainer(c *Container) error {
 		})
 	}
 
-	return nil
+	return containerId, nil
 }
 
 // ListContainers returns all the running containers in the cluster
@@ -227,23 +230,20 @@ func (m *ClusterManager) ListEngines() ([]*Engine, error) {
 
 // RemoveContainer will iterate over all the engines in the cluster and first kill
 // the container then remove it complete from the engine
-func (m *ClusterManager) RemoveContainer(c *Container) error {
+func (m *ClusterManager) RemoveContainer(engineId string, containerId string) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	for _, engine := range m.engines {
-		if err := c.Kill(engine); err != nil {
-			if err == dockerclient.ErrNotFound {
-				continue
+	if eng, ok := m.engines[engineId]; ok {
+		if err := eng.client.KillContainer(containerId); err != nil {
+			if err != dockerclient.ErrNotFound {
+				return err
 			}
-
-			return err
 		}
 
-		if err := engine.client.RemoveContainer(c.Name); err != nil {
+		if err := eng.client.RemoveContainer(containerId); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }

@@ -27,13 +27,10 @@ func init() {
 }
 
 func destroy(w http.ResponseWriter, r *http.Request) {
-	var container *citadel.Container
-	if err := json.NewDecoder(r.Body).Decode(&container); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	engineId := r.FormValue("engine")
+	containerId := r.FormValue("container")
 
-	if err := clusterManager.RemoveContainer(container); err != nil {
+	if err := clusterManager.RemoveContainer(engineId, containerId); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -118,7 +115,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/containers", containers).Methods("GET")
 	r.HandleFunc("/run", run).Methods("POST")
-	r.HandleFunc("/destroy", destroy).Methods("POST")
+	r.HandleFunc("/destroy", destroy).Methods("GET")
 
 	logger.Printf("bastion listening on %s\n", config.ListenAddr)
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {

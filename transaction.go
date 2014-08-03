@@ -11,6 +11,9 @@ type Transaction struct {
 
 	// Container is the current container that is being scheduled
 	Container *Container `json:"container,omitempty"`
+
+	// Id of the launched container
+	ContainerId string `json:"containerId,omitempty"`
 }
 
 func newTransaction(c *Container) *Transaction {

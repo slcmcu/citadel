@@ -18,7 +18,6 @@ Create the following `go-demo.json`:
 
 ```
 {
-    "name": "bastion-demo",
     "image": "ehazlett/go-demo",
     "hostname": "bastion-demo.example.com",
     "domain": "example.com",
@@ -47,5 +46,5 @@ Bastion will pull the image and then start the container.  Bastion will return t
 Currently the following schedulers are implemented and exposed as instance "types":
 
 * `service`: this will only run the container if the host matches the labels
-* `unique`: this will only run the container on hosts that do not have another instance running
+* `unique`: this will only run the container on hosts that do not have another instance running with the same image
 * `multi`: this uses a combination of both `service` and `unique` for placement

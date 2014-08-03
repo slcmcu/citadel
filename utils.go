@@ -16,8 +16,6 @@ func ValidateContainer(c *Container) error {
 		return fmt.Errorf("container cannot have memory equal to 0")
 	case c.Image == "":
 		return fmt.Errorf("container must have an image")
-	case c.Name == "":
-		return fmt.Errorf("container must have a name")
 	case c.Type == "":
 		return fmt.Errorf("container must have a type")
 	}
@@ -70,7 +68,7 @@ func asCitadelContainer(container *dockerclient.Container, engine *Engine) (*Con
 	}
 
 	return &Container{
-		Name:        strings.TrimPrefix(info.Name, "/"),
+		Id:          container.Id,
 		Image:       container.Image,
 		Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
 		Memory:      float64(info.Config.Memory / 1024 / 1024),
