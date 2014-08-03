@@ -1,5 +1,10 @@
 package citadel
 
+import (
+	"fmt"
+	"strings"
+)
+
 // UniqueScheduler only returns engines that do not have the image running
 type UniqueScheduler struct {
 }
@@ -12,8 +17,14 @@ func (u *UniqueScheduler) Schedule(c *Container, e *Engine) (bool, error) {
 }
 
 func (u *UniqueScheduler) hasContainer(container *Container, containers []*Container) bool {
+	fullImage := container.Image
+
+	if !strings.Contains(fullImage, ":") {
+		fullImage = fmt.Sprintf("%s:latest", fullImage)
+	}
+
 	for _, c := range containers {
-		if c.Name == container.Name {
+		if c.Image == fullImage {
 			return true
 		}
 	}
