@@ -32,9 +32,9 @@ func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Co
 	var ports []*Port
 	for _, port := range container.Ports {
 		p := &Port{
-			Proto:     port.Type,
-			Port:      port.PublicPort,
-			ImagePort: port.PrivatePort,
+			Proto:         port.Type,
+			Port:          port.PublicPort,
+			ContainerPort: port.PrivatePort,
 		}
 		ports = append(ports, p)
 	}

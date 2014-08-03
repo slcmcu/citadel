@@ -115,9 +115,9 @@ func (e *Engine) updatePortInformation(c *Container) error {
 		}
 
 		c.Ports = append(c.Ports, &Port{
-			Proto:     proto,
-			Port:      port,
-			ImagePort: containerPort,
+			Proto:         proto,
+			Port:          port,
+			ContainerPort: containerPort,
 		})
 	}
 
