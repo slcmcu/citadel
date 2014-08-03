@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/citadel/citadel"
@@ -48,16 +49,34 @@ func run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transaction, err := clusterManager.ScheduleContainer(container)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	count := 1
+	qCount := r.FormValue("count")
+	if qCount != "" {
+		v, err := strconv.Atoi(qCount)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		count = v
+	}
+	logger.Printf("count: %s\n", count)
+
+	var transactions []*citadel.Transaction
+	for i := 0; i < count; i++ {
+		c := new(citadel.Container)
+		*c = *container
+		t, err := clusterManager.ScheduleContainer(c)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		transactions = append(transactions, t)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(transaction); err != nil {
-		logger.Println(err)
+	if err := json.NewEncoder(w).Encode(&transactions); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
