@@ -1,15 +1,17 @@
-package citadel
+package scheduler
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/citadel/citadel"
 )
 
 // UniqueScheduler only returns engines that do not have the image running
 type UniqueScheduler struct {
 }
 
-func (u *UniqueScheduler) Schedule(c *Image, e *Engine) (bool, error) {
+func (u *UniqueScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, error) {
 	if u.hasImage(c, e.containers) {
 		return false, nil
 	}
@@ -17,7 +19,7 @@ func (u *UniqueScheduler) Schedule(c *Image, e *Engine) (bool, error) {
 	return true, nil
 }
 
-func (u *UniqueScheduler) hasImage(i *Image, containers []*Container) bool {
+func (u *UniqueScheduler) hasImage(i *citadel.Image, containers []*citadel.Container) bool {
 	fullImage := i.Name
 
 	if !strings.Contains(fullImage, ":") {

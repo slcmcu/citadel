@@ -1,9 +1,10 @@
-package citadel
+package scheduler
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/citadel/citadel"
 	"github.com/samalba/dockerclient"
 )
 
@@ -12,7 +13,7 @@ import (
 type ImageScheduler struct {
 }
 
-func (i *ImageScheduler) Schedule(c *Image, e *Engine) (bool, error) {
+func (i *ImageScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, error) {
 	fullImage := c.Name
 
 	if !strings.Contains(fullImage, ":") {

@@ -1,4 +1,4 @@
-package citadel
+package scheduler
 
 import "testing"
 

@@ -1,21 +1,18 @@
-package citadel
+package scheduler
 
-import "log"
+import "github.com/citadel/citadel"
 
 // ResourceManager is responsible for managing the engines of the cluster
 type ResourceManager struct {
-	logger *log.Logger
 }
 
-func newEngineManger(logger *log.Logger) *ResourceManager {
-	return &ResourceManager{
-		logger: logger,
-	}
+func NewResourceManager() *ResourceManager {
+	return &ResourceManager{}
 }
 
 // PlaceImage uses the provided engines to make a decision on which resource the container
 // should run based on best utilization of the engines.
-func (r *ResourceManager) PlaceContainer(c *Container, engines []*Engine) (*Engine, error) {
+func (r *ResourceManager) PlaceContainer(c *citadel.Container, engines []*citadel.Engine) (*citadel.Engine, error) {
 	scores := []*score{}
 
 	for _, re := range engines {
@@ -30,8 +27,6 @@ func (r *ResourceManager) PlaceContainer(c *Container, engines []*Engine) (*Engi
 			memoryScore = ((memory + c.Image.Memory) / re.Memory) * 100.0
 			total       = ((cpuScore + memoryScore) / 200.0) * 100.0
 		)
-
-		r.logger.Printf("resource=%s score=%f\n", re.ID, total)
 
 		if total <= 100.0 {
 			scores = append(scores, &score{r: re, score: total})
