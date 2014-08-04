@@ -47,6 +47,24 @@ func (c *Cluster) RegisterScheduler(tpe string, s citadel.Scheduler) error {
 	return nil
 }
 
+func (c *Cluster) AddEngine(e *citadel.Engine) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	c.engines[e.ID] = e
+
+	return nil
+}
+
+func (c *Cluster) RemoveEngine(e *citadel.Engine) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	delete(c.engines, e.ID)
+
+	return nil
+}
+
 // ListContainers returns all the containers running in the cluster
 func (c *Cluster) ListContainers() ([]*citadel.Container, error) {
 	c.mux.Lock()
