@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/samalba/dockerclient"
 )
@@ -15,7 +16,8 @@ type Engine struct {
 	Memory float64  `json:"memory,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 
-	client *dockerclient.DockerClient
+	client       *dockerclient.DockerClient
+	eventHandler EventHandler
 }
 
 func (e *Engine) Connect(config *tls.Config) error {
@@ -151,4 +153,33 @@ func (e *Engine) Kill(container *Container, sig int) error {
 
 func (e *Engine) Remove(container *Container) error {
 	return e.client.RemoveContainer(container.ID)
+}
+
+func (e *Engine) Events(h EventHandler) error {
+	if e.eventHandler != nil {
+		return fmt.Errorf("event handler already set")
+	}
+	e.eventHandler = h
+
+	e.client.StartMonitorEvents(e.handler)
+
+	return nil
+}
+
+func (e *Engine) handler(ev *dockerclient.Event, args ...interface{}) {
+	event := &Event{
+		Engine: e,
+		Type:   ev.Status,
+		Time:   time.Unix(int64(ev.Time), 0),
+	}
+
+	container, err := FromDockerContainer(ev.Id, ev.From, e)
+	if err != nil {
+		// TODO: un fuck this shit, fuckin handler
+		return
+	}
+
+	event.Container = container
+
+	e.eventHandler.Handle(event)
 }

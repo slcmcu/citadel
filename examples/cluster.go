@@ -2,11 +2,22 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/citadel/citadel"
 	"github.com/citadel/citadel/cluster"
 	"github.com/citadel/citadel/scheduler"
 )
+
+type logHandler struct {
+}
+
+func (l *logHandler) Handle(e *citadel.Event) error {
+	log.Printf("type: %s time: %s image: %s container: %s\n",
+		e.Type, e.Time.Format(time.RubyDate), e.Container.Image.Name, e.Container.ID)
+
+	return nil
+}
 
 func main() {
 	boot2docker := &citadel.Engine{
@@ -31,6 +42,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := c.Events(&logHandler{}); err != nil {
+		log.Fatal(err)
+	}
+
 	image := &citadel.Image{
 		Name:   "crosbymichael/redis",
 		Memory: 256,
@@ -43,7 +58,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("%#v\n", container)
+	log.Printf("ran container %s\n", container.ID)
 
 	containers, err := c.ListContainers()
 	if err != nil {

@@ -1,11 +1,6 @@
 package eventbus
 
-import (
-	"time"
-
-	"github.com/citadel/citadel"
-	"github.com/samalba/dockerclient"
-)
+import "github.com/citadel/citadel"
 
 type EventBus struct {
 	engines  map[string]*citadel.Engine
@@ -31,24 +26,16 @@ func (b *EventBus) AddHandler(eventType string, h citadel.EventHandler) error {
 	return nil
 }
 
-func (b *EventBus) handler(e *dockerclient.Event, args ...interface{}) {
-	engine := args[0].(*citadel.Engine)
-
-	event := &citadel.Event{
-		Engine: engine,
-		Type:   e.Status,
-		Time:   time.Unix(int64(e.Time), 0),
+func (b *EventBus) Handle(event *citadel.Event) error {
+	for tpe, l := range b.handlers {
+		if tpe == "*" || tpe == event.Type {
+			for _, h := range l {
+				if err := h.Handle(event); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
-	container, err := citadel.FromDockerContainer(e.Id, e.From, engine)
-	if err != nil {
-		// TODO: un fuck this shit, fuckin handler
-		return
-	}
-
-	event.Container = container
-
-	for _, h := range b.handlers[event.Type] {
-		h.Handle(event)
-	}
+	return nil
 }

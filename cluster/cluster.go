@@ -38,6 +38,16 @@ func New(manager citadel.ResourceManager, engines ...*citadel.Engine) (*Cluster,
 	return c, nil
 }
 
+func (c *Cluster) Events(handler citadel.EventHandler) error {
+	for _, e := range c.engines {
+		if err := e.Events(handler); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Cluster) RegisterScheduler(tpe string, s citadel.Scheduler) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
