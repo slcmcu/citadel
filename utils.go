@@ -1,27 +1,10 @@
 package citadel
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/samalba/dockerclient"
 )
-
-// ValidateImage ensures that the required fields are set on the container
-func ValidateImage(c *Image) error {
-	switch {
-	case c.Cpus == 0:
-		return fmt.Errorf("container cannot have cpus equal to 0")
-	case c.Memory == 0:
-		return fmt.Errorf("container cannot have memory equal to 0")
-	case c.Name == "":
-		return fmt.Errorf("container must have an image name")
-	case c.Type == "":
-		return fmt.Errorf("container must have a type")
-	}
-
-	return nil
-}
 
 func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Container, error) {
 	info, err := engine.client.InspectContainer(container.Id)

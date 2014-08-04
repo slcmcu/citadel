@@ -1,14 +1,13 @@
 package citadel
 
 import (
+	"crypto/tls"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/samalba/dockerclient"
 )
-
-type containers []*Container
 
 type Engine struct {
 	ID     string   `json:"id,omitempty"`
@@ -17,19 +16,26 @@ type Engine struct {
 	Memory float64  `json:"memory,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 
-	client     *dockerclient.DockerClient
-	containers containers
+	client *dockerclient.DockerClient
 }
 
-func (d *Engine) SetClient(client *dockerclient.DockerClient) {
-	d.client = client
+func (e *Engine) Connect(config *tls.Config) error {
+	c, err := dockerclient.NewDockerClient(e.Addr, config)
+	if err != nil {
+		return err
+	}
+
+	e.client = c
+
+	return nil
 }
 
-func (d *Engine) Containers() containers {
-	return d.containers
+// IsConnected returns true if the engine is connected to a remote docker API
+func (e *Engine) IsConnected() bool {
+	return e.client != nil
 }
 
-func (e *Engine) Run(c *Container) error {
+func (e *Engine) Start(c *Container) error {
 	var (
 		err    error
 		env    = []string{}
@@ -141,31 +147,30 @@ func (e *Engine) updatePortInformation(c *Container) error {
 	return nil
 }
 
-func (d *Engine) loadContainers() error {
-	d.containers = containers{}
+func (e *Engine) ListContainers() ([]*Container, error) {
+	out := []*Container{}
 
-	c, err := d.client.ListContainers(false)
+	c, err := e.client.ListContainers(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, ci := range c {
-		cc, err := fromDockerContainer(&ci, d)
+		cc, err := fromDockerContainer(&ci, e)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		d.containers = append(d.containers, cc)
+		out = append(out, cc)
 	}
 
-	return nil
+	return out, nil
 }
 
-func (c containers) totalCpuAndMemory() (cpu float64, mem float64) {
-	for _, ci := range c {
-		cpu += ci.Image.Cpus
-		mem += ci.Image.Memory
-	}
+func (e *Engine) Kill(container *Container, sig int) error {
+	return e.client.KillContainer(container.ID)
+}
 
-	return cpu, mem
+func (e *Engine) Remove(container *Container) error {
+	return e.client.RemoveContainer(container.ID)
 }
