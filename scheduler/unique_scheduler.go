@@ -12,7 +12,12 @@ type UniqueScheduler struct {
 }
 
 func (u *UniqueScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, error) {
-	if u.hasImage(c, e.containers) {
+	containers, err := e.ListContainers()
+	if err != nil {
+		return false, err
+	}
+
+	if u.hasImage(c, containers) {
 		return false, nil
 	}
 

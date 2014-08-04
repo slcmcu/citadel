@@ -20,10 +20,11 @@ type Cluster struct {
 	resourceManager citadel.ResourceManager
 }
 
-func New(engines ...*citadel.Engine) (*Cluster, error) {
+func New(manager citadel.ResourceManager, engines ...*citadel.Engine) (*Cluster, error) {
 	c := &Cluster{
-		engines:    make(map[string]*citadel.Engine),
-		schedulers: make(map[string]citadel.Scheduler),
+		engines:         make(map[string]*citadel.Engine),
+		schedulers:      make(map[string]citadel.Scheduler),
+		resourceManager: manager,
 	}
 
 	for _, e := range engines {
@@ -35,6 +36,15 @@ func New(engines ...*citadel.Engine) (*Cluster, error) {
 	}
 
 	return c, nil
+}
+
+func (c *Cluster) RegisterScheduler(tpe string, s citadel.Scheduler) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	c.schedulers[tpe] = s
+
+	return nil
 }
 
 // ListContainers returns all the containers running in the cluster

@@ -1,6 +1,10 @@
 package scheduler
 
-import "github.com/citadel/citadel"
+import (
+	"fmt"
+
+	"github.com/citadel/citadel"
+)
 
 // ResourceManager is responsible for managing the engines of the cluster
 type ResourceManager struct {
@@ -20,7 +24,11 @@ func (r *ResourceManager) PlaceContainer(c *citadel.Container, engines []*citade
 			continue
 		}
 
-		cpus, memory := re.containers.totalCpuAndMemory()
+		containers, err := re.ListContainers()
+		if err != nil {
+			return nil, err
+		}
+		cpus, memory := r.totalCpuAndMemory(containers)
 
 		var (
 			cpuScore    = ((cpus + c.Image.Cpus) / re.Cpus) * 100.0
@@ -34,10 +42,19 @@ func (r *ResourceManager) PlaceContainer(c *citadel.Container, engines []*citade
 	}
 
 	if len(scores) == 0 {
-		return nil, ErrUnableToSchedule
+		return nil, fmt.Errorf("no resources avaliable to scheduler container")
 	}
 
 	sortScores(scores)
 
 	return scores[0].r, nil
+}
+
+func (r *ResourceManager) totalCpuAndMemory(containers []*citadel.Container) (cpus float64, memory float64) {
+	for _, c := range containers {
+		cpus += c.Image.Cpus
+		memory += c.Image.Memory
+	}
+
+	return
 }
