@@ -9,18 +9,33 @@ import (
 )
 
 func main() {
-	engines := []*citadel.Engine{}
+	boot2docker := &citadel.Engine{
+		ID:     "boot2docker",
+		Addr:   "http://192.168.56.101:2375",
+		Memory: 2048,
+		Cpus:   4,
+		Labels: []string{"local"},
+	}
 
-	c, err := cluster.New(scheduler.NewResourceManager(), engines...)
+	if err := boot2docker.Connect(nil); err != nil {
+		log.Fatal(err)
+	}
+
+	c, err := cluster.New(scheduler.NewResourceManager(), boot2docker)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer c.Close()
 
+	if err := c.RegisterScheduler("service", &scheduler.LabelScheduler{}); err != nil {
+		log.Fatal(err)
+	}
+
 	image := &citadel.Image{
 		Name:   "crosbymichael/redis",
 		Memory: 256,
 		Cpus:   0.4,
+		Type:   "service",
 	}
 
 	container, err := c.Start(image)
