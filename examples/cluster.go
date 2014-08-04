@@ -4,41 +4,18 @@ import (
 	"log"
 
 	"github.com/citadel/citadel"
+	"github.com/citadel/citadel/cluster"
+	"github.com/citadel/citadel/scheduler"
 )
 
 func main() {
 	engines := []*citadel.Engine{}
 
-	cluster, err := citadel.NewCluster(engines...)
+	c, err := cluster.New(scheduler.NewResourceManager(), engines...)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	events, err := cluster.Events()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	go func() {
-		for e := range events {
-			log.Println(e)
-		}
-	}()
-
-	containers, err := cluster.ListContainers()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	c1 := containers[0]
-
-	if err := cluster.Kill(c1, 9); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := cluster.Remove(c1); err != nil {
-		log.Fatal(err)
-	}
+	defer c.Close()
 
 	image := &citadel.Image{
 		Name:   "crosbymichael/redis",
@@ -46,8 +23,25 @@ func main() {
 		Cpus:   0.4,
 	}
 
-	container, err := cluster.Start("service", image)
+	container, err := c.Start(image)
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("%#v\n", container)
+
+	containers, err := c.ListContainers()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c1 := containers[0]
+
+	if err := c.Kill(c1, 9); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := c.Remove(c1); err != nil {
 		log.Fatal(err)
 	}
 }

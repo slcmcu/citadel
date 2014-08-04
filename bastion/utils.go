@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/citadel/citadel"
-	"github.com/samalba/dockerclient"
 )
 
 func getTLSConfig() (*tls.Config, error) {
@@ -48,12 +47,5 @@ func setEngineClient(docker *citadel.Engine, tlsConfig *tls.Config) error {
 		tc = tlsConfig
 	}
 
-	c, err := dockerclient.NewDockerClient(docker.Addr, tc)
-	if err != nil {
-		return err
-	}
-
-	docker.SetClient(c)
-
-	return nil
+	return docker.Connect(tc)
 }

@@ -5,20 +5,17 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/citadel/citadel"
+	"github.com/citadel/citadel/cluster"
+	"github.com/citadel/citadel/scheduler"
 	"github.com/gorilla/mux"
-	"github.com/rcrowley/go-metrics"
 )
 
 var (
 	configPath     string
 	config         *Config
-	clusterManager *citadel.ClusterManager
-
-	logger = log.New(os.Stderr, "[bastion] ", log.LstdFlags)
+	clusterManager *cluster.Cluster
 )
 
 func init() {
@@ -34,7 +31,13 @@ func destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := clusterManager.RemoveContainer(container); err != nil {
+	if err := clusterManager.Kill(container, 9); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	if err := clusterManager.Remove(container); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
 		return
@@ -51,7 +54,7 @@ func run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	container, err := clusterManager.Schedule(image)
+	container, err := clusterManager.Start(image)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -62,7 +65,7 @@ func run(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	if err := json.NewEncoder(w).Encode(container); err != nil {
-		logger.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -70,7 +73,7 @@ func engines(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
 	if err := json.NewEncoder(w).Encode(config.Engines); err != nil {
-		logger.Println(err)
+		log.Println(err)
 	}
 }
 
@@ -83,37 +86,39 @@ func containers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(containers); err != nil {
-		logger.Println(err)
+		log.Println(err)
 	}
 }
 
 func main() {
 	if err := loadConfig(); err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	tlsConfig, err := getTLSConfig()
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	for _, d := range config.Engines {
 		if err := setEngineClient(d, tlsConfig); err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 
-	clusterManager = citadel.NewClusterManager(config.Engines, logger)
+	clusterManager, err = cluster.New(scheduler.NewResourceManager(), config.Engines...)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	go metrics.Log(metrics.DefaultRegistry, 10*time.Second, logger)
+	var (
+		labelScheduler  = &scheduler.LabelScheduler{}
+		uniqueScheduler = &scheduler.UniqueScheduler{}
 
-	labelScheduler := &citadel.LabelScheduler{}
-
-	uniqueScheduler := &citadel.UniqueScheduler{}
-
-	multiScheduler := citadel.NewMultiScheduler(
-		&citadel.LabelScheduler{},
-		&citadel.UniqueScheduler{},
+		multiScheduler = scheduler.NewMultiScheduler(
+			labelScheduler,
+			uniqueScheduler,
+		)
 	)
 
 	clusterManager.RegisterScheduler("service", labelScheduler)
@@ -126,9 +131,9 @@ func main() {
 	r.HandleFunc("/destroy", destroy).Methods("DELETE")
 	r.HandleFunc("/engines", engines).Methods("GET")
 
-	logger.Printf("bastion listening on %s\n", config.ListenAddr)
+	log.Printf("bastion listening on %s\n", config.ListenAddr)
 
 	if err := http.ListenAndServe(config.ListenAddr, r); err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 }
