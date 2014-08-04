@@ -1,9 +1,13 @@
-package citadel
+package scheduler
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/citadel/citadel"
+)
 
 type score struct {
-	r     *Engine
+	r     *citadel.Engine
 	score float64
 }
 

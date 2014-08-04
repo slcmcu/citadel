@@ -1,10 +1,10 @@
-package citadel
+package scheduler
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/samalba/dockerclient"
+	"github.com/citadel/citadel"
 )
 
 // ImageScheduler only returns engines that already have the image pulled
@@ -12,14 +12,14 @@ import (
 type ImageScheduler struct {
 }
 
-func (i *ImageScheduler) Schedule(c *Image, e *Engine) (bool, error) {
+func (i *ImageScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, error) {
 	fullImage := c.Name
 
 	if !strings.Contains(fullImage, ":") {
 		fullImage = fmt.Sprintf("%s:latest", fullImage)
 	}
 
-	images, err := e.client.ListImages()
+	images, err := e.ListImages()
 	if err != nil {
 		return false, err
 	}
@@ -31,12 +31,10 @@ func (i *ImageScheduler) Schedule(c *Image, e *Engine) (bool, error) {
 	return false, nil
 }
 
-func (i *ImageScheduler) containsImage(requested string, images []*dockerclient.Image) bool {
-	for _, img := range images {
-		for _, tag := range img.RepoTags {
-			if requested == tag {
-				return true
-			}
+func (i *ImageScheduler) containsImage(requested string, images []string) bool {
+	for _, tag := range images {
+		if requested == tag {
+			return true
 		}
 	}
 

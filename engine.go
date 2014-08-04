@@ -1,14 +1,13 @@
 package citadel
 
 import (
+	"crypto/tls"
 	"fmt"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/samalba/dockerclient"
 )
-
-type containers []*Container
 
 type Engine struct {
 	ID     string   `json:"id,omitempty"`
@@ -17,19 +16,27 @@ type Engine struct {
 	Memory float64  `json:"memory,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 
-	client     *dockerclient.DockerClient
-	containers containers
+	client       *dockerclient.DockerClient
+	eventHandler EventHandler
 }
 
-func (d *Engine) SetClient(client *dockerclient.DockerClient) {
-	d.client = client
+func (e *Engine) Connect(config *tls.Config) error {
+	c, err := dockerclient.NewDockerClient(e.Addr, config)
+	if err != nil {
+		return err
+	}
+
+	e.client = c
+
+	return nil
 }
 
-func (d *Engine) Containers() containers {
-	return d.containers
+// IsConnected returns true if the engine is connected to a remote docker API
+func (e *Engine) IsConnected() bool {
+	return e.client != nil
 }
 
-func (e *Engine) Run(c *Container) error {
+func (e *Engine) Start(c *Container) error {
 	var (
 		err    error
 		env    = []string{}
@@ -94,61 +101,85 @@ retry:
 	return e.updatePortInformation(c)
 }
 
+func (e *Engine) ListImages() ([]string, error) {
+	images, err := e.client.ListImages()
+	if err != nil {
+		return nil, err
+	}
+
+	out := []string{}
+
+	for _, i := range images {
+		for _, t := range i.RepoTags {
+			out = append(out, t)
+		}
+	}
+
+	return out, nil
+}
+
 func (e *Engine) updatePortInformation(c *Container) error {
 	info, err := e.client.InspectContainer(c.ID)
 	if err != nil {
 		return err
 	}
 
-	for pp, b := range info.NetworkSettings.Ports {
-		parts := strings.Split(pp, "/")
-		rawPort, proto := parts[0], parts[1]
-
-		port, err := strconv.Atoi(b[0].HostPort)
-		if err != nil {
-			return err
-		}
-
-		containerPort, err := strconv.Atoi(rawPort)
-		if err != nil {
-			return err
-		}
-
-		c.Ports = append(c.Ports, &Port{
-			Proto:         proto,
-			Port:          port,
-			ContainerPort: containerPort,
-		})
-	}
-
-	return nil
+	return parsePortInformation(info, c)
 }
 
-func (d *Engine) loadContainers() error {
-	d.containers = containers{}
+func (e *Engine) ListContainers() ([]*Container, error) {
+	out := []*Container{}
 
-	c, err := d.client.ListContainers(false)
+	c, err := e.client.ListContainers(false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, ci := range c {
-		cc, err := fromDockerContainer(&ci, d)
+		cc, err := FromDockerContainer(ci.Id, ci.Image, e)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		d.containers = append(d.containers, cc)
+		out = append(out, cc)
 	}
+
+	return out, nil
+}
+
+func (e *Engine) Kill(container *Container, sig int) error {
+	return e.client.KillContainer(container.ID)
+}
+
+func (e *Engine) Remove(container *Container) error {
+	return e.client.RemoveContainer(container.ID)
+}
+
+func (e *Engine) Events(h EventHandler) error {
+	if e.eventHandler != nil {
+		return fmt.Errorf("event handler already set")
+	}
+	e.eventHandler = h
+
+	e.client.StartMonitorEvents(e.handler)
 
 	return nil
 }
 
-func (c containers) totalCpuAndMemory() (cpu float64, mem float64) {
-	for _, ci := range c {
-		cpu += ci.Image.Cpus
-		mem += ci.Image.Memory
+func (e *Engine) handler(ev *dockerclient.Event, args ...interface{}) {
+	event := &Event{
+		Engine: e,
+		Type:   ev.Status,
+		Time:   time.Unix(int64(ev.Time), 0),
 	}
 
-	return cpu, mem
+	container, err := FromDockerContainer(ev.Id, ev.From, e)
+	if err != nil {
+		// TODO: un fuck this shit, fuckin handler
+		return
+	}
+
+	event.Container = container
+
+	e.eventHandler.Handle(event)
 }
