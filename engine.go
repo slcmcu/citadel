@@ -3,7 +3,6 @@ package citadel
 import (
 	"crypto/tls"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/samalba/dockerclient"
@@ -123,28 +122,7 @@ func (e *Engine) updatePortInformation(c *Container) error {
 		return err
 	}
 
-	for pp, b := range info.NetworkSettings.Ports {
-		parts := strings.Split(pp, "/")
-		rawPort, proto := parts[0], parts[1]
-
-		port, err := strconv.Atoi(b[0].HostPort)
-		if err != nil {
-			return err
-		}
-
-		containerPort, err := strconv.Atoi(rawPort)
-		if err != nil {
-			return err
-		}
-
-		c.Ports = append(c.Ports, &Port{
-			Proto:         proto,
-			Port:          port,
-			ContainerPort: containerPort,
-		})
-	}
-
-	return nil
+	return parsePortInformation(info, c)
 }
 
 func (e *Engine) ListContainers() ([]*Container, error) {
@@ -156,7 +134,7 @@ func (e *Engine) ListContainers() ([]*Container, error) {
 	}
 
 	for _, ci := range c {
-		cc, err := fromDockerContainer(&ci, e)
+		cc, err := FromDockerContainer(ci.Id, ci.Image, e)
 		if err != nil {
 			return nil, err
 		}

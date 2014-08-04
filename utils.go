@@ -1,25 +1,41 @@
 package citadel
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/samalba/dockerclient"
 )
 
-func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Container, error) {
-	info, err := engine.client.InspectContainer(container.Id)
-	if err != nil {
-		return nil, err
+func parsePortInformation(info *dockerclient.ContainerInfo, c *Container) error {
+	for pp, b := range info.NetworkSettings.Ports {
+		parts := strings.Split(pp, "/")
+		rawPort, proto := parts[0], parts[1]
+
+		port, err := strconv.Atoi(b[0].HostPort)
+		if err != nil {
+			return err
+		}
+
+		containerPort, err := strconv.Atoi(rawPort)
+		if err != nil {
+			return err
+		}
+
+		c.Ports = append(c.Ports, &Port{
+			Proto:         proto,
+			Port:          port,
+			ContainerPort: containerPort,
+		})
 	}
 
-	var ports []*Port
-	for _, port := range container.Ports {
-		p := &Port{
-			Proto:         port.Type,
-			Port:          port.PublicPort,
-			ContainerPort: port.PrivatePort,
-		}
-		ports = append(ports, p)
+	return nil
+}
+
+func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
+	info, err := engine.client.InspectContainer(id)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -44,12 +60,11 @@ func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Co
 		}
 	}
 
-	return &Container{
-		ID:     container.Id,
+	container := &Container{
+		ID:     id,
 		Engine: engine,
-		Ports:  ports,
 		Image: &Image{
-			Name:        container.Image,
+			Name:        image,
 			Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
 			Memory:      float64(info.Config.Memory / 1024 / 1024),
 			Environment: env,
@@ -58,5 +73,11 @@ func fromDockerContainer(container *dockerclient.Container, engine *Engine) (*Co
 			Type:        cType,
 			Labels:      labels,
 		},
-	}, nil
+	}
+
+	if err := parsePortInformation(info, container); err != nil {
+		return nil, err
+	}
+
+	return container, nil
 }
