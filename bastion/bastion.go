@@ -114,6 +114,7 @@ func main() {
 	var (
 		labelScheduler  = &scheduler.LabelScheduler{}
 		uniqueScheduler = &scheduler.UniqueScheduler{}
+		hostScheduler   = &scheduler.HostScheduler{}
 
 		multiScheduler = scheduler.NewMultiScheduler(
 			labelScheduler,
@@ -124,6 +125,7 @@ func main() {
 	clusterManager.RegisterScheduler("service", labelScheduler)
 	clusterManager.RegisterScheduler("unique", uniqueScheduler)
 	clusterManager.RegisterScheduler("multi", multiScheduler)
+	clusterManager.RegisterScheduler("host", hostScheduler)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/containers", containers).Methods("GET")
