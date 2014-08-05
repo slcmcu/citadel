@@ -1,9 +1,7 @@
 package scheduler
 
 import (
-	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/citadel/citadel"
 )
@@ -19,13 +17,15 @@ func (h *HostScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, err
 }
 
 func (h *HostScheduler) validHost(e *citadel.Engine, labels []string) bool {
-	parts := strings.Split(label, "host:")
-	if len(parts) != 2 {
-		return false
-	}
-	host := parts[1]
-	if e.ID == host {
-		return true
+	for _, label := range labels {
+		parts := strings.Split(label, "host:")
+		if len(parts) != 2 {
+			return false
+		}
+		host := parts[1]
+		if e.ID == host {
+			return true
+		}
 	}
 	return false
 }
