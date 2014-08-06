@@ -106,6 +106,18 @@ func (c *Cluster) Kill(container *citadel.Container, sig int) error {
 	return engine.Kill(container, sig)
 }
 
+func (c *Cluster) Stop(container *citadel.Container) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	engine := c.engines[container.Engine.ID]
+	if engine == nil {
+		return fmt.Errorf("engine with id %s is not in cluster", container.Engine.ID)
+	}
+
+	return engine.Stop(container)
+}
+
 func (c *Cluster) Remove(container *citadel.Container) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
