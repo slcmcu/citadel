@@ -151,6 +151,10 @@ func (e *Engine) Kill(container *Container, sig int) error {
 	return e.client.KillContainer(container.ID)
 }
 
+func (e *Engine) Stop(container *Container) error {
+	return e.client.StopContainer(container.ID, 8)
+}
+
 func (e *Engine) Remove(container *Container) error {
 	return e.client.RemoveContainer(container.ID)
 }
