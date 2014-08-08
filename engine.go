@@ -31,6 +31,10 @@ func (e *Engine) Connect(config *tls.Config) error {
 	return nil
 }
 
+func (e *Engine) SetClient(c *dockerclient.DockerClient) {
+	e.client = c
+}
+
 // IsConnected returns true if the engine is connected to a remote docker API
 func (e *Engine) IsConnected() bool {
 	return e.client != nil
