@@ -85,15 +85,9 @@ func (e *Engine) Start(c *Container, pullImage bool) error {
 		}
 	}
 
-	img := strings.Split(":", i.Name)
-	imageName := i.Name
-	imageTag := "latest"
-	if len(img) == 2 {
-		imageName = img[0]
-		imageTag = img[1]
-	}
+	imageInfo := parseImageName(i.Name)
 	if pullImage {
-		if err := client.PullImage(imageName, imageTag); err != nil {
+		if err := client.PullImage(imageInfo.Name, imageInfo.Tag); err != nil {
 			return err
 		}
 	}
@@ -104,7 +98,7 @@ retry:
 			return err
 		}
 
-		if err := client.PullImage(imageName, imageTag); err != nil {
+		if err := client.PullImage(imageInfo.Name, imageInfo.Tag); err != nil {
 			return err
 		}
 
