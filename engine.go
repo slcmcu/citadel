@@ -170,6 +170,10 @@ func (e *Engine) Events(h EventHandler) error {
 	return nil
 }
 
+func (e *Engine) String() string {
+	return fmt.Sprintf("engine %s addr %s", e.ID, e.Addr)
+}
+
 func (e *Engine) handler(ev *dockerclient.Event, args ...interface{}) {
 	event := &Event{
 		Engine: e,
