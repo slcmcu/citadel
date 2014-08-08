@@ -5,6 +5,9 @@ type Container struct {
 	// ID is the container's id
 	ID string `json:"id,omitempty"`
 
+	// Name is the container's name
+	Name string `json:"name,omitempty"`
+
 	// Image is the configuration from which the container was created
 	Image *Image `json:"image,omitempty"`
 

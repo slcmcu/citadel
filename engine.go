@@ -82,7 +82,7 @@ func (e *Engine) Start(c *Container) error {
 	}
 
 retry:
-	if c.ID, err = client.CreateContainer(config, ""); err != nil {
+	if c.ID, err = client.CreateContainer(config, c.Name); err != nil {
 		if err != dockerclient.ErrNotFound {
 			return err
 		}
