@@ -31,6 +31,10 @@ func (e *Engine) Connect(config *tls.Config) error {
 	return nil
 }
 
+func (e *Engine) SetClient(c *dockerclient.DockerClient) {
+	e.client = c
+}
+
 // IsConnected returns true if the engine is connected to a remote docker API
 func (e *Engine) IsConnected() bool {
 	return e.client != nil
@@ -82,7 +86,7 @@ func (e *Engine) Start(c *Container) error {
 	}
 
 retry:
-	if c.ID, err = client.CreateContainer(config, ""); err != nil {
+	if c.ID, err = client.CreateContainer(config, c.Name); err != nil {
 		if err != dockerclient.ErrNotFound {
 			return err
 		}
@@ -168,6 +172,10 @@ func (e *Engine) Events(h EventHandler) error {
 	e.client.StartMonitorEvents(e.handler)
 
 	return nil
+}
+
+func (e *Engine) String() string {
+	return fmt.Sprintf("engine %s addr %s", e.ID, e.Addr)
 }
 
 func (e *Engine) handler(ev *dockerclient.Event, args ...interface{}) {

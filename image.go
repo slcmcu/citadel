@@ -1,5 +1,7 @@
 package citadel
 
+import "fmt"
+
 // Image is a template for running a docker container
 type Image struct {
 	// Name is the docker image to base the container off of
@@ -34,4 +36,8 @@ type Image struct {
 
 	// UserData is user defined data that is passed to the container
 	UserData map[string][]string `json:"user_data,omitempty"`
+}
+
+func (i *Image) String() string {
+	return fmt.Sprintf("image %s type %s cpus %f memory %f", i.Name, i.Type, i.Cpus, i.Memory)
 }
