@@ -14,7 +14,7 @@ type Container struct {
 	Image *Image `json:"image,omitempty"`
 
 	// Engine is the engine that is runnnig the container
-	Engine *Engine `json:"engine",omitempty"`
+	Engine *Engine `json:"engine,omitempty"`
 
 	// Ports are the public port mappings for the container
 	Ports []*Port `json:"ports,omitempty"`

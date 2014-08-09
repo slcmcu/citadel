@@ -22,7 +22,7 @@ func (l *logHandler) Handle(e *citadel.Event) error {
 func main() {
 	boot2docker := &citadel.Engine{
 		ID:     "boot2docker",
-		Addr:   "http://192.168.56.101:2375",
+		Addr:   "http://192.168.56.102:2375",
 		Memory: 2048,
 		Cpus:   4,
 		Labels: []string{"local"},
@@ -53,7 +53,7 @@ func main() {
 		Type:   "service",
 	}
 
-	container, err := c.Start(image)
+	container, err := c.Start(image, false)
 	if err != nil {
 		log.Fatal(err)
 	}

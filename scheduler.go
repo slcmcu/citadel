@@ -8,5 +8,5 @@ type Scheduler interface {
 }
 
 type ResourceManager interface {
-	PlaceContainer(*Container, []*Engine) (*Engine, error)
+	PlaceContainer(*Container, []*EngineSnapshot) (*EngineSnapshot, error)
 }
