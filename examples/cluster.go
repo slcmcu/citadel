@@ -53,7 +53,7 @@ func main() {
 		Type:   "service",
 	}
 
-	container, err := c.Start(image)
+	container, err := c.Start(image, false)
 	if err != nil {
 		log.Fatal(err)
 	}
