@@ -130,7 +130,7 @@ func (c *Cluster) Remove(container *citadel.Container) error {
 	return engine.Remove(container)
 }
 
-func (c *Cluster) Start(image *citadel.Image) (*citadel.Container, error) {
+func (c *Cluster) Start(image *citadel.Image, pull bool) (*citadel.Container, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -167,7 +167,7 @@ func (c *Cluster) Start(image *citadel.Image) (*citadel.Container, error) {
 		return nil, err
 	}
 
-	if err := engine.Start(container); err != nil {
+	if err := engine.Start(container, pull); err != nil {
 		return nil, err
 	}
 

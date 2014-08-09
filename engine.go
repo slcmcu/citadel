@@ -40,7 +40,7 @@ func (e *Engine) IsConnected() bool {
 	return e.client != nil
 }
 
-func (e *Engine) Start(c *Container) error {
+func (e *Engine) Start(c *Container, pullImage bool) error {
 	var (
 		err    error
 		env    = []string{}
@@ -85,13 +85,20 @@ func (e *Engine) Start(c *Container) error {
 		}
 	}
 
+	imageInfo := parseImageName(i.Name)
+	if pullImage {
+		if err := client.PullImage(imageInfo.Name, imageInfo.Tag); err != nil {
+			return err
+		}
+	}
+
 retry:
 	if c.ID, err = client.CreateContainer(config, c.Name); err != nil {
 		if err != dockerclient.ErrNotFound {
 			return err
 		}
 
-		if err := client.PullImage(i.Name, "latest"); err != nil {
+		if err := client.PullImage(imageInfo.Name, imageInfo.Tag); err != nil {
 			return err
 		}
 

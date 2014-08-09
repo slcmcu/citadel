@@ -54,7 +54,7 @@ func run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	container, err := clusterManager.Start(image)
+	container, err := clusterManager.Start(image, false)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 

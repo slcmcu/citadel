@@ -7,6 +7,13 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
+type (
+	ImageInfo struct {
+		Name string
+		Tag  string
+	}
+)
+
 func parsePortInformation(info *dockerclient.ContainerInfo, c *Container) error {
 	for pp, b := range info.NetworkSettings.Ports {
 		parts := strings.Split(pp, "/")
@@ -82,4 +89,18 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 	}
 
 	return container, nil
+}
+
+func parseImageName(name string) *ImageInfo {
+	imageInfo := &ImageInfo{
+		Name: "",
+		Tag:  "latest",
+	}
+	img := strings.Split(":", name)
+	if len(img) == 2 {
+		imageInfo.Name = img[0]
+		imageInfo.Tag = img[1]
+	}
+
+	return imageInfo
 }
