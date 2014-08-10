@@ -207,6 +207,40 @@ func (c *Cluster) Engines() []*citadel.Engine {
 	return out
 }
 
+// Info returns information about the cluster
+func (c *Cluster) ClusterInfo() (*citadel.ClusterInfo, error) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	containerCount := 0
+	imageCount := 0
+	engineCount := len(c.engines)
+	totalCpu := 0.0
+	totalMemory := 0.0
+	for _, e := range c.engines {
+		c, err := e.ListContainers()
+		if err != nil {
+			return nil, err
+		}
+		i, err := e.ListImages()
+		if err != nil {
+			return nil, err
+		}
+		containerCount += len(c)
+		imageCount += len(i)
+		totalCpu += e.Cpus
+		totalMemory += e.Memory
+	}
+
+	return &citadel.ClusterInfo{
+		Cpus:           totalCpu,
+		Memory:         totalMemory,
+		ContainerCount: containerCount,
+		ImageCount:     imageCount,
+		EngineCount:    engineCount,
+	}, nil
+}
+
 // Close signals to the cluster that no other actions will be applied
 func (c *Cluster) Close() error {
 	return nil
