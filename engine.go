@@ -75,7 +75,7 @@ func (e *Engine) Start(c *Container, pullImage bool) error {
 	}
 
 	for _, b := range i.BindPorts {
-		key := fmt.Sprintf("%d/%s", b.Port, b.Proto)
+		key := fmt.Sprintf("%d/%s", b.ContainerPort, b.Proto)
 		config.ExposedPorts[key] = struct{}{}
 
 		hostConfig.PortBindings[key] = []dockerclient.PortBinding{
