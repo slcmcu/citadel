@@ -93,7 +93,7 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 
 func parseImageName(name string) *ImageInfo {
 	imageInfo := &ImageInfo{
-		Name: "",
+		Name: name,
 		Tag:  "latest",
 	}
 	img := strings.Split(":", name)
