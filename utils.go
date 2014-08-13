@@ -96,11 +96,10 @@ func parseImageName(name string) *ImageInfo {
 		Name: name,
 		Tag:  "latest",
 	}
-	img := strings.Split(":", name)
+	img := strings.Split(name, ":")
 	if len(img) == 2 {
 		imageInfo.Name = img[0]
 		imageInfo.Tag = img[1]
 	}
-
 	return imageInfo
 }
