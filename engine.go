@@ -166,6 +166,10 @@ func (e *Engine) Stop(container *Container) error {
 	return e.client.StopContainer(container.ID, 8)
 }
 
+func (e *Engine) Restart(container *Container, timeout int) error {
+	return e.client.RestartContainer(container.ID, timeout)
+}
+
 func (e *Engine) Remove(container *Container) error {
 	return e.client.RemoveContainer(container.ID)
 }
