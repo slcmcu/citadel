@@ -217,10 +217,16 @@ func (c *Cluster) ClusterInfo() (*citadel.ClusterInfo, error) {
 	engineCount := len(c.engines)
 	totalCpu := 0.0
 	totalMemory := 0.0
+	reservedCpus := 0.0
+	reservedMemory := 0.0
 	for _, e := range c.engines {
 		c, err := e.ListContainers()
 		if err != nil {
 			return nil, err
+		}
+		for _, cnt := range c {
+			reservedCpus += cnt.Image.Cpus
+			reservedMemory += cnt.Image.Memory
 		}
 		i, err := e.ListImages()
 		if err != nil {
@@ -238,6 +244,8 @@ func (c *Cluster) ClusterInfo() (*citadel.ClusterInfo, error) {
 		ContainerCount: containerCount,
 		ImageCount:     imageCount,
 		EngineCount:    engineCount,
+		ReservedCpus:   reservedCpus,
+		ReservedMemory: reservedMemory,
 	}, nil
 }
 
