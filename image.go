@@ -36,6 +36,20 @@ type Image struct {
 
 	// UserData is user defined data that is passed to the container
 	UserData map[string][]string `json:"user_data,omitempty"`
+
+	// Links are mappings to other containers running on the same engine
+	Links map[string]string `json:"links,omitempty"`
+
+	// RestartPolicy is the container restart policy if it exits
+	RestartPolicy RestartPolicy `json:"restart_policy,omitempty"`
+
+	// Publish tells the engine to expose ports the the container externally
+	Publish bool `json:"publish,omitempty"`
+}
+
+type RestartPolicy struct {
+	Name              string `json:"name,omitempty"`
+	MaximumRetryCount int    `json:"maximum_retry,omitempty"`
 }
 
 func (i *Image) String() string {
