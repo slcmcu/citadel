@@ -69,9 +69,19 @@ func (e *Engine) Start(c *Container, pullImage bool) error {
 		ExposedPorts: make(map[string]struct{}),
 	}
 
+	links := []string{}
+	for k, v := range i.Links {
+		links = append(links, fmt.Sprintf("%s:%s", k, v))
+	}
+
 	hostConfig := &dockerclient.HostConfig{
 		PublishAllPorts: len(i.BindPorts) == 0,
 		PortBindings:    make(map[string][]dockerclient.PortBinding),
+		Links:           links,
+		RestartPolicy: dockerclient.RestartPolicy{
+			Name:              i.RestartPolicy.Name,
+			MaximumRetryCount: i.RestartPolicy.MaximumRetryCount,
+		},
 	}
 
 	for _, b := range i.BindPorts {
@@ -92,17 +102,8 @@ func (e *Engine) Start(c *Container, pullImage bool) error {
 		}
 	}
 
-retry:
 	if c.ID, err = client.CreateContainer(config, c.Name); err != nil {
-		if err != dockerclient.ErrNotFound {
-			return err
-		}
-
-		if err := client.PullImage(imageInfo.Name, imageInfo.Tag); err != nil {
-			return err
-		}
-
-		goto retry
+		return err
 	}
 
 	if err := client.StartContainer(c.ID, hostConfig); err != nil {
