@@ -76,14 +76,14 @@ func (c *Cluster) RemoveEngine(e *citadel.Engine) error {
 }
 
 // ListContainers returns all the containers running in the cluster
-func (c *Cluster) ListContainers() ([]*citadel.Container, error) {
+func (c *Cluster) ListContainers(all bool) ([]*citadel.Container, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	out := []*citadel.Container{}
 
 	for _, e := range c.engines {
-		containers, err := e.ListContainers()
+		containers, err := e.ListContainers(all)
 		if err != nil {
 			return nil, err
 		}
@@ -118,6 +118,18 @@ func (c *Cluster) Stop(container *citadel.Container) error {
 	return engine.Stop(container)
 }
 
+func (c *Cluster) Restart(container *citadel.Container, timeout int) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	engine := c.engines[container.Engine.ID]
+	if engine == nil {
+		return fmt.Errorf("engine with id %s is not in cluster", container.Engine.ID)
+	}
+
+	return engine.Restart(container, timeout)
+}
+
 func (c *Cluster) Remove(container *citadel.Container) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -150,7 +162,7 @@ func (c *Cluster) Start(image *citadel.Image, pull bool) (*citadel.Container, er
 		}
 
 		if canrun {
-			containers, err := e.ListContainers()
+			containers, err := e.ListContainers(false)
 			if err != nil {
 				return nil, err
 			}
@@ -220,7 +232,7 @@ func (c *Cluster) ClusterInfo() (*citadel.ClusterInfo, error) {
 	reservedCpus := 0.0
 	reservedMemory := 0.0
 	for _, e := range c.engines {
-		c, err := e.ListContainers()
+		c, err := e.ListContainers(false)
 		if err != nil {
 			return nil, err
 		}

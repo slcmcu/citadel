@@ -139,10 +139,10 @@ func (e *Engine) updatePortInformation(c *Container) error {
 	return parsePortInformation(info, c)
 }
 
-func (e *Engine) ListContainers() ([]*Container, error) {
+func (e *Engine) ListContainers(all bool) ([]*Container, error) {
 	out := []*Container{}
 
-	c, err := e.client.ListContainers(false)
+	c, err := e.client.ListContainers(all)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +165,10 @@ func (e *Engine) Kill(container *Container, sig int) error {
 
 func (e *Engine) Stop(container *Container) error {
 	return e.client.StopContainer(container.ID, 8)
+}
+
+func (e *Engine) Restart(container *Container, timeout int) error {
+	return e.client.RestartContainer(container.ID, timeout)
 }
 
 func (e *Engine) Remove(container *Container) error {
