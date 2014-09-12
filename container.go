@@ -2,23 +2,36 @@ package citadel
 
 import "fmt"
 
-// Container is a running instance
-type Container struct {
-	// ID is the container's id
-	ID string `json:"id,omitempty"`
+type (
+	// Container is a running instance
+	Container struct {
+		// ID is the container's id
+		ID string `json:"id,omitempty"`
 
-	// Name is the container's name
-	Name string `json:"name,omitempty"`
+		// Name is the container's name
+		Name string `json:"name,omitempty"`
 
-	// Image is the configuration from which the container was created
-	Image *Image `json:"image,omitempty"`
+		// Image is the configuration from which the container was created
+		Image *Image `json:"image,omitempty"`
 
-	// Engine is the engine that is runnnig the container
-	Engine *Engine `json:"engine,omitempty"`
+		// Engine is the engine that is runnnig the container
+		Engine *Engine `json:"engine,omitempty"`
 
-	// Ports are the public port mappings for the container
-	Ports []*Port `json:"ports,omitempty"`
-}
+		// Ports are the public port mappings for the container
+		Ports []*Port `json:"ports,omitempty"`
+
+		// State is the docker state of the container
+		State *State `json:"state,omitempty"`
+	}
+	// State is the container state
+	State struct {
+		Running   bool   `json:"running,omitempty"`
+		Pid       int    `json:"pid,omitempty"`
+		ExitCode  int    `json:"exit_code,omitempty"`
+		StartedAt string `json:"started_at,omitempty"`
+		Ghost     bool   `json:"ghost,omitempty"`
+	}
+)
 
 func (c *Container) String() string {
 	name := c.ID

@@ -72,6 +72,13 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 	container := &Container{
 		ID:     id,
 		Engine: engine,
+		State: &State{
+			Running:   info.State.Running,
+			Pid:       info.State.Pid,
+			ExitCode:  info.State.ExitCode,
+			StartedAt: info.State.StartedAt,
+			Ghost:     info.State.Ghost,
+		},
 		Image: &Image{
 			Name:        image,
 			Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
