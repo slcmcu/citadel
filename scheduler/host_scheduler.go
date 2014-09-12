@@ -10,10 +10,11 @@ type HostScheduler struct {
 }
 
 func (h *HostScheduler) Schedule(c *citadel.Image, e *citadel.Engine) (bool, error) {
-	if len(c.Labels) > 0 && h.validHost(e, c.Labels) {
+	if len(c.Labels) == 0 {
 		return true, nil
 	}
-	return false, nil
+
+	return h.validHost(e, c.Labels), nil
 }
 
 func (h *HostScheduler) validHost(e *citadel.Engine, labels []string) bool {
@@ -22,10 +23,12 @@ func (h *HostScheduler) validHost(e *citadel.Engine, labels []string) bool {
 		if len(parts) != 2 {
 			return false
 		}
+
 		host := parts[1]
 		if e.ID == host {
 			return true
 		}
 	}
+
 	return false
 }

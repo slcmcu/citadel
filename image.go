@@ -45,6 +45,12 @@ type Image struct {
 
 	// Publish tells the engine to expose ports the the container externally
 	Publish bool `json:"publish,omitempty"`
+
+	// NetworkMode is the network mode for the container
+	NetworkMode string `json:"network_mode,omitempty"`
+
+	// ContainerName is the name set to the container
+	ContainerName string `json:"container_name,omitempty"`
 }
 
 type RestartPolicy struct {

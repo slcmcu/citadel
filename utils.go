@@ -38,6 +38,36 @@ func parsePortInformation(info *dockerclient.ContainerInfo, c *Container) error 
 		}
 	}
 
+	// if we are running in host network mode look at the exposed ports on the image
+	// to find out what ports are being exposed
+	if info.HostConfig.NetworkMode == "host" {
+		for k := range info.Config.ExposedPorts {
+			var (
+				rawPort string
+
+				parts = strings.Split(k, "/")
+				proto = "tcp"
+			)
+
+			switch len(parts) {
+			case 2:
+				rawPort, proto = parts[0], parts[1]
+			default:
+				rawPort = parts[0]
+			}
+
+			port, err := strconv.Atoi(rawPort)
+			if err != nil {
+				return err
+			}
+
+			c.Ports = append(c.Ports, &Port{
+				Proto: proto,
+				Port:  port,
+			})
+		}
+	}
+
 	return nil
 }
 
@@ -48,9 +78,11 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 	}
 
 	var (
-		cType  = ""
-		labels = []string{}
-		env    = make(map[string]string)
+		cType       = ""
+		state       = "stopped"
+		networkMode = "bridge"
+		labels      = []string{}
+		env         = make(map[string]string)
 	)
 
 	for _, e := range info.Config.Env {
@@ -69,9 +101,19 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 		}
 	}
 
+	if info.State.Running {
+		state = "running"
+	}
+
+	if m := info.HostConfig.NetworkMode; m != "" {
+		networkMode = m
+	}
+
 	container := &Container{
 		ID:     id,
 		Engine: engine,
+		Name:   info.Name,
+		State:  state,
 		Image: &Image{
 			Name:        image,
 			Cpus:        float64(info.Config.CpuShares) / 100.0 * engine.Cpus,
@@ -81,6 +123,11 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 			Domainname:  info.Config.Domainname,
 			Type:        cType,
 			Labels:      labels,
+			NetworkMode: networkMode,
+			RestartPolicy: RestartPolicy{
+				Name:              info.HostConfig.RestartPolicy.Name,
+				MaximumRetryCount: info.HostConfig.RestartPolicy.MaximumRetryCount,
+			},
 		},
 	}
 
@@ -96,10 +143,12 @@ func parseImageName(name string) *ImageInfo {
 		Name: name,
 		Tag:  "latest",
 	}
+
 	img := strings.Split(name, ":")
 	if len(img) == 2 {
 		imageInfo.Name = img[0]
 		imageInfo.Tag = img[1]
 	}
+
 	return imageInfo
 }

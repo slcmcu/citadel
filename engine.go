@@ -75,13 +75,14 @@ func (e *Engine) Start(c *Container, pullImage bool) error {
 	}
 
 	hostConfig := &dockerclient.HostConfig{
-		PublishAllPorts: len(i.BindPorts) == 0,
+		PublishAllPorts: i.Publish,
 		PortBindings:    make(map[string][]dockerclient.PortBinding),
 		Links:           links,
 		RestartPolicy: dockerclient.RestartPolicy{
 			Name:              i.RestartPolicy.Name,
 			MaximumRetryCount: i.RestartPolicy.MaximumRetryCount,
 		},
+		NetworkMode: i.NetworkMode,
 	}
 
 	for _, b := range i.BindPorts {
