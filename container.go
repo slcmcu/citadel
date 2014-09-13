@@ -16,6 +16,9 @@ type Container struct {
 	// Engine is the engine that is runnnig the container
 	Engine *Engine `json:"engine,omitempty"`
 
+	// State is the container state ( running stopped )
+	State string `json:"state,omitempty"`
+
 	// Ports are the public port mappings for the container
 	Ports []*Port `json:"ports,omitempty"`
 }

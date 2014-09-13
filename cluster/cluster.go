@@ -189,6 +189,7 @@ func (c *Cluster) Start(image *citadel.Image, pull bool) (*citadel.Container, er
 
 	container := &citadel.Container{
 		Image: image,
+		Name:  image.ContainerName,
 	}
 
 	s, err := c.resourceManager.PlaceContainer(container, accepted)
