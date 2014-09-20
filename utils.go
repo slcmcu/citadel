@@ -126,6 +126,8 @@ func FromDockerContainer(id, image string, engine *Engine) (*Container, error) {
 			Volumes:     vols,
 			VolumesFrom: info.HostConfig.VolumesFrom,
 			Environment: env,
+			Cmd:         info.Config.Cmd,
+			Entrypoint:  info.Config.Entrypoint,
 			Hostname:    info.Config.Hostname,
 			Domainname:  info.Config.Domainname,
 			Type:        cType,
